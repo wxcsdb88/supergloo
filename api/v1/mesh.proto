@@ -10,6 +10,7 @@ message MeshConfig {
     MeshType meshType = 1;
     Encryption encryption = 2;
     Ingress ingress = 3;
+    repeated Route routes = 4;
 }
 
 // TODO: Eventually we want to plug in new meshes easier, but for now it's useful to enumerate in the config
