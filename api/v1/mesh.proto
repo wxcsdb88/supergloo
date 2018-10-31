@@ -4,3 +4,22 @@ option go_package = "github.com/supergloo/pkg/api/v1";
 
 import "gogoproto/gogo.proto";
 option (gogoproto.equal_all) = true;
+
+// Any user-configurable settings for a service mesh
+message MeshConfig {
+    repeated Identity identities = 1;
+    repeated Policy policies = 2;
+    repeated Route routes = 3;
+}
+
+message Identity {
+    string name = 1;
+}
+
+message Policy {
+
+}
+
+message Route {
+
+}
