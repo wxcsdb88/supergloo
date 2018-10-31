@@ -18,6 +18,9 @@ enum MeshType {
     LINKERD1 = 1;
 }
 
+// Initial API thoughts based on potential user workflows: https://github.com/solo-io/supergloo/wiki/User-Workflows
+// Notes on what Itsio and Linkerd1 support on wiki: https://github.com/solo-io/supergloo/wiki
+
 // Defines mesh-level configuration for encryption. Supports communication within a mesh and through ingress.
 // Communicating between TLS and non-TLS enabled services is not supported. TODO: Is this ok?
 // TODO: What do we need to support communication across mesh?
@@ -31,6 +34,45 @@ message Encryption {
     string certSecret = 2;
 }
 
+// Defines Ingress for the service mesh. The Ingress port is 80 for HTTP with no TLS, and 443 for HTTP with TLS.
 message Ingress {
-    
+    // The name of the gateway. In Istio, a Gateway is configured with this name, and a VirtualService references
+    // this gateway name. In Linkerd1, an Ingress is configured with this name.
+    string name = 1;
+    repeated IngressHost host = 2;
 }
+
+message IngressHost {
+    string host = 1;
+    repeated Path paths = 2;
+}
+
+message Path {
+    string pathPrefix = 1;
+    Destination destination = 2;
+}
+
+message Destination {
+    // In Itsio, this is the name of the Kubernetes VirtualService. In Linkerd1, this is the name of the Kubernetes Service.
+    string name = 1;
+    int32 port = 2;
+    map<string,string> labels = 3;
+}
+
+// This is a single route, of which there may be many for a VirtualService or Service. This is a nice abstraction because
+// it is easier to reason about how to apply a single route on different meshes. It's not a nice abstraction because it is
+// a much more limited set of route configuration options than what itsio supports, and it may not be obvious how to apply
+// all the routes for a particular name. Just a straw man to start discussing routing use cases and glooshot.
+message Route {
+    string name = 1;
+    string host = 2;
+    string pathPrefix = 3;
+    string rewrite = 4;
+    Destination destination = 5;
+    repeated RoutePlugin routePlugins = 6;
+}
+
+message RoutePlugin {
+    // ... delay, abort, weights
+}
+
