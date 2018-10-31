@@ -5,9 +5,23 @@ option go_package = "github.com/solo-io/supergloo/pkg/api/v1";
 import "gogoproto/gogo.proto";
 option (gogoproto.equal_all) = true;
 
+// Initial API thoughts based on potential user workflows: https://github.com/solo-io/supergloo/wiki/User-Workflows
+// TODO: Figure out...
+// How do we want to approach the issue of changes to this config being invalidated by changes to the underlying mesh?
+// For example, a user configures a route for fault detection here and then removes the route directly from the Itsio
+// virtual service. Or a user sets up encryption at this level then disables it directly in Kubernetes. What to do?
+// More generally, are we trying to represent a full snapshot of a mesh configuration? Or are we representing a set of
+// actions a user might take, and implement the support of those actions through the underlying mesh control plane?
+// If we're really modeling user actions, then potentially we should model the API more as a series of event configs
+// (delay requests from A to B, set up TLS encryption) rather than mesh configs (these routes are configured on the mesh,
+// TLS is enabled on the mesh).
+
+// Notes on what Itsio and Linkerd1 support on wiki: https://github.com/solo-io/supergloo/wiki
+
 // Any user-configurable settings for a service mesh
+// This isn't meant to cover install or initial configuration of the mesh
 message MeshConfig {
-    MeshType meshType = 1;
+    MeshMetadata metadata = 1;
     Encryption encryption = 2;
     Ingress ingress = 3;
     repeated Route routes = 4;
@@ -19,8 +33,10 @@ enum MeshType {
     LINKERD1 = 1;
 }
 
-// Initial API thoughts based on potential user workflows: https://github.com/solo-io/supergloo/wiki/User-Workflows
-// Notes on what Itsio and Linkerd1 support on wiki: https://github.com/solo-io/supergloo/wiki
+message MeshMetadata {
+    string name = 1;
+    MeshType meshType = 2;
+}
 
 // Defines mesh-level configuration for encryption. Supports communication within a mesh and through ingress.
 // Communicating between TLS and non-TLS enabled services is not supported. TODO: Is this ok?
