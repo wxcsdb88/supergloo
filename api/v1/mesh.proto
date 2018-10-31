@@ -7,19 +7,30 @@ option (gogoproto.equal_all) = true;
 
 // Any user-configurable settings for a service mesh
 message MeshConfig {
-    repeated Identity identities = 1;
-    repeated Policy policies = 2;
-    repeated Route routes = 3;
+    MeshType meshType = 1;
+    Encryption encryption = 2;
+    Ingress ingress = 3;
 }
 
-message Identity {
-    string name = 1;
+// TODO: Eventually we want to plug in new meshes easier, but for now it's useful to enumerate in the config
+enum MeshType {
+    ISTIO = 0;
+    LINKERD1 = 1;
 }
 
-message Policy {
-
+// Defines mesh-level configuration for encryption. Supports communication within a mesh and through ingress.
+// Communicating between TLS and non-TLS enabled services is not supported. TODO: Is this ok?
+// TODO: What do we need to support communication across mesh?
+message Encryption {
+    // If set to true, TLS is enabled across the entire mesh.
+    bool tlsEnabled = 1;
+    // If TLS is enabled, this is the name of the secret containing the certs.
+    // When using Istio, this should either be "istio.default", meaning Istio is using the default Citadel cert
+    // generation, or "cacert", which is a custom-uploaded Kubernetes secret containing all the cert files.
+    // When using Linkerd, this is the name of a secret that will be mounted into the linkerd Kubernetes DaemonSet.
+    string certSecret = 2;
 }
 
-message Route {
-
+message Ingress {
+    
 }
