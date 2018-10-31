@@ -21,11 +21,35 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
+// TODO: Eventually we want to plug in new meshes easier, but for now it's useful to enumerate in the config
+type MeshType int32
+
+const (
+	MeshType_ISTIO    MeshType = 0
+	MeshType_LINKERD1 MeshType = 1
+)
+
+var MeshType_name = map[int32]string{
+	0: "ISTIO",
+	1: "LINKERD1",
+}
+var MeshType_value = map[string]int32{
+	"ISTIO":    0,
+	"LINKERD1": 1,
+}
+
+func (x MeshType) String() string {
+	return proto.EnumName(MeshType_name, int32(x))
+}
+func (MeshType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_mesh_e49a5dc034cc67c7, []int{0}
+}
+
 // Any user-configurable settings for a service mesh
 type MeshConfig struct {
-	Identities           []*Identity `protobuf:"bytes,1,rep,name=identities" json:"identities,omitempty"`
-	Policies             []*Policy   `protobuf:"bytes,2,rep,name=policies" json:"policies,omitempty"`
-	Routes               []*Route    `protobuf:"bytes,3,rep,name=routes" json:"routes,omitempty"`
+	MeshType             MeshType    `protobuf:"varint,1,opt,name=meshType,proto3,enum=supergloo.solo.io.MeshType" json:"meshType,omitempty"`
+	Encryption           *Encryption `protobuf:"bytes,2,opt,name=encryption" json:"encryption,omitempty"`
+	Ingress              *Ingress    `protobuf:"bytes,3,opt,name=ingress" json:"ingress,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -35,7 +59,7 @@ func (m *MeshConfig) Reset()         { *m = MeshConfig{} }
 func (m *MeshConfig) String() string { return proto.CompactTextString(m) }
 func (*MeshConfig) ProtoMessage()    {}
 func (*MeshConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_42e58bd64c07b4fa, []int{0}
+	return fileDescriptor_mesh_e49a5dc034cc67c7, []int{0}
 }
 func (m *MeshConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MeshConfig.Unmarshal(m, b)
@@ -55,130 +79,116 @@ func (m *MeshConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MeshConfig proto.InternalMessageInfo
 
-func (m *MeshConfig) GetIdentities() []*Identity {
+func (m *MeshConfig) GetMeshType() MeshType {
 	if m != nil {
-		return m.Identities
+		return m.MeshType
+	}
+	return MeshType_ISTIO
+}
+
+func (m *MeshConfig) GetEncryption() *Encryption {
+	if m != nil {
+		return m.Encryption
 	}
 	return nil
 }
 
-func (m *MeshConfig) GetPolicies() []*Policy {
+func (m *MeshConfig) GetIngress() *Ingress {
 	if m != nil {
-		return m.Policies
+		return m.Ingress
 	}
 	return nil
 }
 
-func (m *MeshConfig) GetRoutes() []*Route {
-	if m != nil {
-		return m.Routes
-	}
-	return nil
-}
-
-type Identity struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+// Defines mesh-level configuration for encryption. Supports communication within a mesh and through ingress.
+// Communicating between TLS and non-TLS enabled services is not supported. TODO: Is this ok?
+// TODO: What do we need to support communication across mesh?
+type Encryption struct {
+	// If set to true, TLS is enabled across the entire mesh.
+	TlsEnabled bool `protobuf:"varint,1,opt,name=tlsEnabled,proto3" json:"tlsEnabled,omitempty"`
+	// If TLS is enabled, this is the name of the secret containing the certs.
+	// When using Istio, this should either be "istio.default", meaning Istio is using the default Citadel cert
+	// generation, or "cacert", which is a custom-uploaded Kubernetes secret containing all the cert files.
+	// When using Linkerd, this is the name of a secret that will be mounted into the linkerd Kubernetes DaemonSet.
+	CertSecret           string   `protobuf:"bytes,2,opt,name=certSecret,proto3" json:"certSecret,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Identity) Reset()         { *m = Identity{} }
-func (m *Identity) String() string { return proto.CompactTextString(m) }
-func (*Identity) ProtoMessage()    {}
-func (*Identity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_42e58bd64c07b4fa, []int{1}
+func (m *Encryption) Reset()         { *m = Encryption{} }
+func (m *Encryption) String() string { return proto.CompactTextString(m) }
+func (*Encryption) ProtoMessage()    {}
+func (*Encryption) Descriptor() ([]byte, []int) {
+	return fileDescriptor_mesh_e49a5dc034cc67c7, []int{1}
 }
-func (m *Identity) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Identity.Unmarshal(m, b)
+func (m *Encryption) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Encryption.Unmarshal(m, b)
 }
-func (m *Identity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Identity.Marshal(b, m, deterministic)
+func (m *Encryption) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Encryption.Marshal(b, m, deterministic)
 }
-func (dst *Identity) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Identity.Merge(dst, src)
+func (dst *Encryption) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Encryption.Merge(dst, src)
 }
-func (m *Identity) XXX_Size() int {
-	return xxx_messageInfo_Identity.Size(m)
+func (m *Encryption) XXX_Size() int {
+	return xxx_messageInfo_Encryption.Size(m)
 }
-func (m *Identity) XXX_DiscardUnknown() {
-	xxx_messageInfo_Identity.DiscardUnknown(m)
+func (m *Encryption) XXX_DiscardUnknown() {
+	xxx_messageInfo_Encryption.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Identity proto.InternalMessageInfo
+var xxx_messageInfo_Encryption proto.InternalMessageInfo
 
-func (m *Identity) GetName() string {
+func (m *Encryption) GetTlsEnabled() bool {
 	if m != nil {
-		return m.Name
+		return m.TlsEnabled
+	}
+	return false
+}
+
+func (m *Encryption) GetCertSecret() string {
+	if m != nil {
+		return m.CertSecret
 	}
 	return ""
 }
 
-type Policy struct {
+type Ingress struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Policy) Reset()         { *m = Policy{} }
-func (m *Policy) String() string { return proto.CompactTextString(m) }
-func (*Policy) ProtoMessage()    {}
-func (*Policy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_42e58bd64c07b4fa, []int{2}
+func (m *Ingress) Reset()         { *m = Ingress{} }
+func (m *Ingress) String() string { return proto.CompactTextString(m) }
+func (*Ingress) ProtoMessage()    {}
+func (*Ingress) Descriptor() ([]byte, []int) {
+	return fileDescriptor_mesh_e49a5dc034cc67c7, []int{2}
 }
-func (m *Policy) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Policy.Unmarshal(m, b)
+func (m *Ingress) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Ingress.Unmarshal(m, b)
 }
-func (m *Policy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Policy.Marshal(b, m, deterministic)
+func (m *Ingress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Ingress.Marshal(b, m, deterministic)
 }
-func (dst *Policy) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Policy.Merge(dst, src)
+func (dst *Ingress) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Ingress.Merge(dst, src)
 }
-func (m *Policy) XXX_Size() int {
-	return xxx_messageInfo_Policy.Size(m)
+func (m *Ingress) XXX_Size() int {
+	return xxx_messageInfo_Ingress.Size(m)
 }
-func (m *Policy) XXX_DiscardUnknown() {
-	xxx_messageInfo_Policy.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Policy proto.InternalMessageInfo
-
-type Route struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+func (m *Ingress) XXX_DiscardUnknown() {
+	xxx_messageInfo_Ingress.DiscardUnknown(m)
 }
 
-func (m *Route) Reset()         { *m = Route{} }
-func (m *Route) String() string { return proto.CompactTextString(m) }
-func (*Route) ProtoMessage()    {}
-func (*Route) Descriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_42e58bd64c07b4fa, []int{3}
-}
-func (m *Route) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Route.Unmarshal(m, b)
-}
-func (m *Route) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Route.Marshal(b, m, deterministic)
-}
-func (dst *Route) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Route.Merge(dst, src)
-}
-func (m *Route) XXX_Size() int {
-	return xxx_messageInfo_Route.Size(m)
-}
-func (m *Route) XXX_DiscardUnknown() {
-	xxx_messageInfo_Route.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Route proto.InternalMessageInfo
+var xxx_messageInfo_Ingress proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*MeshConfig)(nil), "supergloo.solo.io.MeshConfig")
-	proto.RegisterType((*Identity)(nil), "supergloo.solo.io.Identity")
-	proto.RegisterType((*Policy)(nil), "supergloo.solo.io.Policy")
-	proto.RegisterType((*Route)(nil), "supergloo.solo.io.Route")
+	proto.RegisterType((*Encryption)(nil), "supergloo.solo.io.Encryption")
+	proto.RegisterType((*Ingress)(nil), "supergloo.solo.io.Ingress")
+	proto.RegisterEnum("supergloo.solo.io.MeshType", MeshType_name, MeshType_value)
 }
 func (this *MeshConfig) Equal(that interface{}) bool {
 	if that == nil {
@@ -199,43 +209,28 @@ func (this *MeshConfig) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if len(this.Identities) != len(that1.Identities) {
+	if this.MeshType != that1.MeshType {
 		return false
 	}
-	for i := range this.Identities {
-		if !this.Identities[i].Equal(that1.Identities[i]) {
-			return false
-		}
-	}
-	if len(this.Policies) != len(that1.Policies) {
+	if !this.Encryption.Equal(that1.Encryption) {
 		return false
 	}
-	for i := range this.Policies {
-		if !this.Policies[i].Equal(that1.Policies[i]) {
-			return false
-		}
-	}
-	if len(this.Routes) != len(that1.Routes) {
+	if !this.Ingress.Equal(that1.Ingress) {
 		return false
-	}
-	for i := range this.Routes {
-		if !this.Routes[i].Equal(that1.Routes[i]) {
-			return false
-		}
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true
 }
-func (this *Identity) Equal(that interface{}) bool {
+func (this *Encryption) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	that1, ok := that.(*Identity)
+	that1, ok := that.(*Encryption)
 	if !ok {
-		that2, ok := that.(Identity)
+		that2, ok := that.(Encryption)
 		if ok {
 			that1 = &that2
 		} else {
@@ -247,7 +242,10 @@ func (this *Identity) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if this.Name != that1.Name {
+	if this.TlsEnabled != that1.TlsEnabled {
+		return false
+	}
+	if this.CertSecret != that1.CertSecret {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
@@ -255,38 +253,14 @@ func (this *Identity) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *Policy) Equal(that interface{}) bool {
+func (this *Ingress) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	that1, ok := that.(*Policy)
+	that1, ok := that.(*Ingress)
 	if !ok {
-		that2, ok := that.(Policy)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *Route) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*Route)
-	if !ok {
-		that2, ok := that.(Route)
+		that2, ok := that.(Ingress)
 		if ok {
 			that1 = &that2
 		} else {
@@ -304,24 +278,27 @@ func (this *Route) Equal(that interface{}) bool {
 	return true
 }
 
-func init() { proto.RegisterFile("mesh.proto", fileDescriptor_mesh_42e58bd64c07b4fa) }
+func init() { proto.RegisterFile("mesh.proto", fileDescriptor_mesh_e49a5dc034cc67c7) }
 
-var fileDescriptor_mesh_42e58bd64c07b4fa = []byte{
-	// 241 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0xbd, 0x4a, 0x04, 0x31,
-	0x14, 0x85, 0x89, 0xab, 0xe3, 0x78, 0xad, 0x0c, 0x16, 0x51, 0x61, 0x59, 0xd2, 0xb8, 0xcd, 0x26,
-	0xfe, 0x60, 0x65, 0xa7, 0x95, 0x85, 0x20, 0x29, 0xed, 0x76, 0xd7, 0x98, 0xb9, 0x38, 0x33, 0x37,
-	0x4c, 0x32, 0xc2, 0xbe, 0x91, 0xb5, 0x8f, 0xe4, 0x93, 0x48, 0x32, 0xba, 0x08, 0x4e, 0x77, 0x20,
-	0xdf, 0x77, 0x4e, 0xb8, 0x00, 0x8d, 0x0d, 0x95, 0xf2, 0x1d, 0x45, 0xe2, 0x47, 0xa1, 0xf7, 0xb6,
-	0x73, 0x35, 0x91, 0x0a, 0x54, 0x93, 0x42, 0x3a, 0x3d, 0x76, 0xe4, 0x28, 0xbf, 0xea, 0x94, 0x06,
-	0x50, 0x7e, 0x32, 0x80, 0x47, 0x1b, 0xaa, 0x7b, 0x6a, 0x5f, 0xd1, 0xf1, 0x5b, 0x00, 0x7c, 0xb1,
-	0x6d, 0xc4, 0x88, 0x36, 0x08, 0x36, 0x9b, 0xcc, 0x0f, 0xaf, 0xce, 0xd4, 0xbf, 0x32, 0xf5, 0x30,
-	0x40, 0x1b, 0xf3, 0x07, 0xe7, 0x37, 0x50, 0x7a, 0xaa, 0x71, 0x9d, 0xd4, 0x9d, 0xac, 0x9e, 0x8c,
-	0xa8, 0x4f, 0x09, 0xd9, 0x98, 0x2d, 0xca, 0x2f, 0xa0, 0xe8, 0xa8, 0x8f, 0x36, 0x88, 0x49, 0x96,
-	0xc4, 0x88, 0x64, 0x12, 0x60, 0x7e, 0x38, 0x39, 0x85, 0xf2, 0xf7, 0x03, 0x9c, 0xc3, 0x6e, 0xbb,
-	0x6c, 0xac, 0x60, 0x33, 0x36, 0x3f, 0x30, 0x39, 0xcb, 0x12, 0x8a, 0x61, 0x45, 0xee, 0xc3, 0x5e,
-	0x56, 0xef, 0x16, 0x1f, 0x5f, 0x53, 0xf6, 0x7c, 0xee, 0x30, 0x56, 0xfd, 0x4a, 0xad, 0xa9, 0xd1,
-	0xa9, 0x7a, 0x81, 0xa4, 0xb7, 0x63, 0xda, 0xbf, 0x39, 0xbd, 0xf4, 0xa8, 0xdf, 0x2f, 0x57, 0x45,
-	0xbe, 0xce, 0xf5, 0x77, 0x00, 0x00, 0x00, 0xff, 0xff, 0x1d, 0xda, 0x59, 0x09, 0x54, 0x01, 0x00,
+var fileDescriptor_mesh_e49a5dc034cc67c7 = []byte{
+	// 289 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0x41, 0x4e, 0x02, 0x31,
+	0x14, 0x86, 0xad, 0x46, 0x19, 0x9e, 0xc6, 0x60, 0xe3, 0x82, 0x60, 0x24, 0x04, 0x17, 0x12, 0x13,
+	0xda, 0x80, 0x26, 0xae, 0xdc, 0xa8, 0x2c, 0x26, 0x82, 0x26, 0x85, 0x95, 0x3b, 0x18, 0x6b, 0xa7,
+	0x71, 0x98, 0xd7, 0xb4, 0xc5, 0x84, 0x1b, 0x79, 0x06, 0x8f, 0xe3, 0x49, 0xcc, 0x0c, 0x30, 0x4e,
+	0x22, 0xbb, 0xe6, 0xbd, 0xef, 0xff, 0xfb, 0xb5, 0x00, 0x73, 0xe9, 0x62, 0x66, 0x2c, 0x7a, 0xa4,
+	0x27, 0x6e, 0x61, 0xa4, 0x55, 0x09, 0x22, 0x73, 0x98, 0x20, 0xd3, 0xd8, 0x38, 0x55, 0xa8, 0x30,
+	0xdf, 0xf2, 0xec, 0xb4, 0x02, 0xdb, 0xdf, 0x04, 0x60, 0x24, 0x5d, 0xfc, 0x80, 0xe9, 0xbb, 0x56,
+	0xf4, 0x16, 0x82, 0xac, 0x65, 0xb2, 0x34, 0xb2, 0x4e, 0x5a, 0xa4, 0x73, 0xdc, 0x3f, 0x63, 0xff,
+	0xaa, 0xd8, 0x68, 0x8d, 0x88, 0x02, 0xa6, 0x77, 0x00, 0x32, 0x8d, 0xec, 0xd2, 0x78, 0x8d, 0x69,
+	0x7d, 0xb7, 0x45, 0x3a, 0x87, 0xfd, 0xf3, 0x2d, 0xd1, 0x41, 0x01, 0x89, 0x52, 0x80, 0xde, 0x40,
+	0x45, 0xa7, 0xca, 0x4a, 0xe7, 0xea, 0x7b, 0x79, 0xb6, 0xb1, 0x25, 0x1b, 0xae, 0x08, 0xb1, 0x41,
+	0xdb, 0x43, 0x80, 0xbf, 0x3e, 0xda, 0x04, 0xf0, 0x89, 0x1b, 0xa4, 0xd3, 0x59, 0x22, 0xdf, 0x72,
+	0xfb, 0x40, 0x94, 0x26, 0xd9, 0x3e, 0x92, 0xd6, 0x8f, 0x65, 0x64, 0xa5, 0xcf, 0x15, 0xab, 0xa2,
+	0x34, 0x69, 0x57, 0xa1, 0xb2, 0xbe, 0xe1, 0xea, 0x02, 0x82, 0xcd, 0x1b, 0x69, 0x15, 0xf6, 0xc3,
+	0xf1, 0x24, 0x7c, 0xa9, 0xed, 0xd0, 0x23, 0x08, 0x86, 0xe1, 0xf3, 0xd3, 0x40, 0x3c, 0xf6, 0x6a,
+	0xe4, 0xbe, 0xfb, 0xf5, 0xd3, 0x24, 0xaf, 0x97, 0x4a, 0xfb, 0x78, 0x31, 0x63, 0x11, 0xce, 0x79,
+	0x26, 0xda, 0xd5, 0xc8, 0x0b, 0x75, 0x6e, 0x3e, 0x14, 0x9f, 0x1a, 0xcd, 0x3f, 0x7b, 0xb3, 0x83,
+	0xfc, 0xc3, 0xaf, 0x7f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x43, 0xad, 0x6b, 0x83, 0xa7, 0x01, 0x00,
 	0x00,
 }
