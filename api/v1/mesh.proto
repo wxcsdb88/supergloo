@@ -6,20 +6,11 @@ import "gogoproto/gogo.proto";
 option (gogoproto.equal_all) = true;
 
 // Initial API thoughts based on potential user workflows: https://github.com/solo-io/supergloo/wiki/User-Workflows
-// TODO: Figure out...
-// How do we want to approach the issue of changes to this config being invalidated by changes to the underlying mesh?
-// For example, a user configures a route for fault detection here and then removes the route directly from the Itsio
-// virtual service. Or a user sets up encryption at this level then disables it directly in Kubernetes. What to do?
-// More generally, are we trying to represent a full snapshot of a mesh configuration? Or are we representing a set of
-// actions a user might take, and implement the support of those actions through the underlying mesh control plane?
-// If we're really modeling user actions, then potentially we should model the API more as a series of event configs
-// (delay requests from A to B, set up TLS encryption) rather than mesh configs (these routes are configured on the mesh,
-// TLS is enabled on the mesh).
-
 // Notes on what Itsio and Linkerd1 support on wiki: https://github.com/solo-io/supergloo/wiki
 
 // Any user-configurable settings for a service mesh
 // This isn't meant to cover install or initial configuration of the mesh
+// The supergloo server would apply CRUD on MeshConfigs
 message MeshConfig {
     MeshMetadata metadata = 1;
     Encryption encryption = 2;
@@ -76,10 +67,7 @@ message Destination {
     map<string,string> labels = 3;
 }
 
-// This is a single route, of which there may be many for a VirtualService or Service. This is a nice abstraction because
-// it is easier to reason about how to apply a single route on different meshes. It's not a nice abstraction because it is
-// a much more limited set of route configuration options than what itsio supports, and it may not be obvious how to apply
-// all the routes for a particular name. Just a straw man to start discussing routing use cases and glooshot.
+// TODO: Do we require users to enumerate all mesh routes in the config? Or just the routes necessary for supergloo workflows?
 message Route {
     string name = 1;
     string host = 2;
