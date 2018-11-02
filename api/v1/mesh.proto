@@ -5,17 +5,34 @@ option go_package = "github.com/solo-io/supergloo/pkg/api/v1";
 import "gogoproto/gogo.proto";
 option (gogoproto.equal_all) = true;
 
+import "github.com/solo-io/solo-kit/api/v1/metadata.proto";
+import "github.com/solo-io/solo-kit/api/v1/status.proto";
+
+/*
+@solo-kit:resource.short_name=mesh
+@solo-kit:resource.plural_name=meshes
+@solo-kit:resource.resource_groups=translator.supergloo.solo.io
+
+ *
 // Initial API thoughts based on potential user workflows: https://github.com/solo-io/supergloo/wiki/User-Workflows
 // Notes on what Itsio and Linkerd1 support on wiki: https://github.com/solo-io/supergloo/wiki
 
 // Any user-configurable settings for a service mesh
 // This isn't meant to cover install or initial configuration of the mesh
 // The supergloo server would apply CRUD on MeshConfigs
-message MeshConfig {
-    MeshMetadata metadata = 1;
+*/
+message Mesh {
+    MeshMetadata mesh_metadata = 1;
     Encryption encryption = 2;
     Ingress ingress = 3;
     repeated Route routes = 4;
+
+    // Status indicates the validation status of this resource.
+    // Status is read-only by clients, and set by gloo during validation
+    core.solo.io.Status status = 6 [(gogoproto.nullable) = false, (gogoproto.moretags) = "testdiff:\"ignore\""];
+
+    // Metadata contains the object metadata for this resource
+    core.solo.io.Metadata metadata = 7 [(gogoproto.nullable) = false];
 }
 
 // TODO: Eventually we want to plug in new meshes easier, but for now it's useful to enumerate in the config

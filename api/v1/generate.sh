@@ -15,13 +15,15 @@ IN="$( cd -P "$( dirname "$SOURCE" )" >/dev/null && pwd )"
 OUT=${IN}/../../pkg/api/v1/
 
 GOGO_OUT_FLAG="--gogo_out=Mgoogle/protobuf/struct.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types:${GOPATH}/src/"
-PROTOC_FLAGS="-I=${GOPATH}/src/ \
+SOLO_KIT_FLAG="--plugin=protoc-gen-solo-kit=${GOPATH}/bin/protoc-gen-solo-kit --solo-kit_out=${PWD}/project.json:${OUT}"
+
+PROTOC_FLAGS="-I=${GOPATH}/src \
     -I=${GOPATH}/src/github.com/solo-io/solo-kit/api/external/proto \
-    -I=${GOPATH}/src/github.com/gogo/protobuf/ \
-    -I=${GOPATH}/src/github.com/gogo/protobuf/protobuf/ \
-    ${GOGO_OUT_FLAG}"
+    ${GOGO_OUT_FLAG} \
+    ${SOLO_KIT_FLAG}"
 
 mkdir -p ${OUT}
 protoc -I=${IN} \
+    -I=${GOPATH}/src/github.com/solo-io/solo-kit/projects/gloo/api/v1 \
     ${PROTOC_FLAGS} \
     ${IN}/*.proto
