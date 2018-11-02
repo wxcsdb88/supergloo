@@ -67,11 +67,9 @@ func MeshClientTest(namespace string, client MeshClient) {
 	Expect(r1.GetMetadata().Namespace).To(Equal(namespace))
 	Expect(r1.Metadata.ResourceVersion).NotTo(Equal(input.Metadata.ResourceVersion))
 	Expect(r1.Metadata.Ref()).To(Equal(input.Metadata.Ref()))
-	Expect(r1.MeshMetadata).To(Equal(input.MeshMetadata))
-	Expect(r1.Encryption).To(Equal(input.Encryption))
-	Expect(r1.Ingress).To(Equal(input.Ingress))
-	Expect(r1.Routes).To(Equal(input.Routes))
 	Expect(r1.Status).To(Equal(input.Status))
+	Expect(r1.TargetMesh).To(Equal(input.TargetMesh))
+	Expect(r1.Routing).To(Equal(input.Routing))
 
 	_, err = client.Write(input, clients.WriteOpts{
 		OverwriteExisting: true,
