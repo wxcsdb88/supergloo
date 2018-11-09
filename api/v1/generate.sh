@@ -2,7 +2,7 @@
 
 set -ex
 
-ROOT=../../../../../
+#ROOT=../../../../../
 ROOT=${GOPATH}/src
 
 PROJECTS=${ROOT}/github.com/solo-io/solo-kit/projects
