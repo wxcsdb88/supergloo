@@ -6,3 +6,7 @@
 .PHONY: init
 init:
 	git config core.hooksPath .githooks
+
+.PHONY: generated-code
+generated-code:
+	go generate ./... && gofmt -w pkg && goimports -w pkg

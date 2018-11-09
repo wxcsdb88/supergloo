@@ -7,8 +7,9 @@ option (gogoproto.equal_all) = true;
 
 import "github.com/solo-io/solo-kit/api/v1/metadata.proto";
 import "github.com/solo-io/solo-kit/api/v1/status.proto";
+import "github.com/solo-io/solo-kit/api/v1/ref.proto";
 
-import "route_config.proto";
+import "routing.proto";
 
 /*
 @solo-kit:resource.short_name=mesh
@@ -36,7 +37,7 @@ message Mesh {
     Routing routing = 1;
 
 //    MeshMetadata mesh_metadata = 99;
-//    Encryption encryption = 98;
+    Encryption encryption = 98;
 //    Ingress ingress = 80;
 //    repeated Route routes = 40;
 }
@@ -68,15 +69,16 @@ enum MeshType {
 //// Defines mesh-level configuration for encryption. Supports communication within a mesh and through ingress.
 //// Communicating between TLS and non-TLS enabled services is not supported. TODO: Is this ok?
 //// TODO: What do we need to support communication across mesh?
-//message Encryption {
-//    // If set to true, TLS is enabled across the entire mesh.
-//    bool tlsEnabled = 1;
-//    // If TLS is enabled, this is the name of the secret containing the certs.
-//    // When using Istio, this should either be "istio.default", meaning Istio is using the default Citadel cert
-//    // generation, or "cacert", which is a custom-uploaded Kubernetes secret containing all the cert files.
-//    // When using Linkerd, this is the name of a secret that will be mounted into the linkerd Kubernetes DaemonSet.
-//    string certSecret = 2;
-//}
+message Encryption {
+    // If set to true, TLS is enabled across the entire mesh.
+    bool tlsEnabled = 1;
+    // If TLS is enabled, this is the name of the secret containing the certs.
+    // When using Istio, this should either be "istio.default", meaning Istio is using the default Citadel cert
+    // generation, or "cacert", which is a custom-uploaded Kubernetes secret containing all the cert files.
+    // When using Linkerd, this is the name of a secret that will be mounted into the linkerd Kubernetes DaemonSet.
+    core.solo.io.ResourceRef secret = 2;
+}
+
 //
 //// Defines Ingress for the service mesh. The Ingress port is 80 for HTTP with no TLS, and 443 for HTTP with TLS.
 //message Ingress {

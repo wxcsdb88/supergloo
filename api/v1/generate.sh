@@ -2,28 +2,40 @@
 
 set -ex
 
-# for symlink compatibility
-# https://stackoverflow.com/questions/59895/getting-the-source-directory-of-a-bash-script-from-within
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
-  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
-done
+ROOT=${GOPATH}/src
 
-IN="$( cd -P "$( dirname "$SOURCE" )" >/dev/null && pwd )"
-OUT=${IN}/../../pkg/api/v1/
+PROJECTS=${ROOT}/github.com/solo-io/solo-kit/projects
+SUPERGLOO=${ROOT}/github.com/solo-io/supergloo
 
-GOGO_OUT_FLAG="--gogo_out=Mgoogle/protobuf/struct.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types:${GOPATH}/src/"
-SOLO_KIT_FLAG="--plugin=protoc-gen-solo-kit=${GOPATH}/bin/protoc-gen-solo-kit --solo-kit_out=${PWD}/project.json:${OUT}"
-
-PROTOC_FLAGS="-I=${GOPATH}/src \
-    -I=${GOPATH}/src/github.com/solo-io/solo-kit/api/external/proto \
-    ${GOGO_OUT_FLAG} \
-    ${SOLO_KIT_FLAG}"
+OUT=${SUPERGLOO}/pkg/api/v1/
 
 mkdir -p ${OUT}
-protoc -I=${IN} \
-    -I=${GOPATH}/src/github.com/solo-io/solo-kit/projects/gloo/api/v1 \
-    ${PROTOC_FLAGS} \
-    ${IN}/*.proto
+
+GLOO_IN=${PROJECTS}/gloo/api/v1/
+
+SUPERGLOO_IN=${SUPERGLOO}/api/v1/
+
+IMPORTS="-I=${GLOO_IN} \
+    -I=${SUPERGLOO_IN} \
+    -I=${ROOT}/github.com/solo-io/solo-kit/projects/gloo/api/v1 \
+    -I=${ROOT} \
+    -I=${ROOT}/github.com/solo-io/solo-kit/api/external/proto"
+
+# Run protoc once for gogo
+GOGO_FLAG="--gogo_out=Mgoogle/protobuf/struct.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/wrappers.proto=github.com/gogo/protobuf/types:${GOPATH}/src/"
+
+INPUT_PROTOS="${SUPERGLOO_IN}/*.proto"
+
+protoc ${IMPORTS} \
+    ${GOGO_FLAG} \
+    ${INPUT_PROTOS}
+
+# Run protoc once for solo kit
+SOLO_KIT_FLAG="--plugin=protoc-gen-solo-kit=${GOPATH}/bin/protoc-gen-solo-kit --solo-kit_out=${PWD}/project.json:${OUT}"
+
+INPUT_PROTOS="${SUPERGLOO_IN}/*.proto ${GLOO_IN}/upstream.proto"
+
+protoc ${IMPORTS} \
+    ${SOLO_KIT_FLAG} \
+    ${INPUT_PROTOS}
+
