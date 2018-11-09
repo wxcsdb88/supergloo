@@ -2,6 +2,7 @@ package translator_test
 
 import (
 	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
@@ -17,7 +18,7 @@ var _ = Describe("Syncer", func() {
 			Meshes: v1.MeshesByNamespace{
 				"mymesh": {
 					{
-						Metadata: core.Metadata{Namespace:"mymesh", Name:"yyaa"},
+						Metadata: core.Metadata{Namespace: "mymesh", Name: "yyaa"},
 					},
 				},
 			},
