@@ -5,28 +5,24 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/solo-io/solo-kit/pkg/api/v1/resources"
-	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
-
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources"
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/solo-kit/pkg/errors"
-
-	gloov1 "github.com/solo-io/solo-kit/projects/gloo/pkg/api/v1"
-
+	gloov1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 )
 
-type Syncer struct {
+type RoutingSyncer struct {
 	WriteSelector             map[string]string // for reconciling only our resources
 	WriteNamespace            string
 	DestinationRuleReconciler v1alpha3.DestinationRuleReconciler
 	VirtualServiceReconciler  v1alpha3.VirtualServiceReconciler
 }
 
-func (s *Syncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot) error {
+func (s *RoutingSyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot) error {
 	destinationRules := createDestinationRules(false, snap.Upstreams.List())
 	virtualServices, err := createVirtualServices(snap.Meshes.List(), snap.Upstreams.List())
 	if err != nil {
@@ -62,7 +58,7 @@ func (s *Syncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot) error {
 	return s.writeIstioCrds(ctx, destinationRules, virtualServices)
 }
 
-func (s *Syncer) writeIstioCrds(ctx context.Context, destinationRules v1alpha3.DestinationRuleList, virtualServices v1alpha3.VirtualServiceList) error {
+func (s *RoutingSyncer) writeIstioCrds(ctx context.Context, destinationRules v1alpha3.DestinationRuleList, virtualServices v1alpha3.VirtualServiceList) error {
 	opts := clients.ListOpts{
 		Ctx:      ctx,
 		Selector: s.WriteSelector,

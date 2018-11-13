@@ -5,22 +5,20 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
-	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
-	gloov1 "github.com/solo-io/solo-kit/projects/gloo/pkg/api/v1"
-	"github.com/solo-io/solo-kit/projects/gloo/pkg/api/v1/plugins/kubernetes"
-	"github.com/solo-io/supergloo/pkg/api/v1"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
+	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
+	gloov1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
+	"github.com/solo-io/supergloo/pkg/api/external/gloo/v1/plugins/kubernetes"
 	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
+	"github.com/solo-io/supergloo/pkg/api/v1"
+	. "github.com/solo-io/supergloo/pkg/translator/istio"
 	"k8s.io/client-go/tools/clientcmd"
-
-	. "github.com/solo-io/supergloo/pkg/translator"
 )
 
-var _ = Describe("Syncer", func() {
+var _ = Describe("RoutingSyncer", func() {
 	It("works", func() {
 		kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
 		cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
@@ -43,7 +41,7 @@ var _ = Describe("Syncer", func() {
 		err = drClient.Register()
 		Expect(err).NotTo(HaveOccurred())
 		drReconciler := v1alpha3.NewDestinationRuleReconciler(drClient)
-		s := &Syncer{
+		s := &RoutingSyncer{
 			WriteSelector:             map[string]string{"creatd_by": "syncer"},
 			WriteNamespace:            "gloo-system",
 			VirtualServiceReconciler:  vsReconciler,
@@ -65,7 +63,7 @@ var _ = Describe("Syncer", func() {
 									{
 										Route: []*v1.HTTPRouteDestination{
 											{
-												Destination: &gloov1.Destination{
+												AlternateDestination: &gloov1.Destination{
 													Upstream: core.ResourceRef{
 														Name:      "default-reviews-9080",
 														Namespace: "gloo-system",
