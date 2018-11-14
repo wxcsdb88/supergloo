@@ -10,6 +10,7 @@ import "github.com/solo-io/solo-kit/api/v1/status.proto";
 import "github.com/solo-io/solo-kit/api/v1/ref.proto";
 
 import "routing.proto";
+import "observability.proto";
 
 /*
 @solo-kit:resource.short_name=mesh
@@ -36,6 +37,7 @@ message Mesh {
 
     Routing routing = 1;
     Encryption encryption = 98;
+    Observability observability = 99;
 
 //    MeshMetadata mesh_metadata = 99;
 }
@@ -57,6 +59,7 @@ message KubeLocation {
 enum MeshType {
     ISTIO = 0;
     LINKERD1 = 1;
+    LINKERD2 = 2;
 }
 
 //message MeshMetadata {
