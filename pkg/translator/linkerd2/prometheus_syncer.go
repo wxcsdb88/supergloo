@@ -2,6 +2,11 @@ package linkerd2
 
 import (
 	"context"
+	"go.uber.org/multierr"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
@@ -13,6 +18,10 @@ import (
 )
 
 type PrometheusSyncer struct {
+	// it's okay for this to be nil, it's only used
+	// if the prometheus crd tells us to restart pods
+	// if the selector is set and this is nil, we don't have kube support enabled
+	Kube             kubernetes.Interface
 	PrometheusClient prometheusv1.ConfigClient // for reading/writing configmaps
 }
 
@@ -24,14 +33,15 @@ func (s *PrometheusSyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot
 	defer logger.Infof("end sync %v", snap.Hash())
 	logger.Debugf("%v", snap)
 
+	var errs error
 	for _, mesh := range snap.Meshes.List() {
 		logger.Infof("syncing mesh %v", mesh.Metadata.Ref())
 		if err := s.syncMesh(ctx, mesh); err != nil {
-			logger.Errorf("syncing mesh %v failed: %v", mesh.Metadata.Ref())
+			errs = multierr.Append(errs, errors.Wrapf(err, "syncing mesh %v failed", mesh.Metadata.Ref()))
 			continue
 		}
 	}
-	return nil
+	return errs
 }
 
 func (s *PrometheusSyncer) syncMesh(ctx context.Context, mesh *v1.Mesh) error {
@@ -62,14 +72,29 @@ func (s *PrometheusSyncer) syncMesh(ctx context.Context, mesh *v1.Mesh) error {
 	}
 
 	// TODO (ilackarms): make this syncer take scrape configs as an argument
-	changed := prometheusConfig.AddScrapeConfigs(linkerdScrapeConfigs)
+	changed := prometheusConfig.AddScrapeConfigs(LinkerdScrapeConfigs)
 	if !changed {
 		return nil
 	}
 
 	contextutils.LoggerFrom(ctx).Infof("syncing prometheus config for mesh %v", mesh.Metadata.Ref())
 
-	return s.writePrometheusConfig(ctx, configMap, prometheusConfig)
+	if err := s.writePrometheusConfig(ctx, configMap, prometheusConfig); err != nil {
+		return errors.Wrapf(err, "writing prometheus config")
+	}
+	// no pod labels specified, nothing to restart
+	if len(mesh.Observability.Prometheus.PodLabels) < 1 {
+		return nil
+	}
+
+	selector := mesh.Observability.Prometheus.PodLabels
+
+	// got this far, it means we're on kube and they want us to restart pods
+	if err := s.restartPods(ctx, configMap.Namespace, selector); err != nil {
+		return errors.Wrapf(err, "restarting prometheus pods")
+	}
+
+	return nil
 }
 
 //toodo:
@@ -102,6 +127,23 @@ func (s *PrometheusSyncer) writePrometheusConfig(ctx context.Context, ref core.R
 		return errors.Wrapf(err, "converting prometheus config to resource %v", ref)
 	}
 	desiredCfg.SetMetadata(originalCfg.Metadata)
-	_, err = s.PrometheusClient.Write(desiredCfg, clients.WriteOpts{Ctx: ctx, OverwriteExisting: true})
-	return err
+	if _, err := s.PrometheusClient.Write(desiredCfg, clients.WriteOpts{Ctx: ctx, OverwriteExisting: true}); err != nil {
+		return errors.Wrapf(err, "updating prometheus configmap")
+	}
+	return nil
+}
+
+// TODO (ilackarms / rickducott): generalize this function
+
+func (s *PrometheusSyncer) restartPods(ctx context.Context, namespace string, selector map[string]string) error {
+	if s.Kube == nil {
+		return errors.Errorf("kubernetes suppport is currently disabled. see SuperGloo documentation" +
+			" for utilizing pod restarts")
+	}
+	if err := s.Kube.CoreV1().Pods(namespace).DeleteCollection(nil, metav1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(selector).String(),
+	}); err != nil {
+		return errors.Wrapf(err, "restarting pods with selector %v", selector)
+	}
+	return nil
 }
