@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: supergloo-system
+
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: cluster-admin-supergloo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: supergloo-system
+
+---
+
+### Deployment
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: supergloo
+  namespace: supergloo-system
+  labels:
+    gloo: supergloo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      gloo: supergloo
+  template:
+    metadata:
+      labels:
+        gloo: supergloo
+    spec:
+      #TODO: remove before open source
+      imagePullSecrets:
+      - name: solo-bot-docker-hub # ${IMAGE_PULL_SECRET}
+      containers:
+      - name: supergloo
+        image: soloio/supergloo:dev
+        imagePullPolicy: IfNotPresent
