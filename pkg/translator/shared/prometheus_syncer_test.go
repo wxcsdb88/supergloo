@@ -98,7 +98,7 @@ var _ = Describe("PrometheusSyncer", func() {
 			meshType:      v1.MeshType_ISTIO,
 			scrapeConfigs: istio.IstioScrapeConfigs,
 		}),
-		table.Entry("istio", 31001, test{
+		table.Entry("linkerd2", 31001, test{
 			meshType:      v1.MeshType_LINKERD2,
 			scrapeConfigs: linkerd2.LinkerdScrapeConfigs,
 		}),
