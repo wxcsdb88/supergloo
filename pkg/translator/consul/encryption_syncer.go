@@ -10,17 +10,19 @@ import (
 	"github.com/solo-io/supergloo/pkg/api/v1"
 )
 
-func Sync(_ context.Context, snap *v1.TranslatorSnapshot) error {
+type ConsulSyncer struct{}
+
+func (c *ConsulSyncer) Sync(_ context.Context, snap *v1.TranslatorSnapshot) error {
 	for _, mesh := range snap.Meshes.List() {
 		switch mesh.TargetMesh.MeshType {
 		case v1.MeshType_CONSUL:
 			encryption := mesh.Encryption
 			if encryption == nil {
-				return nil
+				continue
 			}
 			encryptionSecret := encryption.Secret
 			if encryptionSecret == nil {
-				return nil
+				continue
 			}
 			secret, err := snap.Secrets.List().Find(encryptionSecret.Namespace, encryptionSecret.Name)
 			if err != nil {
