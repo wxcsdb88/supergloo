@@ -4,14 +4,14 @@ set -ex
 
 BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && cd ../../../../../.. >/dev/null && pwd )
 
-OUT=${BASE_DIR}/supergloo/pkg/api/external/istio/networking/v1alpha3/
+OUT=${BASE_DIR}/supergloo/pkg/api/external/istio/rbac/v1alpha1/
 
 mkdir -p ${OUT}
 
-ISTIO_IN=${BASE_DIR}/supergloo/api/external/istio/networking/v1alpha3/
+ISTIO_IN=${BASE_DIR}/supergloo/api/external/istio/rbac/v1alpha1/
 
 IMPORTS="-I=${ISTIO_IN} \
-    -I=${GOPATH}/src/github.com/solo-io/supergloo/api/external/gloo/v1 \
+    -I=${GOPATH}/src/github.com/solo-io/solo-kit/projects/gloo/api/v1 \
     -I=${GOPATH}/src \
     -I=${GOPATH}/src/github.com/solo-io/solo-kit/api/external"
 
