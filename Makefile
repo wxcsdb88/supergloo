@@ -66,4 +66,4 @@ supergloo-docker-push: supergloo-docker
 
 .PHONY: install-cli
 install-cli:
-	cd cli/cmd && go build -o $GOPATH/bin/supergloo
+	cd cli/cmd && go build -o $(GOPATH)/bin/supergloo
