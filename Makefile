@@ -58,3 +58,12 @@ supergloo-docker: $(OUTPUT_DIR)/supergloo-linux-amd64 $(OUTPUT_DIR)/Dockerfile.s
 
 supergloo-docker-push: supergloo-docker
 	docker push soloio/supergloo:$(VERSION)
+
+
+#----------------------------------------------------------------------------------
+# SuperGloo CLI
+#----------------------------------------------------------------------------------
+
+.PHONY: install-cli
+install-cli:
+	cd cli/cmd && go build -o $GOPATH/bin/supergloo
