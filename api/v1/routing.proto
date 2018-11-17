@@ -23,23 +23,11 @@ message DestinationRule {
 
     // Route Rules applied to In-Mesh-Service-to-Destination traffic
     repeated HTTPRule mesh_http_rules = 2;
-
-    // Route Rules applied to Ingress-to-Destination traffic
-    repeated HTTPRule ingress_http_rules = 1; // ignored
-}
-
-// origin of a request. typically a pod in the mesh
-message Source {
-    string name = 1;
-    map<string,string> selector = 2;
 }
 
 // Describes match conditions and actions for routing HTTP/1.1, HTTP2, and
 // gRPC traffic. See VirtualService for usage examples.
 message HTTPRule {
-    // the sources to which this rule will be applied
-    repeated Source sources = 75;
-
     repeated HTTPMatchRequest match = 1;
 
     repeated HTTPRouteDestination route = 2;
