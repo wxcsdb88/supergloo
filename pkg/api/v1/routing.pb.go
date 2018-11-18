@@ -25,18 +25,28 @@ const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 // global routing config for a single mesh
 type Routing struct {
-	// all of the http/routing config for each destination is contained here
-	DestinationRules     []*DestinationRule `protobuf:"bytes,1,rep,name=destination_rules,json=destinationRules" json:"destination_rules,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	// users define routes here
+	// routes can be assigned to services in the mesh, on the ingress, or both.
+	// routes define http request matchers and the destinations (services inside or outside the mesh)
+	// to which client requests are sent.
+	// Routing features can be added for specific routes without needing to modify the client or service.
+	// Features such as
+	// - retries
+	// - fault injection
+	// - request mirroring (shadowing)
+	// - cors
+	// and more are configrable here.
+	Routes               []*Route `protobuf:"bytes,1,rep,name=routes" json:"routes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *Routing) Reset()         { *m = Routing{} }
 func (m *Routing) String() string { return proto.CompactTextString(m) }
 func (*Routing) ProtoMessage()    {}
 func (*Routing) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{0}
+	return fileDescriptor_routing_5013e98e855c4cde, []int{0}
 }
 func (m *Routing) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Routing.Unmarshal(m, b)
@@ -56,68 +66,36 @@ func (m *Routing) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Routing proto.InternalMessageInfo
 
-func (m *Routing) GetDestinationRules() []*DestinationRule {
+func (m *Routing) GetRoutes() []*Route {
 	if m != nil {
-		return m.DestinationRules
+		return m.Routes
 	}
 	return nil
 }
 
 // Rules for traffic to a particular destination. Applied to any traffic regardless of source,
 // as long as the destination matches
-type DestinationRule struct {
-	// the destination to which these http rules are applied
-	Destination *v1.Destination `protobuf:"bytes,3,opt,name=destination" json:"destination,omitempty"`
-	// Route Rules applied to In-Mesh-Service-to-Destination traffic
-	MeshHttpRules        []*HTTPRule `protobuf:"bytes,2,rep,name=mesh_http_rules,json=meshHttpRules" json:"mesh_http_rules,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
-}
-
-func (m *DestinationRule) Reset()         { *m = DestinationRule{} }
-func (m *DestinationRule) String() string { return proto.CompactTextString(m) }
-func (*DestinationRule) ProtoMessage()    {}
-func (*DestinationRule) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{1}
-}
-func (m *DestinationRule) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DestinationRule.Unmarshal(m, b)
-}
-func (m *DestinationRule) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DestinationRule.Marshal(b, m, deterministic)
-}
-func (dst *DestinationRule) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DestinationRule.Merge(dst, src)
-}
-func (m *DestinationRule) XXX_Size() int {
-	return xxx_messageInfo_DestinationRule.Size(m)
-}
-func (m *DestinationRule) XXX_DiscardUnknown() {
-	xxx_messageInfo_DestinationRule.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DestinationRule proto.InternalMessageInfo
-
-func (m *DestinationRule) GetDestination() *v1.Destination {
-	if m != nil {
-		return m.Destination
-	}
-	return nil
-}
-
-func (m *DestinationRule) GetMeshHttpRules() []*HTTPRule {
-	if m != nil {
-		return m.MeshHttpRules
-	}
-	return nil
-}
-
-// Describes match conditions and actions for routing HTTP/1.1, HTTP2, and
-// gRPC traffic. See VirtualService for usage examples.
-type HTTPRule struct {
-	Match []*HTTPMatchRequest     `protobuf:"bytes,1,rep,name=match" json:"match,omitempty"`
-	Route []*HTTPRouteDestination `protobuf:"bytes,2,rep,name=route" json:"route,omitempty"`
+type Route struct {
+	// set to true if this route should be used for ingress traffic coming from outside the mesh
+	EnabledForIngress bool `protobuf:"varint,20,opt,name=enabled_for_ingress,json=enabledForIngress,proto3" json:"enabled_for_ingress,omitempty"`
+	// set to true if this route should apply to sidecars in the mesh
+	EnabledForMesh bool `protobuf:"varint,21,opt,name=enabled_for_mesh,json=enabledForMesh,proto3" json:"enabled_for_mesh,omitempty"`
+	// set these labels to apply this route to specific sidecars, selected by their labels
+	// see https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+	// note: if both options are diabled, this route will be inactive
+	// TODO ilackarms: not implemented
+	EnabledForLabels map[string]string `protobuf:"bytes,23,rep,name=enabled_for_labels,json=enabledForLabels" json:"enabled_for_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// Domains to match on. E.g. `www.solo.io`
+	// if empty this route will match requests for any domain.
+	// wildcard domains such as `*.solo.io` are supported, as well as the special `*` domain
+	// to match all domains
+	Domains []string `protobuf:"bytes,22,rep,name=domains" json:"domains,omitempty"`
+	// the set of attributes to match on http requests
+	RequestMatchers []*v1.Matcher `protobuf:"bytes,1,rep,name=request_matchers,json=requestMatchers" json:"request_matchers,omitempty"`
+	// the action to take when a request is matched
+	// for now this is limited to routing requests to upstream
+	// services
+	Action *v1.RouteAction `protobuf:"bytes,2,opt,name=action" json:"action,omitempty"`
 	// Timeout for HTTP requests.
 	Timeout *types.Duration `protobuf:"bytes,6,opt,name=timeout" json:"timeout,omitempty"`
 	// Retry policy for HTTP requests.
@@ -153,926 +131,133 @@ type HTTPRule struct {
 	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *HTTPRule) Reset()         { *m = HTTPRule{} }
-func (m *HTTPRule) String() string { return proto.CompactTextString(m) }
-func (*HTTPRule) ProtoMessage()    {}
-func (*HTTPRule) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{2}
+func (m *Route) Reset()         { *m = Route{} }
+func (m *Route) String() string { return proto.CompactTextString(m) }
+func (*Route) ProtoMessage()    {}
+func (*Route) Descriptor() ([]byte, []int) {
+	return fileDescriptor_routing_5013e98e855c4cde, []int{1}
 }
-func (m *HTTPRule) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_HTTPRule.Unmarshal(m, b)
+func (m *Route) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Route.Unmarshal(m, b)
 }
-func (m *HTTPRule) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_HTTPRule.Marshal(b, m, deterministic)
+func (m *Route) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Route.Marshal(b, m, deterministic)
 }
-func (dst *HTTPRule) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HTTPRule.Merge(dst, src)
+func (dst *Route) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Route.Merge(dst, src)
 }
-func (m *HTTPRule) XXX_Size() int {
-	return xxx_messageInfo_HTTPRule.Size(m)
+func (m *Route) XXX_Size() int {
+	return xxx_messageInfo_Route.Size(m)
 }
-func (m *HTTPRule) XXX_DiscardUnknown() {
-	xxx_messageInfo_HTTPRule.DiscardUnknown(m)
+func (m *Route) XXX_DiscardUnknown() {
+	xxx_messageInfo_Route.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_HTTPRule proto.InternalMessageInfo
+var xxx_messageInfo_Route proto.InternalMessageInfo
 
-func (m *HTTPRule) GetMatch() []*HTTPMatchRequest {
+func (m *Route) GetEnabledForIngress() bool {
 	if m != nil {
-		return m.Match
+		return m.EnabledForIngress
+	}
+	return false
+}
+
+func (m *Route) GetEnabledForMesh() bool {
+	if m != nil {
+		return m.EnabledForMesh
+	}
+	return false
+}
+
+func (m *Route) GetEnabledForLabels() map[string]string {
+	if m != nil {
+		return m.EnabledForLabels
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetRoute() []*HTTPRouteDestination {
+func (m *Route) GetDomains() []string {
 	if m != nil {
-		return m.Route
+		return m.Domains
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetTimeout() *types.Duration {
+func (m *Route) GetRequestMatchers() []*v1.Matcher {
+	if m != nil {
+		return m.RequestMatchers
+	}
+	return nil
+}
+
+func (m *Route) GetAction() *v1.RouteAction {
+	if m != nil {
+		return m.Action
+	}
+	return nil
+}
+
+func (m *Route) GetTimeout() *types.Duration {
 	if m != nil {
 		return m.Timeout
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetRetries() *HTTPRetry {
+func (m *Route) GetRetries() *HTTPRetry {
 	if m != nil {
 		return m.Retries
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetFault() *HTTPFaultInjection {
+func (m *Route) GetFault() *HTTPFaultInjection {
 	if m != nil {
 		return m.Fault
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetMirror() *v1.Destination {
+func (m *Route) GetMirror() *v1.Destination {
 	if m != nil {
 		return m.Mirror
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetCorsPolicy() *CorsPolicy {
+func (m *Route) GetCorsPolicy() *CorsPolicy {
 	if m != nil {
 		return m.CorsPolicy
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetRemoveResponseHeaders() []string {
+func (m *Route) GetRemoveResponseHeaders() []string {
 	if m != nil {
 		return m.RemoveResponseHeaders
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetAppendResponseHeaders() map[string]string {
+func (m *Route) GetAppendResponseHeaders() map[string]string {
 	if m != nil {
 		return m.AppendResponseHeaders
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetRemoveRequestHeaders() []string {
+func (m *Route) GetRemoveRequestHeaders() []string {
 	if m != nil {
 		return m.RemoveRequestHeaders
 	}
 	return nil
 }
 
-func (m *HTTPRule) GetAppendRequestHeaders() map[string]string {
+func (m *Route) GetAppendRequestHeaders() map[string]string {
 	if m != nil {
 		return m.AppendRequestHeaders
 	}
 	return nil
-}
-
-// HttpMatchRequest specifies a set of criterion to be met in order for the
-// rule to be applied to the HTTP request. For example, the following
-// restricts the rule to match only requests where the URL path
-// starts with /ratings/v2/ and the request contains a custom `end-user` header
-// with value `jason`.
-//
-// ```yaml
-// apiVersion: networking.istio.io/v1alpha3
-// kind: VirtualService
-// metadata:
-//   name: ratings-route
-// spec:
-//   hosts:
-//   - ratings.prod.svc.cluster.local
-//   http:
-//   - match:
-//     - headers:
-//         end-user:
-//           exact: jason
-//       uri:
-//         prefix: "/ratings/v2/"
-//     route:
-//     - destination:
-//         host: ratings.prod.svc.cluster.local
-// ```
-//
-// HTTPMatchRequest CANNOT be empty.
-type HTTPMatchRequest struct {
-	// URI to match
-	// values are case-sensitive and formatted as follows:
-	//
-	// - `exact: "value"` for exact string match
-	//
-	// - `prefix: "value"` for prefix-based match
-	//
-	// - `regex: "value"` for ECMAscript style regex-based match
-	//
-	Uri *StringMatch `protobuf:"bytes,1,opt,name=uri" json:"uri,omitempty"`
-	// HTTP Method
-	// values are case-sensitive and formatted as follows:
-	//
-	// - `exact: "value"` for exact string match
-	//
-	// - `prefix: "value"` for prefix-based match
-	//
-	// - `regex: "value"` for ECMAscript style regex-based match
-	//
-	Method *StringMatch `protobuf:"bytes,3,opt,name=method" json:"method,omitempty"`
-	// The header keys must be lowercase and use hyphen as the separator,
-	// e.g. _x-request-id_.
-	//
-	// Header values are case-sensitive and formatted as follows:
-	//
-	// - `exact: "value"` for exact string match
-	//
-	// - `prefix: "value"` for prefix-based match
-	//
-	// - `regex: "value"` for ECMAscript style regex-based match
-	//
-	// **Note:** The keys `uri`, `scheme`, `method`, and `authority` will be ignored.
-	Headers              map[string]*StringMatch `protobuf:"bytes,5,rep,name=headers" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`
-	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
-	XXX_unrecognized     []byte                  `json:"-"`
-	XXX_sizecache        int32                   `json:"-"`
-}
-
-func (m *HTTPMatchRequest) Reset()         { *m = HTTPMatchRequest{} }
-func (m *HTTPMatchRequest) String() string { return proto.CompactTextString(m) }
-func (*HTTPMatchRequest) ProtoMessage()    {}
-func (*HTTPMatchRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{3}
-}
-func (m *HTTPMatchRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_HTTPMatchRequest.Unmarshal(m, b)
-}
-func (m *HTTPMatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_HTTPMatchRequest.Marshal(b, m, deterministic)
-}
-func (dst *HTTPMatchRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HTTPMatchRequest.Merge(dst, src)
-}
-func (m *HTTPMatchRequest) XXX_Size() int {
-	return xxx_messageInfo_HTTPMatchRequest.Size(m)
-}
-func (m *HTTPMatchRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_HTTPMatchRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_HTTPMatchRequest proto.InternalMessageInfo
-
-func (m *HTTPMatchRequest) GetUri() *StringMatch {
-	if m != nil {
-		return m.Uri
-	}
-	return nil
-}
-
-func (m *HTTPMatchRequest) GetMethod() *StringMatch {
-	if m != nil {
-		return m.Method
-	}
-	return nil
-}
-
-func (m *HTTPMatchRequest) GetHeaders() map[string]*StringMatch {
-	if m != nil {
-		return m.Headers
-	}
-	return nil
-}
-
-// Each routing rule is associated with one or more service versions (see
-// glossary in beginning of document). Weights associated with the version
-// determine the proportion of traffic it receives. For example, the
-// following rule will route 25% of traffic for the "reviews" service to
-// instances with the "v2" tag and the remaining traffic (i.e., 75%) to
-// "v1".
-//
-// ```yaml
-// apiVersion: networking.istio.io/v1alpha3
-// kind: VirtualService
-// metadata:
-//   name: reviews-route
-// spec:
-//   hosts:
-//   - reviews.prod.svc.cluster.local
-//   http:
-//   - route:
-//     - destination:
-//         host: reviews.prod.svc.cluster.local
-//         subset: v2
-//       weight: 25
-//     - destination:
-//         host: reviews.prod.svc.cluster.local
-//         subset: v1
-//       weight: 75
-// ```
-//
-// And the associated DestinationRule
-//
-// ```yaml
-// apiVersion: networking.istio.io/v1alpha3
-// kind: DestinationRule
-// metadata:
-//   name: reviews-destination
-// spec:
-//   host: reviews.prod.svc.cluster.local
-//   subsets:
-//   - name: v1
-//     labels:
-//       version: v1
-//   - name: v2
-//     labels:
-//       version: v2
-// ```
-//
-// Traffic can also be split across two entirely different services without
-// having to define new subsets. For example, the following rule forwards 25% of
-// traffic to reviews.com to dev.reviews.com
-//
-// ```yaml
-// apiVersion: networking.istio.io/v1alpha3
-// kind: VirtualService
-// metadata:
-//   name: reviews-route-two-domains
-// spec:
-//   hosts:
-//   - reviews.com
-//   http:
-//   - route:
-//     - destination:
-//         host: dev.reviews.com
-//       weight: 25
-//     - destination:
-//         host: reviews.com
-//       weight: 75
-// ```
-type HTTPRouteDestination struct {
-	// optional. use if the destination for this route should be other
-	// than the original destination specified on the root Destination Rule
-	AlternateDestination *v1.Destination `protobuf:"bytes,1,opt,name=alternate_destination,json=alternateDestination" json:"alternate_destination,omitempty"`
-	// REQUIRED. The proportion of traffic to be forwarded to the service
-	// version. (0-100). Sum of weights across destinations SHOULD BE == 100.
-	// If there is only one destination in a rule, the weight value is assumed to
-	// be 100.
-	Weight int32 `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty"`
-	// HTTP headers to remove before returning a response to the caller.
-	RemoveResponseHeaders []string `protobuf:"bytes,3,rep,name=remove_response_headers,json=removeResponseHeaders" json:"remove_response_headers,omitempty"`
-	// Additional HTTP headers to add before returning a response to the
-	// caller.
-	AppendResponseHeaders map[string]string `protobuf:"bytes,4,rep,name=append_response_headers,json=appendResponseHeaders" json:"append_response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// HTTP headers to remove before forwarding a request to the
-	// destination service.
-	RemoveRequestHeaders []string `protobuf:"bytes,5,rep,name=remove_request_headers,json=removeRequestHeaders" json:"remove_request_headers,omitempty"`
-	// Additional HTTP headers to add before forwarding a request to the
-	// destination service.
-	AppendRequestHeaders map[string]string `protobuf:"bytes,6,rep,name=append_request_headers,json=appendRequestHeaders" json:"append_request_headers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *HTTPRouteDestination) Reset()         { *m = HTTPRouteDestination{} }
-func (m *HTTPRouteDestination) String() string { return proto.CompactTextString(m) }
-func (*HTTPRouteDestination) ProtoMessage()    {}
-func (*HTTPRouteDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{4}
-}
-func (m *HTTPRouteDestination) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_HTTPRouteDestination.Unmarshal(m, b)
-}
-func (m *HTTPRouteDestination) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_HTTPRouteDestination.Marshal(b, m, deterministic)
-}
-func (dst *HTTPRouteDestination) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HTTPRouteDestination.Merge(dst, src)
-}
-func (m *HTTPRouteDestination) XXX_Size() int {
-	return xxx_messageInfo_HTTPRouteDestination.Size(m)
-}
-func (m *HTTPRouteDestination) XXX_DiscardUnknown() {
-	xxx_messageInfo_HTTPRouteDestination.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_HTTPRouteDestination proto.InternalMessageInfo
-
-func (m *HTTPRouteDestination) GetAlternateDestination() *v1.Destination {
-	if m != nil {
-		return m.AlternateDestination
-	}
-	return nil
-}
-
-func (m *HTTPRouteDestination) GetWeight() int32 {
-	if m != nil {
-		return m.Weight
-	}
-	return 0
-}
-
-func (m *HTTPRouteDestination) GetRemoveResponseHeaders() []string {
-	if m != nil {
-		return m.RemoveResponseHeaders
-	}
-	return nil
-}
-
-func (m *HTTPRouteDestination) GetAppendResponseHeaders() map[string]string {
-	if m != nil {
-		return m.AppendResponseHeaders
-	}
-	return nil
-}
-
-func (m *HTTPRouteDestination) GetRemoveRequestHeaders() []string {
-	if m != nil {
-		return m.RemoveRequestHeaders
-	}
-	return nil
-}
-
-func (m *HTTPRouteDestination) GetAppendRequestHeaders() map[string]string {
-	if m != nil {
-		return m.AppendRequestHeaders
-	}
-	return nil
-}
-
-// L4 routing rule weighted destination.
-type RouteDestination struct {
-	// REQUIRED. Destination uniquely identifies the instances of a service
-	// to which the request/connection should be forwarded to.
-	Destination *v1.Destination `protobuf:"bytes,1,opt,name=destination" json:"destination,omitempty"`
-	// REQUIRED. The proportion of traffic to be forwarded to the service
-	// version. If there is only one destination in a rule, all traffic will be
-	// routed to it irrespective of the weight.
-	Weight               int32    `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *RouteDestination) Reset()         { *m = RouteDestination{} }
-func (m *RouteDestination) String() string { return proto.CompactTextString(m) }
-func (*RouteDestination) ProtoMessage()    {}
-func (*RouteDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{5}
-}
-func (m *RouteDestination) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RouteDestination.Unmarshal(m, b)
-}
-func (m *RouteDestination) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RouteDestination.Marshal(b, m, deterministic)
-}
-func (dst *RouteDestination) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RouteDestination.Merge(dst, src)
-}
-func (m *RouteDestination) XXX_Size() int {
-	return xxx_messageInfo_RouteDestination.Size(m)
-}
-func (m *RouteDestination) XXX_DiscardUnknown() {
-	xxx_messageInfo_RouteDestination.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_RouteDestination proto.InternalMessageInfo
-
-func (m *RouteDestination) GetDestination() *v1.Destination {
-	if m != nil {
-		return m.Destination
-	}
-	return nil
-}
-
-func (m *RouteDestination) GetWeight() int32 {
-	if m != nil {
-		return m.Weight
-	}
-	return 0
-}
-
-// L4 connection match attributes. Note that L4 connection matching support
-// is incomplete.
-type L4MatchAttributes struct {
-	// IPv4 or IPv6 ip addresses of destination with optional subnet.  E.g.,
-	// a.b.c.d/xx form or just a.b.c.d.
-	DestinationSubnets []string `protobuf:"bytes,1,rep,name=destination_subnets,json=destinationSubnets" json:"destination_subnets,omitempty"`
-	// Specifies the port on the host that is being addressed. Many services
-	// only expose a single port or label ports with the protocols they support,
-	// in these cases it is not required to explicitly select the port.
-	Port uint32 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	// IPv4 or IPv6 ip address of source with optional subnet. E.g., a.b.c.d/xx
-	// form or just a.b.c.d
-	// $hide_from_docs
-	SourceSubnet string `protobuf:"bytes,3,opt,name=source_subnet,json=sourceSubnet,proto3" json:"source_subnet,omitempty"`
-	// One or more labels that constrain the applicability of a rule to
-	// workloads with the given labels. If the VirtualService has a list of
-	// gateways specified at the top, it should include the reserved gateway
-	// `mesh` in order for this field to be applicable.
-	SourceLabels map[string]string `protobuf:"bytes,4,rep,name=source_labels,json=sourceLabels" json:"source_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Names of gateways where the rule should be applied to. Gateway names
-	// at the top of the VirtualService (if any) are overridden. The gateway
-	// match is independent of sourceLabels.
-	Gateways             []string `protobuf:"bytes,5,rep,name=gateways" json:"gateways,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *L4MatchAttributes) Reset()         { *m = L4MatchAttributes{} }
-func (m *L4MatchAttributes) String() string { return proto.CompactTextString(m) }
-func (*L4MatchAttributes) ProtoMessage()    {}
-func (*L4MatchAttributes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{6}
-}
-func (m *L4MatchAttributes) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_L4MatchAttributes.Unmarshal(m, b)
-}
-func (m *L4MatchAttributes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_L4MatchAttributes.Marshal(b, m, deterministic)
-}
-func (dst *L4MatchAttributes) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_L4MatchAttributes.Merge(dst, src)
-}
-func (m *L4MatchAttributes) XXX_Size() int {
-	return xxx_messageInfo_L4MatchAttributes.Size(m)
-}
-func (m *L4MatchAttributes) XXX_DiscardUnknown() {
-	xxx_messageInfo_L4MatchAttributes.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_L4MatchAttributes proto.InternalMessageInfo
-
-func (m *L4MatchAttributes) GetDestinationSubnets() []string {
-	if m != nil {
-		return m.DestinationSubnets
-	}
-	return nil
-}
-
-func (m *L4MatchAttributes) GetPort() uint32 {
-	if m != nil {
-		return m.Port
-	}
-	return 0
-}
-
-func (m *L4MatchAttributes) GetSourceSubnet() string {
-	if m != nil {
-		return m.SourceSubnet
-	}
-	return ""
-}
-
-func (m *L4MatchAttributes) GetSourceLabels() map[string]string {
-	if m != nil {
-		return m.SourceLabels
-	}
-	return nil
-}
-
-func (m *L4MatchAttributes) GetGateways() []string {
-	if m != nil {
-		return m.Gateways
-	}
-	return nil
-}
-
-// TLS connection match attributes.
-type TLSMatchAttributes struct {
-	// REQUIRED. SNI (server name indicator) to match on. Wildcard prefixes
-	// can be used in the SNI value, e.g., *.com will match foo.example.com
-	// as well as example.com. An SNI value must be a subset (i.e., fall
-	// within the domain) of the corresponding virtual serivce's hosts.
-	SniHosts []string `protobuf:"bytes,1,rep,name=sni_hosts,json=sniHosts" json:"sni_hosts,omitempty"`
-	// IPv4 or IPv6 ip addresses of destination with optional subnet.  E.g.,
-	// a.b.c.d/xx form or just a.b.c.d.
-	DestinationSubnets []string `protobuf:"bytes,2,rep,name=destination_subnets,json=destinationSubnets" json:"destination_subnets,omitempty"`
-	// Specifies the port on the host that is being addressed. Many services
-	// only expose a single port or label ports with the protocols they
-	// support, in these cases it is not required to explicitly select the
-	// port.
-	Port uint32 `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
-	// IPv4 or IPv6 ip address of source with optional subnet. E.g., a.b.c.d/xx
-	// form or just a.b.c.d
-	// $hide_from_docs
-	SourceSubnet string `protobuf:"bytes,4,opt,name=source_subnet,json=sourceSubnet,proto3" json:"source_subnet,omitempty"`
-	// One or more labels that constrain the applicability of a rule to
-	// workloads with the given labels. If the VirtualService has a list of
-	// gateways specified at the top, it should include the reserved gateway
-	// `mesh` in order for this field to be applicable.
-	SourceLabels map[string]string `protobuf:"bytes,5,rep,name=source_labels,json=sourceLabels" json:"source_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Names of gateways where the rule should be applied to. Gateway names
-	// at the top of the VirtualService (if any) are overridden. The gateway
-	// match is independent of sourceLabels.
-	Gateways             []string `protobuf:"bytes,6,rep,name=gateways" json:"gateways,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *TLSMatchAttributes) Reset()         { *m = TLSMatchAttributes{} }
-func (m *TLSMatchAttributes) String() string { return proto.CompactTextString(m) }
-func (*TLSMatchAttributes) ProtoMessage()    {}
-func (*TLSMatchAttributes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{7}
-}
-func (m *TLSMatchAttributes) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_TLSMatchAttributes.Unmarshal(m, b)
-}
-func (m *TLSMatchAttributes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_TLSMatchAttributes.Marshal(b, m, deterministic)
-}
-func (dst *TLSMatchAttributes) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TLSMatchAttributes.Merge(dst, src)
-}
-func (m *TLSMatchAttributes) XXX_Size() int {
-	return xxx_messageInfo_TLSMatchAttributes.Size(m)
-}
-func (m *TLSMatchAttributes) XXX_DiscardUnknown() {
-	xxx_messageInfo_TLSMatchAttributes.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_TLSMatchAttributes proto.InternalMessageInfo
-
-func (m *TLSMatchAttributes) GetSniHosts() []string {
-	if m != nil {
-		return m.SniHosts
-	}
-	return nil
-}
-
-func (m *TLSMatchAttributes) GetDestinationSubnets() []string {
-	if m != nil {
-		return m.DestinationSubnets
-	}
-	return nil
-}
-
-func (m *TLSMatchAttributes) GetPort() uint32 {
-	if m != nil {
-		return m.Port
-	}
-	return 0
-}
-
-func (m *TLSMatchAttributes) GetSourceSubnet() string {
-	if m != nil {
-		return m.SourceSubnet
-	}
-	return ""
-}
-
-func (m *TLSMatchAttributes) GetSourceLabels() map[string]string {
-	if m != nil {
-		return m.SourceLabels
-	}
-	return nil
-}
-
-func (m *TLSMatchAttributes) GetGateways() []string {
-	if m != nil {
-		return m.Gateways
-	}
-	return nil
-}
-
-// HTTPRedirect can be used to send a 301 redirect response to the caller,
-// where the Authority/Host and the URI in the response can be swapped with
-// the specified values. For example, the following rule redirects
-// requests for /v1/getProductRatings API on the ratings service to
-// /v1/bookRatings provided by the bookratings service.
-//
-// ```yaml
-// apiVersion: networking.istio.io/v1alpha3
-// kind: VirtualService
-// metadata:
-//   name: ratings-route
-// spec:
-//   hosts:
-//   - ratings.prod.svc.cluster.local
-//   http:
-//   - match:
-//     - uri:
-//         exact: /v1/getProductRatings
-//   redirect:
-//     uri: /v1/bookRatings
-//     authority: newratings.default.svc.cluster.local
-//   ...
-// ```
-type HTTPRedirect struct {
-	// On a redirect, overwrite the Path portion of the URL with this
-	// value. Note that the entire path will be replaced, irrespective of the
-	// request URI being matched as an exact path or prefix.
-	Uri string `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"`
-	// On a redirect, overwrite the Authority/Host portion of the URL with
-	// this value.
-	Authority            string   `protobuf:"bytes,2,opt,name=authority,proto3" json:"authority,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *HTTPRedirect) Reset()         { *m = HTTPRedirect{} }
-func (m *HTTPRedirect) String() string { return proto.CompactTextString(m) }
-func (*HTTPRedirect) ProtoMessage()    {}
-func (*HTTPRedirect) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{8}
-}
-func (m *HTTPRedirect) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_HTTPRedirect.Unmarshal(m, b)
-}
-func (m *HTTPRedirect) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_HTTPRedirect.Marshal(b, m, deterministic)
-}
-func (dst *HTTPRedirect) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HTTPRedirect.Merge(dst, src)
-}
-func (m *HTTPRedirect) XXX_Size() int {
-	return xxx_messageInfo_HTTPRedirect.Size(m)
-}
-func (m *HTTPRedirect) XXX_DiscardUnknown() {
-	xxx_messageInfo_HTTPRedirect.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_HTTPRedirect proto.InternalMessageInfo
-
-func (m *HTTPRedirect) GetUri() string {
-	if m != nil {
-		return m.Uri
-	}
-	return ""
-}
-
-func (m *HTTPRedirect) GetAuthority() string {
-	if m != nil {
-		return m.Authority
-	}
-	return ""
-}
-
-// HTTPRewrite can be used to rewrite specific parts of a HTTP request
-// before forwarding the request to the destination. Rewrite primitive can
-// be used only with HTTPRouteDestination. The following example
-// demonstrates how to rewrite the URL prefix for api call (/ratings) to
-// ratings service before making the actual API call.
-//
-// ```yaml
-// apiVersion: networking.istio.io/v1alpha3
-// kind: VirtualService
-// metadata:
-//   name: ratings-route
-// spec:
-//   hosts:
-//   - ratings.prod.svc.cluster.local
-//   http:
-//   - match:
-//     - uri:
-//         prefix: /ratings
-//     rewrite:
-//       uri: /v1/bookRatings
-//     route:
-//     - destination:
-//         host: ratings.prod.svc.cluster.local
-//         subset: v1
-// ```
-//
-type HTTPRewrite struct {
-	// rewrite the path (or the prefix) portion of the URI with this
-	// value. If the original URI was matched based on prefix, the value
-	// provided in this field will replace the corresponding matched prefix.
-	Uri string `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"`
-	// rewrite the Authority/Host header with this value.
-	Authority            string   `protobuf:"bytes,2,opt,name=authority,proto3" json:"authority,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *HTTPRewrite) Reset()         { *m = HTTPRewrite{} }
-func (m *HTTPRewrite) String() string { return proto.CompactTextString(m) }
-func (*HTTPRewrite) ProtoMessage()    {}
-func (*HTTPRewrite) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{9}
-}
-func (m *HTTPRewrite) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_HTTPRewrite.Unmarshal(m, b)
-}
-func (m *HTTPRewrite) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_HTTPRewrite.Marshal(b, m, deterministic)
-}
-func (dst *HTTPRewrite) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HTTPRewrite.Merge(dst, src)
-}
-func (m *HTTPRewrite) XXX_Size() int {
-	return xxx_messageInfo_HTTPRewrite.Size(m)
-}
-func (m *HTTPRewrite) XXX_DiscardUnknown() {
-	xxx_messageInfo_HTTPRewrite.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_HTTPRewrite proto.InternalMessageInfo
-
-func (m *HTTPRewrite) GetUri() string {
-	if m != nil {
-		return m.Uri
-	}
-	return ""
-}
-
-func (m *HTTPRewrite) GetAuthority() string {
-	if m != nil {
-		return m.Authority
-	}
-	return ""
-}
-
-// Describes how to match a given string in HTTP headers. Match is
-// case-sensitive.
-type StringMatch struct {
-	// Types that are valid to be assigned to MatchType:
-	//	*StringMatch_Exact
-	//	*StringMatch_Prefix
-	//	*StringMatch_Regex
-	MatchType            isStringMatch_MatchType `protobuf_oneof:"match_type"`
-	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
-	XXX_unrecognized     []byte                  `json:"-"`
-	XXX_sizecache        int32                   `json:"-"`
-}
-
-func (m *StringMatch) Reset()         { *m = StringMatch{} }
-func (m *StringMatch) String() string { return proto.CompactTextString(m) }
-func (*StringMatch) ProtoMessage()    {}
-func (*StringMatch) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{10}
-}
-func (m *StringMatch) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StringMatch.Unmarshal(m, b)
-}
-func (m *StringMatch) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StringMatch.Marshal(b, m, deterministic)
-}
-func (dst *StringMatch) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StringMatch.Merge(dst, src)
-}
-func (m *StringMatch) XXX_Size() int {
-	return xxx_messageInfo_StringMatch.Size(m)
-}
-func (m *StringMatch) XXX_DiscardUnknown() {
-	xxx_messageInfo_StringMatch.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StringMatch proto.InternalMessageInfo
-
-type isStringMatch_MatchType interface {
-	isStringMatch_MatchType()
-	Equal(interface{}) bool
-}
-
-type StringMatch_Exact struct {
-	Exact string `protobuf:"bytes,1,opt,name=exact,proto3,oneof"`
-}
-type StringMatch_Prefix struct {
-	Prefix string `protobuf:"bytes,2,opt,name=prefix,proto3,oneof"`
-}
-type StringMatch_Regex struct {
-	Regex string `protobuf:"bytes,3,opt,name=regex,proto3,oneof"`
-}
-
-func (*StringMatch_Exact) isStringMatch_MatchType()  {}
-func (*StringMatch_Prefix) isStringMatch_MatchType() {}
-func (*StringMatch_Regex) isStringMatch_MatchType()  {}
-
-func (m *StringMatch) GetMatchType() isStringMatch_MatchType {
-	if m != nil {
-		return m.MatchType
-	}
-	return nil
-}
-
-func (m *StringMatch) GetExact() string {
-	if x, ok := m.GetMatchType().(*StringMatch_Exact); ok {
-		return x.Exact
-	}
-	return ""
-}
-
-func (m *StringMatch) GetPrefix() string {
-	if x, ok := m.GetMatchType().(*StringMatch_Prefix); ok {
-		return x.Prefix
-	}
-	return ""
-}
-
-func (m *StringMatch) GetRegex() string {
-	if x, ok := m.GetMatchType().(*StringMatch_Regex); ok {
-		return x.Regex
-	}
-	return ""
-}
-
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*StringMatch) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _StringMatch_OneofMarshaler, _StringMatch_OneofUnmarshaler, _StringMatch_OneofSizer, []interface{}{
-		(*StringMatch_Exact)(nil),
-		(*StringMatch_Prefix)(nil),
-		(*StringMatch_Regex)(nil),
-	}
-}
-
-func _StringMatch_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*StringMatch)
-	// match_type
-	switch x := m.MatchType.(type) {
-	case *StringMatch_Exact:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Exact)
-	case *StringMatch_Prefix:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Prefix)
-	case *StringMatch_Regex:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Regex)
-	case nil:
-	default:
-		return fmt.Errorf("StringMatch.MatchType has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _StringMatch_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*StringMatch)
-	switch tag {
-	case 1: // match_type.exact
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.MatchType = &StringMatch_Exact{x}
-		return true, err
-	case 2: // match_type.prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.MatchType = &StringMatch_Prefix{x}
-		return true, err
-	case 3: // match_type.regex
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.MatchType = &StringMatch_Regex{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _StringMatch_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*StringMatch)
-	// match_type
-	switch x := m.MatchType.(type) {
-	case *StringMatch_Exact:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Exact)))
-		n += len(x.Exact)
-	case *StringMatch_Prefix:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Prefix)))
-		n += len(x.Prefix)
-	case *StringMatch_Regex:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Regex)))
-		n += len(x.Regex)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // Describes the retry policy to use when a HTTP request fails. For
@@ -1113,7 +298,7 @@ func (m *HTTPRetry) Reset()         { *m = HTTPRetry{} }
 func (m *HTTPRetry) String() string { return proto.CompactTextString(m) }
 func (*HTTPRetry) ProtoMessage()    {}
 func (*HTTPRetry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{11}
+	return fileDescriptor_routing_5013e98e855c4cde, []int{2}
 }
 func (m *HTTPRetry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HTTPRetry.Unmarshal(m, b)
@@ -1211,7 +396,7 @@ func (m *CorsPolicy) Reset()         { *m = CorsPolicy{} }
 func (m *CorsPolicy) String() string { return proto.CompactTextString(m) }
 func (*CorsPolicy) ProtoMessage()    {}
 func (*CorsPolicy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{12}
+	return fileDescriptor_routing_5013e98e855c4cde, []int{3}
 }
 func (m *CorsPolicy) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CorsPolicy.Unmarshal(m, b)
@@ -1297,7 +482,7 @@ func (m *HTTPFaultInjection) Reset()         { *m = HTTPFaultInjection{} }
 func (m *HTTPFaultInjection) String() string { return proto.CompactTextString(m) }
 func (*HTTPFaultInjection) ProtoMessage()    {}
 func (*HTTPFaultInjection) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{13}
+	return fileDescriptor_routing_5013e98e855c4cde, []int{4}
 }
 func (m *HTTPFaultInjection) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HTTPFaultInjection.Unmarshal(m, b)
@@ -1382,7 +567,7 @@ func (m *HTTPFaultInjection_Delay) Reset()         { *m = HTTPFaultInjection_Del
 func (m *HTTPFaultInjection_Delay) String() string { return proto.CompactTextString(m) }
 func (*HTTPFaultInjection_Delay) ProtoMessage()    {}
 func (*HTTPFaultInjection_Delay) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{13, 0}
+	return fileDescriptor_routing_5013e98e855c4cde, []int{4, 0}
 }
 func (m *HTTPFaultInjection_Delay) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HTTPFaultInjection_Delay.Unmarshal(m, b)
@@ -1576,7 +761,7 @@ func (m *HTTPFaultInjection_Abort) Reset()         { *m = HTTPFaultInjection_Abo
 func (m *HTTPFaultInjection_Abort) String() string { return proto.CompactTextString(m) }
 func (*HTTPFaultInjection_Abort) ProtoMessage()    {}
 func (*HTTPFaultInjection_Abort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{13, 1}
+	return fileDescriptor_routing_5013e98e855c4cde, []int{4, 1}
 }
 func (m *HTTPFaultInjection_Abort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HTTPFaultInjection_Abort.Unmarshal(m, b)
@@ -1738,143 +923,6 @@ func _HTTPFaultInjection_Abort_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
-// PortSelector specifies the number of a port to be used for
-// matching or selection for final routing.
-type PortSelector struct {
-	// Types that are valid to be assigned to Port:
-	//	*PortSelector_Number
-	//	*PortSelector_Name
-	Port                 isPortSelector_Port `protobuf_oneof:"port"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_unrecognized     []byte              `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
-}
-
-func (m *PortSelector) Reset()         { *m = PortSelector{} }
-func (m *PortSelector) String() string { return proto.CompactTextString(m) }
-func (*PortSelector) ProtoMessage()    {}
-func (*PortSelector) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{14}
-}
-func (m *PortSelector) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_PortSelector.Unmarshal(m, b)
-}
-func (m *PortSelector) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_PortSelector.Marshal(b, m, deterministic)
-}
-func (dst *PortSelector) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PortSelector.Merge(dst, src)
-}
-func (m *PortSelector) XXX_Size() int {
-	return xxx_messageInfo_PortSelector.Size(m)
-}
-func (m *PortSelector) XXX_DiscardUnknown() {
-	xxx_messageInfo_PortSelector.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_PortSelector proto.InternalMessageInfo
-
-type isPortSelector_Port interface {
-	isPortSelector_Port()
-	Equal(interface{}) bool
-}
-
-type PortSelector_Number struct {
-	Number uint32 `protobuf:"varint,1,opt,name=number,proto3,oneof"`
-}
-type PortSelector_Name struct {
-	Name string `protobuf:"bytes,2,opt,name=name,proto3,oneof"`
-}
-
-func (*PortSelector_Number) isPortSelector_Port() {}
-func (*PortSelector_Name) isPortSelector_Port()   {}
-
-func (m *PortSelector) GetPort() isPortSelector_Port {
-	if m != nil {
-		return m.Port
-	}
-	return nil
-}
-
-func (m *PortSelector) GetNumber() uint32 {
-	if x, ok := m.GetPort().(*PortSelector_Number); ok {
-		return x.Number
-	}
-	return 0
-}
-
-func (m *PortSelector) GetName() string {
-	if x, ok := m.GetPort().(*PortSelector_Name); ok {
-		return x.Name
-	}
-	return ""
-}
-
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*PortSelector) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _PortSelector_OneofMarshaler, _PortSelector_OneofUnmarshaler, _PortSelector_OneofSizer, []interface{}{
-		(*PortSelector_Number)(nil),
-		(*PortSelector_Name)(nil),
-	}
-}
-
-func _PortSelector_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*PortSelector)
-	// port
-	switch x := m.Port.(type) {
-	case *PortSelector_Number:
-		_ = b.EncodeVarint(1<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.Number))
-	case *PortSelector_Name:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Name)
-	case nil:
-	default:
-		return fmt.Errorf("PortSelector.Port has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _PortSelector_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*PortSelector)
-	switch tag {
-	case 1: // port.number
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.Port = &PortSelector_Number{uint32(x)}
-		return true, err
-	case 2: // port.name
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.Port = &PortSelector_Name{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _PortSelector_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*PortSelector)
-	// port
-	switch x := m.Port.(type) {
-	case *PortSelector_Number:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Number))
-	case *PortSelector_Name:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Name)))
-		n += len(x.Name)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
-}
-
 // Percent specifies a percentage in the range of [0.0, 100.0].
 type Percent struct {
 	Value                float64  `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
@@ -1887,7 +935,7 @@ func (m *Percent) Reset()         { *m = Percent{} }
 func (m *Percent) String() string { return proto.CompactTextString(m) }
 func (*Percent) ProtoMessage()    {}
 func (*Percent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_routing_48e183271e9fd2e5, []int{15}
+	return fileDescriptor_routing_5013e98e855c4cde, []int{5}
 }
 func (m *Percent) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Percent.Unmarshal(m, b)
@@ -1916,29 +964,15 @@ func (m *Percent) GetValue() float64 {
 
 func init() {
 	proto.RegisterType((*Routing)(nil), "supergloo.solo.io.Routing")
-	proto.RegisterType((*DestinationRule)(nil), "supergloo.solo.io.DestinationRule")
-	proto.RegisterType((*HTTPRule)(nil), "supergloo.solo.io.HTTPRule")
-	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.HTTPRule.AppendRequestHeadersEntry")
-	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.HTTPRule.AppendResponseHeadersEntry")
-	proto.RegisterType((*HTTPMatchRequest)(nil), "supergloo.solo.io.HTTPMatchRequest")
-	proto.RegisterMapType((map[string]*StringMatch)(nil), "supergloo.solo.io.HTTPMatchRequest.HeadersEntry")
-	proto.RegisterType((*HTTPRouteDestination)(nil), "supergloo.solo.io.HTTPRouteDestination")
-	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.HTTPRouteDestination.AppendRequestHeadersEntry")
-	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.HTTPRouteDestination.AppendResponseHeadersEntry")
-	proto.RegisterType((*RouteDestination)(nil), "supergloo.solo.io.RouteDestination")
-	proto.RegisterType((*L4MatchAttributes)(nil), "supergloo.solo.io.L4MatchAttributes")
-	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.L4MatchAttributes.SourceLabelsEntry")
-	proto.RegisterType((*TLSMatchAttributes)(nil), "supergloo.solo.io.TLSMatchAttributes")
-	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.TLSMatchAttributes.SourceLabelsEntry")
-	proto.RegisterType((*HTTPRedirect)(nil), "supergloo.solo.io.HTTPRedirect")
-	proto.RegisterType((*HTTPRewrite)(nil), "supergloo.solo.io.HTTPRewrite")
-	proto.RegisterType((*StringMatch)(nil), "supergloo.solo.io.StringMatch")
+	proto.RegisterType((*Route)(nil), "supergloo.solo.io.Route")
+	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.Route.AppendRequestHeadersEntry")
+	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.Route.AppendResponseHeadersEntry")
+	proto.RegisterMapType((map[string]string)(nil), "supergloo.solo.io.Route.EnabledForLabelsEntry")
 	proto.RegisterType((*HTTPRetry)(nil), "supergloo.solo.io.HTTPRetry")
 	proto.RegisterType((*CorsPolicy)(nil), "supergloo.solo.io.CorsPolicy")
 	proto.RegisterType((*HTTPFaultInjection)(nil), "supergloo.solo.io.HTTPFaultInjection")
 	proto.RegisterType((*HTTPFaultInjection_Delay)(nil), "supergloo.solo.io.HTTPFaultInjection.Delay")
 	proto.RegisterType((*HTTPFaultInjection_Abort)(nil), "supergloo.solo.io.HTTPFaultInjection.Abort")
-	proto.RegisterType((*PortSelector)(nil), "supergloo.solo.io.PortSelector")
 	proto.RegisterType((*Percent)(nil), "supergloo.solo.io.Percent")
 }
 func (this *Routing) Equal(that interface{}) bool {
@@ -1960,11 +994,11 @@ func (this *Routing) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if len(this.DestinationRules) != len(that1.DestinationRules) {
+	if len(this.Routes) != len(that1.Routes) {
 		return false
 	}
-	for i := range this.DestinationRules {
-		if !this.DestinationRules[i].Equal(that1.DestinationRules[i]) {
+	for i := range this.Routes {
+		if !this.Routes[i].Equal(that1.Routes[i]) {
 			return false
 		}
 	}
@@ -1973,14 +1007,14 @@ func (this *Routing) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *DestinationRule) Equal(that interface{}) bool {
+func (this *Route) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	that1, ok := that.(*DestinationRule)
+	that1, ok := that.(*Route)
 	if !ok {
-		that2, ok := that.(DestinationRule)
+		that2, ok := that.(Route)
 		if ok {
 			that1 = &that2
 		} else {
@@ -1992,56 +1026,38 @@ func (this *DestinationRule) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if !this.Destination.Equal(that1.Destination) {
+	if this.EnabledForIngress != that1.EnabledForIngress {
 		return false
 	}
-	if len(this.MeshHttpRules) != len(that1.MeshHttpRules) {
+	if this.EnabledForMesh != that1.EnabledForMesh {
 		return false
 	}
-	for i := range this.MeshHttpRules {
-		if !this.MeshHttpRules[i].Equal(that1.MeshHttpRules[i]) {
+	if len(this.EnabledForLabels) != len(that1.EnabledForLabels) {
+		return false
+	}
+	for i := range this.EnabledForLabels {
+		if this.EnabledForLabels[i] != that1.EnabledForLabels[i] {
 			return false
 		}
 	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if len(this.Domains) != len(that1.Domains) {
 		return false
 	}
-	return true
-}
-func (this *HTTPRule) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*HTTPRule)
-	if !ok {
-		that2, ok := that.(HTTPRule)
-		if ok {
-			that1 = &that2
-		} else {
+	for i := range this.Domains {
+		if this.Domains[i] != that1.Domains[i] {
 			return false
 		}
 	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
+	if len(this.RequestMatchers) != len(that1.RequestMatchers) {
 		return false
 	}
-	if len(this.Match) != len(that1.Match) {
-		return false
-	}
-	for i := range this.Match {
-		if !this.Match[i].Equal(that1.Match[i]) {
+	for i := range this.RequestMatchers {
+		if !this.RequestMatchers[i].Equal(that1.RequestMatchers[i]) {
 			return false
 		}
 	}
-	if len(this.Route) != len(that1.Route) {
+	if !this.Action.Equal(that1.Action) {
 		return false
-	}
-	for i := range this.Route {
-		if !this.Route[i].Equal(that1.Route[i]) {
-			return false
-		}
 	}
 	if !this.Timeout.Equal(that1.Timeout) {
 		return false
@@ -2091,417 +1107,6 @@ func (this *HTTPRule) Equal(that interface{}) bool {
 		}
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *HTTPMatchRequest) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*HTTPMatchRequest)
-	if !ok {
-		that2, ok := that.(HTTPMatchRequest)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if !this.Uri.Equal(that1.Uri) {
-		return false
-	}
-	if !this.Method.Equal(that1.Method) {
-		return false
-	}
-	if len(this.Headers) != len(that1.Headers) {
-		return false
-	}
-	for i := range this.Headers {
-		if !this.Headers[i].Equal(that1.Headers[i]) {
-			return false
-		}
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *HTTPRouteDestination) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*HTTPRouteDestination)
-	if !ok {
-		that2, ok := that.(HTTPRouteDestination)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if !this.AlternateDestination.Equal(that1.AlternateDestination) {
-		return false
-	}
-	if this.Weight != that1.Weight {
-		return false
-	}
-	if len(this.RemoveResponseHeaders) != len(that1.RemoveResponseHeaders) {
-		return false
-	}
-	for i := range this.RemoveResponseHeaders {
-		if this.RemoveResponseHeaders[i] != that1.RemoveResponseHeaders[i] {
-			return false
-		}
-	}
-	if len(this.AppendResponseHeaders) != len(that1.AppendResponseHeaders) {
-		return false
-	}
-	for i := range this.AppendResponseHeaders {
-		if this.AppendResponseHeaders[i] != that1.AppendResponseHeaders[i] {
-			return false
-		}
-	}
-	if len(this.RemoveRequestHeaders) != len(that1.RemoveRequestHeaders) {
-		return false
-	}
-	for i := range this.RemoveRequestHeaders {
-		if this.RemoveRequestHeaders[i] != that1.RemoveRequestHeaders[i] {
-			return false
-		}
-	}
-	if len(this.AppendRequestHeaders) != len(that1.AppendRequestHeaders) {
-		return false
-	}
-	for i := range this.AppendRequestHeaders {
-		if this.AppendRequestHeaders[i] != that1.AppendRequestHeaders[i] {
-			return false
-		}
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *RouteDestination) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*RouteDestination)
-	if !ok {
-		that2, ok := that.(RouteDestination)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if !this.Destination.Equal(that1.Destination) {
-		return false
-	}
-	if this.Weight != that1.Weight {
-		return false
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *L4MatchAttributes) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*L4MatchAttributes)
-	if !ok {
-		that2, ok := that.(L4MatchAttributes)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if len(this.DestinationSubnets) != len(that1.DestinationSubnets) {
-		return false
-	}
-	for i := range this.DestinationSubnets {
-		if this.DestinationSubnets[i] != that1.DestinationSubnets[i] {
-			return false
-		}
-	}
-	if this.Port != that1.Port {
-		return false
-	}
-	if this.SourceSubnet != that1.SourceSubnet {
-		return false
-	}
-	if len(this.SourceLabels) != len(that1.SourceLabels) {
-		return false
-	}
-	for i := range this.SourceLabels {
-		if this.SourceLabels[i] != that1.SourceLabels[i] {
-			return false
-		}
-	}
-	if len(this.Gateways) != len(that1.Gateways) {
-		return false
-	}
-	for i := range this.Gateways {
-		if this.Gateways[i] != that1.Gateways[i] {
-			return false
-		}
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *TLSMatchAttributes) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*TLSMatchAttributes)
-	if !ok {
-		that2, ok := that.(TLSMatchAttributes)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if len(this.SniHosts) != len(that1.SniHosts) {
-		return false
-	}
-	for i := range this.SniHosts {
-		if this.SniHosts[i] != that1.SniHosts[i] {
-			return false
-		}
-	}
-	if len(this.DestinationSubnets) != len(that1.DestinationSubnets) {
-		return false
-	}
-	for i := range this.DestinationSubnets {
-		if this.DestinationSubnets[i] != that1.DestinationSubnets[i] {
-			return false
-		}
-	}
-	if this.Port != that1.Port {
-		return false
-	}
-	if this.SourceSubnet != that1.SourceSubnet {
-		return false
-	}
-	if len(this.SourceLabels) != len(that1.SourceLabels) {
-		return false
-	}
-	for i := range this.SourceLabels {
-		if this.SourceLabels[i] != that1.SourceLabels[i] {
-			return false
-		}
-	}
-	if len(this.Gateways) != len(that1.Gateways) {
-		return false
-	}
-	for i := range this.Gateways {
-		if this.Gateways[i] != that1.Gateways[i] {
-			return false
-		}
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *HTTPRedirect) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*HTTPRedirect)
-	if !ok {
-		that2, ok := that.(HTTPRedirect)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Uri != that1.Uri {
-		return false
-	}
-	if this.Authority != that1.Authority {
-		return false
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *HTTPRewrite) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*HTTPRewrite)
-	if !ok {
-		that2, ok := that.(HTTPRewrite)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Uri != that1.Uri {
-		return false
-	}
-	if this.Authority != that1.Authority {
-		return false
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *StringMatch) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*StringMatch)
-	if !ok {
-		that2, ok := that.(StringMatch)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if that1.MatchType == nil {
-		if this.MatchType != nil {
-			return false
-		}
-	} else if this.MatchType == nil {
-		return false
-	} else if !this.MatchType.Equal(that1.MatchType) {
-		return false
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *StringMatch_Exact) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*StringMatch_Exact)
-	if !ok {
-		that2, ok := that.(StringMatch_Exact)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Exact != that1.Exact {
-		return false
-	}
-	return true
-}
-func (this *StringMatch_Prefix) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*StringMatch_Prefix)
-	if !ok {
-		that2, ok := that.(StringMatch_Prefix)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Prefix != that1.Prefix {
-		return false
-	}
-	return true
-}
-func (this *StringMatch_Regex) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*StringMatch_Regex)
-	if !ok {
-		that2, ok := that.(StringMatch_Regex)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Regex != that1.Regex {
 		return false
 	}
 	return true
@@ -2826,87 +1431,6 @@ func (this *HTTPFaultInjection_Abort_Http2Error) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *PortSelector) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*PortSelector)
-	if !ok {
-		that2, ok := that.(PortSelector)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if that1.Port == nil {
-		if this.Port != nil {
-			return false
-		}
-	} else if this.Port == nil {
-		return false
-	} else if !this.Port.Equal(that1.Port) {
-		return false
-	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-		return false
-	}
-	return true
-}
-func (this *PortSelector_Number) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*PortSelector_Number)
-	if !ok {
-		that2, ok := that.(PortSelector_Number)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Number != that1.Number {
-		return false
-	}
-	return true
-}
-func (this *PortSelector_Name) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*PortSelector_Name)
-	if !ok {
-		that2, ok := that.(PortSelector_Name)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Name != that1.Name {
-		return false
-	}
-	return true
-}
 func (this *Percent) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -2935,97 +1459,71 @@ func (this *Percent) Equal(that interface{}) bool {
 	return true
 }
 
-func init() { proto.RegisterFile("routing.proto", fileDescriptor_routing_48e183271e9fd2e5) }
+func init() { proto.RegisterFile("routing.proto", fileDescriptor_routing_5013e98e855c4cde) }
 
-var fileDescriptor_routing_48e183271e9fd2e5 = []byte{
-	// 1409 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x57, 0xdf, 0x6e, 0x1a, 0xc7,
-	0x17, 0x0e, 0x60, 0xc0, 0x1c, 0x20, 0x36, 0x13, 0xe2, 0x10, 0x92, 0x5f, 0x7e, 0x0e, 0x51, 0x14,
-	0x4b, 0x55, 0x20, 0x71, 0x52, 0xb7, 0x4d, 0x9a, 0x54, 0x90, 0x7f, 0xb4, 0x4a, 0x1a, 0x6b, 0x6d,
-	0xf5, 0x22, 0xad, 0xb4, 0x1a, 0xe0, 0x78, 0xd9, 0x78, 0xd9, 0xd9, 0xce, 0xce, 0xda, 0xd0, 0xd7,
-	0xe8, 0x75, 0xef, 0x7a, 0xd1, 0x37, 0xe8, 0x9b, 0x54, 0xbd, 0xee, 0x33, 0xf4, 0xb2, 0x52, 0xab,
-	0x99, 0xd9, 0x85, 0x35, 0x7f, 0x8c, 0xad, 0xe6, 0xa6, 0x77, 0x3b, 0x67, 0xbe, 0xef, 0xcc, 0x37,
-	0x67, 0xce, 0x39, 0x33, 0x0b, 0x45, 0xce, 0x02, 0x61, 0xbb, 0x56, 0xdd, 0xe3, 0x4c, 0x30, 0x52,
-	0xf2, 0x03, 0x0f, 0xb9, 0xe5, 0x30, 0x56, 0xf7, 0x99, 0xc3, 0xea, 0x36, 0xab, 0x96, 0x2d, 0x66,
-	0x31, 0x35, 0xdb, 0x90, 0x5f, 0x1a, 0x58, 0xbd, 0x61, 0x31, 0x66, 0x39, 0xd8, 0x50, 0xa3, 0x4e,
-	0x70, 0xd0, 0xe8, 0x05, 0x9c, 0x0a, 0x9b, 0xb9, 0x8b, 0xe6, 0x8f, 0x39, 0xf5, 0x3c, 0xe4, 0x7e,
-	0x38, 0x7f, 0x49, 0xae, 0xd1, 0x38, 0xba, 0x2f, 0x01, 0xc3, 0x91, 0x36, 0xd6, 0xde, 0x41, 0xd6,
-	0xd0, 0x72, 0xc8, 0x5b, 0x28, 0xf5, 0xd0, 0x17, 0xb6, 0xab, 0x9c, 0x9a, 0x3c, 0x70, 0xd0, 0xaf,
-	0x24, 0x36, 0x53, 0x5b, 0xf9, 0xed, 0x5a, 0x7d, 0x46, 0x64, 0xfd, 0xf9, 0x04, 0x6b, 0x04, 0x0e,
-	0x1a, 0xeb, 0xbd, 0x93, 0x06, 0xbf, 0xf6, 0x63, 0x02, 0xd6, 0xa6, 0x50, 0xe4, 0x31, 0xe4, 0x63,
-	0xb8, 0x4a, 0x6a, 0x33, 0xb1, 0x95, 0xdf, 0xbe, 0x5a, 0x5f, 0xe8, 0x39, 0x8e, 0x26, 0xcf, 0x60,
-	0x6d, 0x80, 0x7e, 0xdf, 0xec, 0x0b, 0xe1, 0x85, 0xfa, 0x92, 0x4a, 0xdf, 0xb5, 0x39, 0xfa, 0xda,
-	0xfb, 0xfb, 0xbb, 0x4a, 0x58, 0x51, 0x72, 0xda, 0x42, 0x78, 0x5a, 0xd5, 0xdf, 0x19, 0x58, 0x8d,
-	0xe6, 0xc8, 0x67, 0x90, 0x1e, 0x50, 0xd1, 0xed, 0x87, 0xfb, 0xbc, 0xb5, 0xc0, 0xcf, 0x1b, 0x89,
-	0x31, 0xf0, 0xfb, 0x00, 0x7d, 0x61, 0x68, 0x06, 0x79, 0x02, 0x69, 0x79, 0x90, 0x18, 0x4a, 0xb8,
-	0xb3, 0x48, 0x82, 0xc4, 0xc4, 0x77, 0xa4, 0x59, 0xe4, 0x01, 0x64, 0x85, 0x3d, 0x40, 0x16, 0x88,
-	0x4a, 0x26, 0x0a, 0x82, 0x3a, 0xbf, 0x7a, 0x74, 0x7e, 0xf5, 0xe7, 0xe1, 0xf9, 0x1a, 0x11, 0x92,
-	0xec, 0x40, 0x96, 0xa3, 0xe0, 0x36, 0xfa, 0x95, 0xac, 0x22, 0x5d, 0x5f, 0xb4, 0x2a, 0x0a, 0x3e,
-	0x32, 0x22, 0x30, 0x79, 0x0c, 0xe9, 0x03, 0x1a, 0x38, 0xa2, 0xb2, 0xaa, 0x58, 0xb7, 0x17, 0xb0,
-	0x5e, 0x4a, 0xcc, 0x97, 0xee, 0x7b, 0xec, 0x6a, 0xa5, 0x8a, 0x43, 0xee, 0x43, 0x66, 0x60, 0x73,
-	0xce, 0x78, 0x25, 0xb7, 0xec, 0xb4, 0x42, 0x20, 0x79, 0x0a, 0xf9, 0x2e, 0xe3, 0xbe, 0xe9, 0x31,
-	0xc7, 0xee, 0x8e, 0x2a, 0xa0, 0x78, 0xff, 0x9b, 0xb3, 0xea, 0x33, 0xc6, 0xfd, 0x5d, 0x05, 0x32,
-	0xa0, 0x3b, 0xfe, 0x26, 0x3b, 0x70, 0x85, 0xe3, 0x80, 0x1d, 0xa1, 0xc9, 0xd1, 0xf7, 0x98, 0xeb,
-	0xa3, 0xd9, 0x47, 0xda, 0x43, 0xee, 0x57, 0x0a, 0x9b, 0xa9, 0xad, 0x9c, 0x71, 0x59, 0x4f, 0x1b,
-	0xe1, 0x6c, 0x5b, 0x4f, 0x12, 0x17, 0xae, 0xc8, 0x94, 0x77, 0x7b, 0xb3, 0xbc, 0xa2, 0x3a, 0xa5,
-	0x9d, 0x53, 0x12, 0xa5, 0xde, 0x54, 0xd4, 0x29, 0x9f, 0x2f, 0x5c, 0x19, 0xc9, 0xcb, 0x74, 0xde,
-	0x1c, 0x79, 0x08, 0x1b, 0x63, 0x9d, 0x2a, 0x39, 0xc6, 0xcb, 0x5d, 0x54, 0x32, 0xcb, 0x91, 0x4c,
-	0x35, 0x19, 0xb1, 0x0e, 0x61, 0x63, 0xac, 0xf2, 0x24, 0x6b, 0x4d, 0x89, 0xfc, 0xf8, 0x2c, 0x22,
-	0xe3, 0x1e, 0xb5, 0xc6, 0x32, 0x9d, 0x33, 0x55, 0x6d, 0x43, 0x75, 0xf1, 0xbe, 0xc8, 0x3a, 0xa4,
-	0x0e, 0x71, 0x54, 0x49, 0x6c, 0x26, 0xb6, 0x72, 0x86, 0xfc, 0x24, 0x65, 0x48, 0x1f, 0x51, 0x27,
-	0x90, 0x69, 0x2d, 0x6d, 0x7a, 0xf0, 0x28, 0xf9, 0x69, 0xa2, 0xfa, 0x0a, 0xae, 0x2e, 0x5c, 0xfc,
-	0x3c, 0x8e, 0x6a, 0x3f, 0x27, 0x61, 0x7d, 0xba, 0xaa, 0xc8, 0x3d, 0x48, 0x05, 0xdc, 0x56, 0x0e,
-	0xf2, 0xdb, 0x37, 0xe6, 0x44, 0x60, 0x4f, 0x70, 0xdb, 0xb5, 0x34, 0x47, 0x42, 0xc9, 0x0e, 0x64,
-	0x06, 0x28, 0xfa, 0xac, 0x17, 0x76, 0x91, 0x65, 0xa4, 0x10, 0x4d, 0xbe, 0x82, 0x6c, 0x14, 0xef,
-	0xb4, 0x8a, 0xf7, 0xbd, 0x33, 0x54, 0x7d, 0xfd, 0x44, 0xa8, 0x23, 0x07, 0xd5, 0x77, 0x50, 0x58,
-	0x12, 0x86, 0x87, 0xf1, 0x30, 0x2c, 0x17, 0x19, 0x0b, 0xd3, 0x9f, 0x2b, 0x50, 0x9e, 0xd7, 0x41,
-	0xc8, 0xd7, 0x70, 0x99, 0x3a, 0x02, 0xb9, 0x4b, 0x05, 0x9a, 0xf1, 0x6e, 0x9a, 0x58, 0x56, 0x9f,
-	0xe5, 0x31, 0x2f, 0xee, 0x6f, 0x03, 0x32, 0xc7, 0x68, 0x5b, 0x7d, 0xa1, 0x34, 0xa6, 0x8d, 0x70,
-	0x74, 0x5a, 0x15, 0xa6, 0x4e, 0xab, 0xc2, 0x1f, 0x16, 0x57, 0xe1, 0x8a, 0x0a, 0x78, 0xeb, 0x8c,
-	0xbd, 0xf2, 0x83, 0x56, 0x64, 0xfa, 0x94, 0x8a, 0x3c, 0x5e, 0x58, 0x91, 0x19, 0x25, 0xb8, 0x79,
-	0x5e, 0xc1, 0xff, 0xe1, 0xea, 0xb4, 0x60, 0x7d, 0x26, 0xe3, 0xa6, 0x6e, 0xed, 0xc4, 0xb9, 0x6e,
-	0xed, 0x05, 0xe9, 0x55, 0xfb, 0x35, 0x09, 0xa5, 0xd7, 0x0f, 0x55, 0xda, 0x37, 0x85, 0xe0, 0x76,
-	0x27, 0x10, 0xe8, 0x93, 0x06, 0x5c, 0x8a, 0xbf, 0x42, 0xfc, 0xa0, 0xe3, 0xa2, 0xd0, 0xef, 0x90,
-	0x9c, 0x41, 0x62, 0x53, 0x7b, 0x7a, 0x86, 0x10, 0x58, 0xf1, 0x18, 0xd7, 0xce, 0x8b, 0x86, 0xfa,
-	0x26, 0xb7, 0xa0, 0xe8, 0xb3, 0x80, 0x77, 0x31, 0xe4, 0xab, 0x0e, 0x91, 0x33, 0x0a, 0xda, 0xa8,
-	0x99, 0xe4, 0xdb, 0x31, 0xc8, 0xa1, 0x1d, 0x74, 0xa2, 0xe4, 0x9c, 0x77, 0x45, 0xcc, 0xc8, 0xac,
-	0xef, 0x29, 0xe6, 0x6b, 0x45, 0xd4, 0x07, 0x1c, 0x3a, 0xd7, 0x26, 0x52, 0x85, 0x55, 0x8b, 0x0a,
-	0x3c, 0xa6, 0xa3, 0x28, 0xf3, 0xc6, 0xe3, 0xea, 0x17, 0x50, 0x9a, 0xa1, 0x9f, 0xeb, 0x88, 0x7e,
-	0x4b, 0x02, 0xd9, 0x7f, 0xbd, 0x37, 0x1d, 0xba, 0x6b, 0x90, 0xf3, 0x5d, 0xdb, 0xec, 0x33, 0x7f,
-	0x1c, 0xb0, 0x55, 0xdf, 0xb5, 0xdb, 0x72, 0xbc, 0x28, 0xae, 0xc9, 0xa5, 0x71, 0x4d, 0x9d, 0x16,
-	0xd7, 0x95, 0x39, 0x71, 0xfd, 0x6e, 0x3a, 0xae, 0xba, 0xcb, 0x7e, 0x32, 0x27, 0xae, 0xb3, 0x9b,
-	0x38, 0x57, 0x60, 0x33, 0x1f, 0x3a, 0xb0, 0x4f, 0xa1, 0xa0, 0x5f, 0x4f, 0x3d, 0x9b, 0x63, 0x57,
-	0x48, 0x6e, 0x74, 0x29, 0xe5, 0xf4, 0xa5, 0x73, 0x1d, 0x72, 0x34, 0x10, 0x7d, 0xc6, 0x6d, 0x31,
-	0x0a, 0xf9, 0x13, 0x43, 0xed, 0x09, 0xe4, 0x35, 0xff, 0x98, 0xdb, 0x02, 0xcf, 0x4d, 0x47, 0xc8,
-	0xc7, 0xee, 0x02, 0xb2, 0x01, 0x69, 0x1c, 0xd2, 0xae, 0xd0, 0x0e, 0xda, 0x17, 0x0c, 0x3d, 0x24,
-	0x15, 0xc8, 0x78, 0x1c, 0x0f, 0xec, 0xa1, 0xf6, 0xd0, 0xbe, 0x60, 0x84, 0x63, 0xc9, 0xe0, 0x68,
-	0xe1, 0x50, 0xe7, 0xbb, 0x64, 0xa8, 0x61, 0xab, 0x00, 0xa0, 0x1e, 0xad, 0xa6, 0x18, 0x79, 0x58,
-	0x7b, 0x0f, 0xb9, 0xf1, 0x1b, 0x51, 0xc6, 0x93, 0x0a, 0x81, 0x03, 0x4f, 0xe5, 0x8c, 0xac, 0xcf,
-	0xf1, 0x98, 0x34, 0x61, 0xcd, 0x43, 0x6e, 0x0a, 0x3e, 0x32, 0xa3, 0xb7, 0x6a, 0x72, 0xd9, 0x5b,
-	0xb5, 0xe8, 0x21, 0xdf, 0xe7, 0xa3, 0x7d, 0x8d, 0xaf, 0xfd, 0x94, 0x04, 0x98, 0x3c, 0xf2, 0xc8,
-	0x4d, 0x28, 0x50, 0xc7, 0x61, 0xc7, 0x26, 0xe3, 0xb6, 0x65, 0xbb, 0x61, 0x96, 0xe6, 0x95, 0xed,
-	0xad, 0x32, 0xc9, 0x1c, 0xd3, 0x10, 0x7d, 0x5d, 0x47, 0x29, 0xaa, 0x79, 0x6f, 0xb4, 0x6d, 0x02,
-	0x3a, 0x79, 0x21, 0x69, 0x50, 0xd4, 0xd5, 0x6f, 0xc3, 0x45, 0x1c, 0x7a, 0x6c, 0xea, 0xfa, 0xc9,
-	0x19, 0x45, 0x6d, 0x8d, 0x60, 0xdb, 0x90, 0x1d, 0xd0, 0xa1, 0x49, 0x2d, 0xac, 0xa4, 0x97, 0xed,
-	0x2e, 0x33, 0xa0, 0xc3, 0xa6, 0x85, 0xe4, 0x15, 0x94, 0xf4, 0xfa, 0x5d, 0x8e, 0x3d, 0x74, 0x85,
-	0x4d, 0x1d, 0x3f, 0x7c, 0xc7, 0x57, 0x67, 0xd8, 0x2d, 0xc6, 0x9c, 0x6f, 0x64, 0x8e, 0x19, 0xeb,
-	0x8a, 0xf4, 0x6c, 0xc2, 0x91, 0x97, 0x3c, 0x99, 0x7d, 0x7a, 0x93, 0x26, 0xa4, 0x7b, 0xe8, 0xd0,
-	0x51, 0xd8, 0x6a, 0x3f, 0x3a, 0xd3, 0x83, 0xbd, 0xfe, 0x5c, 0x52, 0x0c, 0xcd, 0x94, 0x2e, 0x68,
-	0x27, 0x6a, 0x8c, 0x67, 0x76, 0xd1, 0x94, 0x14, 0x43, 0x33, 0xab, 0x7f, 0x25, 0x20, 0xad, 0x7c,
-	0x92, 0xeb, 0x90, 0xf5, 0x90, 0x77, 0xd1, 0xd5, 0xc9, 0x98, 0x6e, 0x25, 0x2b, 0x09, 0x23, 0x32,
-	0x91, 0xcf, 0x21, 0x7f, 0x60, 0x0f, 0xb1, 0x67, 0x6a, 0xcd, 0xcb, 0x72, 0xa4, 0x7d, 0xc1, 0x00,
-	0x85, 0xd7, 0xbe, 0xdb, 0x50, 0x92, 0x07, 0xe2, 0xea, 0x90, 0x84, 0x3e, 0x52, 0xcb, 0x7d, 0xac,
-	0xc7, 0x58, 0xda, 0xd3, 0x23, 0x80, 0x50, 0xd2, 0xe4, 0x30, 0xab, 0x73, 0xf6, 0xbd, 0xab, 0x41,
-	0x46, 0x0c, 0xdd, 0x2a, 0xc1, 0x9a, 0xfa, 0xad, 0x54, 0xcb, 0xab, 0x3a, 0xa9, 0xfe, 0x9e, 0x80,
-	0xb4, 0x8a, 0xc7, 0x92, 0xed, 0xdf, 0x84, 0xbc, 0xa2, 0xfa, 0x82, 0x8a, 0xc0, 0xd7, 0xb7, 0x9c,
-	0xdc, 0xa3, 0x34, 0xee, 0x29, 0x9b, 0x84, 0x58, 0xdc, 0xeb, 0x46, 0x90, 0xa8, 0x3c, 0x41, 0x1a,
-	0x27, 0x10, 0x49, 0xd8, 0x36, 0x51, 0xfd, 0x6b, 0xad, 0x44, 0x10, 0x65, 0x7c, 0xa1, 0x7e, 0xab,
-	0xfe, 0xcd, 0xfe, 0x0a, 0x00, 0xca, 0xb1, 0x6e, 0x01, 0x2f, 0xa1, 0xb0, 0xcb, 0xb8, 0xd8, 0x43,
-	0x07, 0xbb, 0x82, 0x71, 0xd9, 0x52, 0xdc, 0x60, 0xd0, 0x41, 0xae, 0xf6, 0x57, 0x94, 0x2d, 0x45,
-	0x8f, 0x49, 0x19, 0x56, 0x5c, 0x3a, 0xc0, 0x71, 0xab, 0x51, 0xa3, 0x56, 0x46, 0x5f, 0x0e, 0xb5,
-	0xff, 0x43, 0x36, 0x5c, 0x6c, 0xd2, 0x55, 0xa5, 0x87, 0x44, 0xd8, 0x55, 0x5b, 0x77, 0x7f, 0xf9,
-	0xe3, 0x46, 0xe2, 0xdd, 0x1d, 0xcb, 0x16, 0xfd, 0xa0, 0x53, 0xef, 0xb2, 0x41, 0x43, 0x8a, 0xbc,
-	0x6b, 0xb3, 0xc6, 0x58, 0x76, 0xc3, 0x3b, 0xb4, 0x1a, 0xd4, 0xb3, 0x1b, 0x47, 0xf7, 0x3b, 0x19,
-	0x75, 0xd0, 0x0f, 0xfe, 0x09, 0x00, 0x00, 0xff, 0xff, 0x97, 0x21, 0x4f, 0xc5, 0x24, 0x11, 0x00,
-	0x00,
+var fileDescriptor_routing_5013e98e855c4cde = []byte{
+	// 1001 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x95, 0xdd, 0x6e, 0xdb, 0x36,
+	0x14, 0xc7, 0x27, 0xa7, 0x8e, 0xe3, 0xe3, 0x7c, 0x38, 0x6c, 0x3e, 0x54, 0xa3, 0xeb, 0x52, 0x0f,
+	0xc5, 0x0c, 0x0c, 0x95, 0x17, 0x67, 0x28, 0x86, 0x76, 0x18, 0xe6, 0x7c, 0xb4, 0x29, 0xb0, 0x60,
+	0x01, 0x17, 0xec, 0x62, 0x18, 0x20, 0xd0, 0xf6, 0x89, 0xac, 0x46, 0x12, 0x35, 0x92, 0x4a, 0xe3,
+	0x37, 0xd8, 0x4b, 0xec, 0x7e, 0x8f, 0xb4, 0xeb, 0x3d, 0xc3, 0x2e, 0x77, 0x31, 0x90, 0x94, 0x6c,
+	0xb7, 0xb6, 0xe1, 0x16, 0xbb, 0x13, 0xcf, 0xf9, 0xfd, 0x0f, 0xcf, 0xe1, 0x39, 0xa4, 0x60, 0x43,
+	0xf0, 0x4c, 0x85, 0x49, 0xe0, 0xa5, 0x82, 0x2b, 0x4e, 0xb6, 0x65, 0x96, 0xa2, 0x08, 0x22, 0xce,
+	0x3d, 0xc9, 0x23, 0xee, 0x85, 0xbc, 0xb1, 0x13, 0xf0, 0x80, 0x1b, 0x6f, 0x5b, 0x7f, 0x59, 0xb0,
+	0xf1, 0x28, 0xe0, 0x3c, 0x88, 0xb0, 0x6d, 0x56, 0xbd, 0xec, 0xba, 0x3d, 0xc8, 0x04, 0x53, 0x21,
+	0x4f, 0x16, 0xf9, 0xdf, 0x0a, 0x96, 0xa6, 0x28, 0x64, 0xee, 0xbf, 0xaf, 0xf7, 0x68, 0xdf, 0x1e,
+	0x6a, 0xe0, 0x6e, 0x64, 0x8d, 0xcd, 0x17, 0x50, 0xa1, 0x36, 0x1d, 0xf2, 0x15, 0xac, 0xea, 0xcc,
+	0x50, 0xba, 0xce, 0xc1, 0x4a, 0xab, 0xd6, 0x71, 0xbd, 0x99, 0xcc, 0x3c, 0xcd, 0x22, 0xcd, 0xb9,
+	0xe6, 0xef, 0x55, 0x28, 0x1b, 0x0b, 0xf1, 0xe0, 0x3e, 0x26, 0xac, 0x17, 0xe1, 0xc0, 0xbf, 0xe6,
+	0xc2, 0x0f, 0x93, 0x40, 0xa0, 0x94, 0xee, 0xce, 0x81, 0xd3, 0x5a, 0xa3, 0xdb, 0xb9, 0xeb, 0x25,
+	0x17, 0xaf, 0xad, 0x83, 0xb4, 0xa0, 0x3e, 0xcd, 0xc7, 0x28, 0x87, 0xee, 0xae, 0x81, 0x37, 0x27,
+	0xf0, 0x05, 0xca, 0x21, 0xf9, 0x15, 0xc8, 0x34, 0x19, 0xb1, 0x1e, 0x46, 0xd2, 0xdd, 0x37, 0x19,
+	0x7a, 0x8b, 0x32, 0xf4, 0xce, 0xc6, 0x41, 0x7e, 0x30, 0x82, 0xb3, 0x44, 0x89, 0x11, 0xad, 0xe3,
+	0x7b, 0x66, 0xe2, 0x42, 0x65, 0xc0, 0x63, 0x16, 0x26, 0xd2, 0xdd, 0x3b, 0x58, 0x69, 0x55, 0x69,
+	0xb1, 0x24, 0xdf, 0x43, 0x5d, 0xe0, 0x6f, 0x19, 0x4a, 0xe5, 0xc7, 0x4c, 0xf5, 0x87, 0x28, 0x8a,
+	0x73, 0xd9, 0xf5, 0xde, 0xd9, 0xf0, 0xc2, 0x7a, 0xe9, 0x56, 0x8e, 0xe7, 0x6b, 0x49, 0x0e, 0x61,
+	0x95, 0xf5, 0x75, 0x7f, 0xdc, 0xd2, 0x81, 0xd3, 0xaa, 0x75, 0x1e, 0x78, 0xb3, 0x89, 0x76, 0x0d,
+	0x40, 0x73, 0x90, 0x1c, 0x41, 0x45, 0x85, 0x31, 0xf2, 0x4c, 0xb9, 0xab, 0x85, 0xc6, 0x34, 0xd5,
+	0x2b, 0x9a, 0xea, 0x9d, 0xe6, 0x4d, 0xa7, 0x05, 0x49, 0x9e, 0x41, 0x45, 0xa0, 0x12, 0x21, 0x4a,
+	0xb7, 0x62, 0x44, 0x0f, 0xe7, 0x1c, 0xcb, 0xf9, 0xd5, 0xd5, 0x25, 0x45, 0x7d, 0x08, 0x05, 0x4c,
+	0x5e, 0x40, 0xf9, 0x9a, 0x65, 0x91, 0x72, 0xd7, 0x8c, 0xea, 0xc9, 0x02, 0xd5, 0x4b, 0xcd, 0xbc,
+	0x4e, 0xde, 0xa0, 0x4d, 0xd5, 0x6a, 0x74, 0x71, 0x71, 0x28, 0x04, 0x17, 0x6e, 0x75, 0x5e, 0x71,
+	0xa7, 0x28, 0x55, 0x98, 0xd8, 0x44, 0x73, 0x90, 0x7c, 0x07, 0xb5, 0x3e, 0x17, 0xd2, 0x4f, 0x79,
+	0x14, 0xf6, 0x47, 0x2e, 0x18, 0xdd, 0xa7, 0x73, 0x76, 0x3d, 0xe1, 0x42, 0x5e, 0x1a, 0x88, 0x42,
+	0x7f, 0xfc, 0x4d, 0x9e, 0xc1, 0xbe, 0xc0, 0x98, 0xdf, 0xa2, 0x2f, 0x50, 0xa6, 0x3c, 0x91, 0xe8,
+	0x0f, 0x91, 0x0d, 0x74, 0x63, 0xd6, 0x4d, 0xef, 0x76, 0xad, 0x9b, 0xe6, 0xde, 0x73, 0xeb, 0x24,
+	0x37, 0xb0, 0xaf, 0xef, 0x41, 0x32, 0x98, 0xd5, 0x6d, 0x98, 0x86, 0x1e, 0x2d, 0x1c, 0xa3, 0xae,
+	0xd1, 0xbd, 0x17, 0xd0, 0xce, 0xd2, 0x2e, 0x9b, 0xe7, 0x23, 0x5f, 0xc3, 0xde, 0x38, 0x49, 0x3b,
+	0x3d, 0xc5, 0x5e, 0x9b, 0x26, 0xc7, 0x9d, 0x22, 0x47, 0xe3, 0x2c, 0x54, 0x43, 0xd8, 0x1b, 0xa7,
+	0xf8, 0xae, 0x6a, 0xcb, 0x64, 0xd8, 0x59, 0x9a, 0xe1, 0x74, 0x38, 0x9b, 0xe0, 0x0e, 0x9b, 0xe3,
+	0x6a, 0x9c, 0xc0, 0xee, 0xdc, 0xbb, 0x41, 0xea, 0xb0, 0x72, 0x83, 0x23, 0xd7, 0x39, 0x70, 0x5a,
+	0x55, 0xaa, 0x3f, 0xc9, 0x0e, 0x94, 0x6f, 0x59, 0x94, 0xa1, 0x19, 0xdf, 0x2a, 0xb5, 0x8b, 0xe7,
+	0xa5, 0x6f, 0x9c, 0xc6, 0x39, 0x34, 0x16, 0x9f, 0xcc, 0x47, 0x45, 0x7a, 0x05, 0x0f, 0x16, 0x56,
+	0xf0, 0x31, 0x81, 0x9a, 0x6f, 0xa0, 0x3a, 0x1e, 0x71, 0xd2, 0x80, 0x35, 0xa6, 0x14, 0xc6, 0xa9,
+	0x92, 0x46, 0x5d, 0xa6, 0xe3, 0x35, 0xe9, 0xc2, 0x56, 0x8a, 0xc2, 0x57, 0x62, 0xe4, 0x17, 0x57,
+	0xad, 0xb4, 0xec, 0xaa, 0x6d, 0xa4, 0x28, 0xae, 0xc4, 0xe8, 0xca, 0xf2, 0xcd, 0x3f, 0x4a, 0x00,
+	0x93, 0x19, 0x25, 0x8f, 0x61, 0x9d, 0x45, 0x11, 0x7f, 0xeb, 0x73, 0x11, 0x06, 0x61, 0x62, 0x5e,
+	0x89, 0x2a, 0xad, 0x19, 0xdb, 0x8f, 0xc6, 0x44, 0x3e, 0x87, 0x0d, 0x8b, 0xc4, 0xa8, 0x86, 0x7c,
+	0x20, 0xdd, 0x92, 0x61, 0xac, 0xee, 0xc2, 0xda, 0x26, 0x50, 0xd1, 0xfb, 0x95, 0x29, 0xa8, 0x98,
+	0x94, 0x27, 0xb0, 0x89, 0x77, 0x29, 0x9f, 0x9a, 0xe1, 0x7b, 0x86, 0xda, 0xb0, 0xd6, 0x02, 0xeb,
+	0x40, 0x25, 0x66, 0x77, 0x3e, 0x0b, 0xd0, 0x2d, 0x2f, 0xab, 0x6e, 0x35, 0x66, 0x77, 0xdd, 0x00,
+	0xc9, 0x2b, 0xd8, 0xb6, 0xfb, 0xf7, 0x05, 0x0e, 0x30, 0x51, 0x21, 0x8b, 0x64, 0xfe, 0x0c, 0x35,
+	0x66, 0xd4, 0xc7, 0x9c, 0x47, 0x3f, 0xeb, 0xd3, 0xa7, 0x75, 0x23, 0x3a, 0x99, 0x68, 0x9a, 0xff,
+	0xdc, 0x03, 0x32, 0xfb, 0x72, 0x90, 0x2e, 0x94, 0x07, 0x18, 0x31, 0xdb, 0xd0, 0x5a, 0xe7, 0xcb,
+	0x0f, 0x7a, 0x6f, 0xbc, 0x53, 0x2d, 0xa1, 0x56, 0xa9, 0x43, 0xb0, 0x1e, 0x17, 0x45, 0xcb, 0x3e,
+	0x30, 0x44, 0x57, 0x4b, 0xa8, 0x55, 0x36, 0xfe, 0x75, 0xa0, 0x6c, 0x62, 0x92, 0x87, 0x50, 0x49,
+	0x51, 0xf4, 0x31, 0x51, 0x76, 0x48, 0x8e, 0x4b, 0xae, 0x43, 0x0b, 0x13, 0xf9, 0x16, 0x6a, 0xd7,
+	0xe1, 0x1d, 0x0e, 0x7c, 0x9b, 0xf3, 0xb2, 0x19, 0x39, 0xff, 0x84, 0x82, 0xe1, 0x6d, 0xec, 0x73,
+	0xd8, 0xd6, 0x0d, 0x49, 0xec, 0x91, 0xe4, 0x31, 0x56, 0x96, 0xc7, 0xa8, 0x4f, 0xa9, 0x6c, 0xa4,
+	0xe7, 0x00, 0x79, 0x4a, 0x93, 0x66, 0x36, 0xe6, 0xd4, 0x7d, 0x69, 0x21, 0x3a, 0x45, 0x1f, 0x6f,
+	0xc3, 0xd6, 0x50, 0xa9, 0xd4, 0x6e, 0xef, 0xab, 0x51, 0x8a, 0x8d, 0xbf, 0x1c, 0x28, 0x9b, 0xf3,
+	0x58, 0x52, 0xfe, 0x63, 0xa8, 0x19, 0xa9, 0x54, 0x4c, 0x65, 0xd2, 0x94, 0x5f, 0xd6, 0x35, 0x6a,
+	0xe3, 0x4f, 0xc6, 0xa6, 0x91, 0x40, 0xa4, 0xfd, 0x02, 0xd1, 0xd5, 0x55, 0x35, 0xa2, 0x8d, 0x13,
+	0x44, 0x0b, 0x3a, 0x3e, 0x9a, 0x5f, 0xc5, 0xbd, 0x02, 0x31, 0xc6, 0x33, 0xf3, 0x57, 0xf8, 0x3f,
+	0xf5, 0xad, 0x03, 0x98, 0xc0, 0xa6, 0xb4, 0xe6, 0x67, 0x50, 0xc9, 0xa1, 0xc9, 0x3b, 0xa1, 0x2b,
+	0x73, 0xf2, 0x77, 0xe2, 0xf8, 0xe9, 0x9f, 0x7f, 0x3f, 0x72, 0x7e, 0xf9, 0x22, 0x08, 0xd5, 0x30,
+	0xeb, 0x79, 0x7d, 0x1e, 0xb7, 0x75, 0xf0, 0xa7, 0x21, 0x6f, 0x8f, 0xb7, 0x6b, 0xa7, 0x37, 0x41,
+	0x9b, 0xa5, 0x61, 0xfb, 0xf6, 0xb0, 0xb7, 0x6a, 0x1a, 0x74, 0xf4, 0x5f, 0x00, 0x00, 0x00, 0xff,
+	0xff, 0x7b, 0x08, 0x55, 0x04, 0xb0, 0x09, 0x00, 0x00,
 }
