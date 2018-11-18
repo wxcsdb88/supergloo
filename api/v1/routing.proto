@@ -10,7 +10,12 @@ option (gogoproto.equal_all) = true;
 import "gloo/v1/proxy.proto";
 
 // global routing config for a single mesh
-message Routing {
+message Routing2 {
+    
+}
+
+
+message Routing2 {
     // users define routes here
     // routes can be assigned to services in the mesh, on the ingress, or both.
     // routes define http request matchers and the destinations (services inside or outside the mesh)

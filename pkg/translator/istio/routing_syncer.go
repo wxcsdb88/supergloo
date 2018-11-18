@@ -98,6 +98,10 @@ func preserveVirtualService(original, desired *v1alpha3.VirtualService) (bool, e
 	return !proto.Equal(original, desired), nil
 }
 
+func subsetName(us *gloov1.Upstream) string {
+	return fmt.Sprintf("%v.%v", us.Metadata.Namespace, us.Metadata.Name)
+}
+
 func createDestinationRules(enableTls bool, upstreams gloov1.UpstreamList) v1alpha3.DestinationRuleList {
 	subsetsByDestination := make(map[string][]*v1alpha3.Subset)
 	// only support kube upstreams for now
@@ -110,7 +114,7 @@ func createDestinationRules(enableTls bool, upstreams gloov1.UpstreamList) v1alp
 			}
 			host := fmt.Sprintf("%v.%v.svc.cluster.local", specType.Kube.ServiceName, specType.Kube.ServiceNamespace)
 			subsetsByDestination[host] = append(subsetsByDestination[host], &v1alpha3.Subset{
-				Name:   fmt.Sprintf("%v.%v", us.Metadata.Namespace, us.Metadata.Name),
+				Name:   subsetName(us),
 				Labels: specType.Kube.Selector,
 			})
 		}
@@ -194,64 +198,76 @@ func createVirtualServices(meshes v1.MeshList, upstreams gloov1.UpstreamList) (v
 		if mesh.Routing == nil {
 			continue
 		}
-		for i, dest := range mesh.Routing.DestinationRules {
-			upstream, err := upstreams.Find(dest.Destination.Upstream.Namespace, dest.Destination.Upstream.Name)
-			if err != nil {
-				return nil, errors.Wrapf(err, "invalid destination for rule %v", i)
+
+		ingressRoutesByDomain := make(map[string][]*v1.Route)
+		meshRoutesByDomain := make(map[string][]*v1.Route)
+		for _, route := range mesh.Routing.Routes {
+			if len(route.Domains) == 0 {
+				route.Domains = []string{"*"}
 			}
-			hosts, err := getHostsForUpstream(upstream)
-			if err != nil {
-				return nil, errors.Wrapf(err, "cannot get hosts for dest rule %v", i)
+			for _, domain := range route.Domains {
+				if route.EnabledForIngress {
+					ingressRoutesByDomain[domain] = append(ingressRoutesByDomain[domain], route)
+				}
+				if route.EnabledForIngress {
+					meshRoutesByDomain[domain] = append(meshRoutesByDomain[domain], route)
+				}
 			}
-			routes, err := convertHttpRules(dest.Destination, dest.MeshHttpRules, upstreams)
-			if err != nil {
-				return nil, errors.Wrapf(err, "cannot generate routes for destination rule %v", i)
+		}
+
+		for domain, routes := range ingressRoutesByDomain {
+			var istioRoutes []*v1alpha3.HTTPRoute
+			for _, route := range routes {
+				istioRoute, err := convertRoute(route, upstreams)
+				if err != nil {
+					return nil, errors.Wrapf(err, "invalid route %v", route)
+				}
+				istioRoutes = append(istioRoutes, istioRoute)
 			}
 			vs := &v1alpha3.VirtualService{
 				Metadata: core.Metadata{
-					Name: "supergloo-" + dest.Destination.Upstream.Name,
+					Name: "supergloo-" + domain,
 				},
 				// in istio api, this is equivalent to []string{"mesh"}
 				// which includes all pods in the mesh, with no selectors
 				// and no ingresses
-				Gateways: []string{},
-				Hosts:    hosts,
-				Http:     routes,
+				Gateways: []string{"gateway"},
+				Hosts:    []string{domain},
+				Http:     istioRoutes,
 			}
 			virtualServices = append(virtualServices, vs)
 		}
 	}
+	sort.SliceStable(virtualServices, func(i, j int) bool {
+		return virtualServices[i].Metadata.Less(virtualServices[j].Metadata)
+	})
 	return virtualServices, nil
 }
 
-func convertHttpRules(originalDestination *gloov1.Destination, rules []*v1.HTTPRule, upstreams gloov1.UpstreamList) ([]*v1alpha3.HTTPRoute, error) {
-	var istioRoutes []*v1alpha3.HTTPRoute
-	for _, rule := range rules {
-		istioRoute, err := convertRoute(originalDestination, rule.Route, upstreams)
-		if err != nil {
-			return nil, errors.Wrapf(err, "converting rule route %v", rule.Route)
-		}
-		var mirror *v1alpha3.Destination
-		if rule.Mirror != nil {
-			mirror, err = convertDestination(rule.Mirror, upstreams)
-			if err != nil {
-				return nil, errors.Wrapf(err, "converting rule mirror %v", rule.Mirror)
-			}
-		}
-		istioRoutes = append(istioRoutes, &v1alpha3.HTTPRoute{
-			Match:                 convertMatch(rule.Match),
-			Route:                 istioRoute,
-			Timeout:               rule.Timeout,
-			Retries:               convertRetry(rule.Retries),
-			Fault:                 convertFault(rule.Fault),
-			Mirror:                mirror,
-			CorsPolicy:            convertCorsPolicy(rule.CorsPolicy),
-			RemoveResponseHeaders: rule.RemoveResponseHeaders,
-			AppendResponseHeaders: rule.AppendResponseHeaders,
-			RemoveRequestHeaders:  rule.RemoveRequestHeaders,
-		})
+func convertRoute(route *v1.Route, upstreams gloov1.UpstreamList) (*v1alpha3.HTTPRoute, error) {
+	istioRoute, err := convertAction(route.Action, upstreams)
+	if err != nil {
+		return nil, errors.Wrapf(err, "converting route action %v", route.Action)
 	}
-	return istioRoutes, nil
+	var mirror *v1alpha3.Destination
+	if route.Mirror != nil {
+		mirror, err = convertDestination(route.Mirror, upstreams)
+		if err != nil {
+			return nil, errors.Wrapf(err, "converting route mirror %v", route.Mirror)
+		}
+	}
+	return &v1alpha3.HTTPRoute{
+		Match:                 convertMatch(route.RequestMatchers),
+		Route:                 istioRoute,
+		Timeout:               route.Timeout,
+		Retries:               convertRetry(route.Retries),
+		Fault:                 convertFault(route.Fault),
+		Mirror:                mirror,
+		CorsPolicy:            convertCorsPolicy(route.CorsPolicy),
+		RemoveResponseHeaders: route.RemoveResponseHeaders,
+		AppendResponseHeaders: route.AppendResponseHeaders,
+		RemoveRequestHeaders:  route.RemoveRequestHeaders,
+	}, nil
 }
 
 func convertRetry(retry *v1.HTTPRetry) *v1alpha3.HTTPRetry {
@@ -336,7 +352,7 @@ func convertCorsPolicy(cors *v1.CorsPolicy) *v1alpha3.CorsPolicy {
 	}
 }
 
-func convertMatch(match []*v1.HTTPMatchRequest) []*v1alpha3.HTTPMatchRequest {
+func convertMatch(match []*gloov1.Matcher) []*v1alpha3.HTTPMatchRequest {
 	var istioMatch []*v1alpha3.HTTPMatchRequest
 	for _, m := range match {
 		istioMatch = append(istioMatch, &v1alpha3.HTTPMatchRequest{
@@ -349,30 +365,27 @@ func convertMatch(match []*v1.HTTPMatchRequest) []*v1alpha3.HTTPMatchRequest {
 	return istioMatch
 }
 
-func convertRoute(originalDestination *gloov1.Destination, route []*v1.HTTPRouteDestination, upstreams gloov1.UpstreamList) ([]*v1alpha3.HTTPRouteDestination, error) {
-	var istioMatch []*v1alpha3.HTTPRouteDestination
-	for _, m := range route {
-		destination := originalDestination
-		if m.AlternateDestination != nil {
-			destination = m.AlternateDestination
-		}
-		istioDestination, err := convertDestination(destination, upstreams)
+func convertAction(route *gloov1.RouteAction, upstreams gloov1.UpstreamList) ([]*v1alpha3.HTTPRouteDestination, error) {
+	switch dest := route.Destination.(type) {
+	case *gloov1.RouteAction_Single:
+		istioDestination, err := convertDestination(route, upstreams)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to convert destination %v", destination)
 		}
-		istioMatch = append(istioMatch, &v1alpha3.HTTPRouteDestination{
-			Destination:           istioDestination,
-			Weight:                m.Weight,
-			RemoveRequestHeaders:  m.RemoveRequestHeaders,
-			RemoveResponseHeaders: m.RemoveResponseHeaders,
-			AppendRequestHeaders:  m.AppendRequestHeaders,
-			AppendResponseHeaders: m.AppendResponseHeaders,
-		})
+		return []*v1alpha3.HTTPRouteDestination{{
+			Destination: istioDestination,
+			// TODO: ilackarms: add support in our api
+			//RemoveRequestHeaders:  route.RemoveRequestHeaders,
+			//RemoveResponseHeaders: route.RemoveResponseHeaders,
+			//AppendRequestHeaders:  route.AppendRequestHeaders,
+			//AppendResponseHeaders: route.AppendResponseHeaders,
+		}}, nil
+
+	case *gloov1.RouteAction_Multi:
 	}
-	return istioMatch, nil
 }
 
-func convertDestination(dest *gloov1.Destination, upstreams gloov1.UpstreamList) (*v1alpha3.Destination, error) {
+func convertDestination(ctx context.Context, dest *gloov1.Destination, upstreams gloov1.UpstreamList) (*v1alpha3.Destination, error) {
 	upstream, err := upstreams.Find(dest.Upstream.Namespace, dest.Upstream.Name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid destination %v", dest)
@@ -384,8 +397,23 @@ func convertDestination(dest *gloov1.Destination, upstreams gloov1.UpstreamList)
 	if len(hosts) < 1 {
 		return nil, errors.Errorf("could not find at least 1 host for upstream %v", upstream)
 	}
+
+	var portSelector *v1alpha3.PortSelector
+	port, err := getPortForUpstream(upstream)
+	if err != nil {
+		contextutils.LoggerFrom(ctx).Warnf("no port found for %v, assuming it listeons on only 1 port")
+	} else {
+		portSelector = &v1alpha3.PortSelector{
+			Port: &v1alpha3.PortSelector_Number{
+				Number: port,
+			},
+		}
+	}
+
 	return &v1alpha3.Destination{
-		Host: hosts[0], // ilackarms: this host must match what istio expects in the service registry
+		Host:   hosts[0], // ilackarms: this host must match what istio expects in the service registry
+		Subset: subsetName(upstream),
+		Port:   portSelector,
 	}, nil
 }
 
