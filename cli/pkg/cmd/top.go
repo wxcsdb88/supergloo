@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"github.com/solo-io/supergloo/cli/pkg/cmd/ingresstoolbox"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/install"
+	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +25,11 @@ func App(version string) *cobra.Command {
 	app.SuggestionsMinimumDistance = 1
 	app.AddCommand(
 		install.Cmd(&opts),
+		meshtoolbox.FaultInjection(&opts),
+		meshtoolbox.LoadBalancing(&opts),
+		meshtoolbox.Retries(&opts),
+		ingresstoolbox.FortifyIngress(&opts),
+		ingresstoolbox.AddRoute(&opts),
 	)
 
 	return app
