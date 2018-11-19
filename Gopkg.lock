@@ -501,14 +501,6 @@
   version = "v0.10.4"
 
 [[projects]]
-  digest = "1:0e1266ffce079a4441e178ae703d50cec29f4c264de8ff3ccef5060b1de9f2b4"
-  name = "github.com/helm/helm"
-  packages = ["pkg/getter"]
-  pruneopts = "UT"
-  revision = "2e55dbe1fdb5fdb96b75ff144a339489417b146b"
-  version = "v2.11.0"
-
-[[projects]]
   branch = "master"
   digest = "1:59392ed8afb901aab4287d4894df8191722e34f3957716f4350c8c133ce99046"
   name = "github.com/hpcloud/tail"
@@ -1582,7 +1574,6 @@
     "github.com/gogo/protobuf/types",
     "github.com/hashicorp/consul/api",
     "github.com/hashicorp/go-multierror",
-    "github.com/helm/helm/pkg/getter",
     "github.com/lyft/protoc-gen-validate/validate",
     "github.com/mitchellh/hashstructure",
     "github.com/onsi/ginkgo",
@@ -1643,6 +1634,7 @@
     "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/clientcmd",
     "k8s.io/helm/pkg/downloader",
+    "k8s.io/helm/pkg/getter",
     "k8s.io/helm/pkg/helm",
     "k8s.io/helm/pkg/helm/environment",
     "k8s.io/helm/pkg/helm/portforwarder",
