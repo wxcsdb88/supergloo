@@ -1,10 +1,12 @@
 package info
 
+import "github.com/solo-io/supergloo/cli/pkg/cmd/options"
+
 type ResourceInfo interface {
-	// returns the already formatted Header row
-	Headers() string
-	// returns a slice where each element is a formatted resource row
-	Resources() []string
+	// Returns a slice containing header names
+	Headers(opts options.Get) []string
+	// Returns a slice of slices, each one containing the fields corresponding to the headers
+	Resources(opts options.Get) [][]string
 }
 
 type Header struct {
@@ -16,12 +18,7 @@ type Header struct {
 }
 
 // For each row, we will want to look up the values by the header name
-type Data []map[string]Field
-
-type Field struct {
-	Header Header
-	Value  string
-}
+type Data []map[string]string
 
 func (h Header) String() string {
 	return h.Name

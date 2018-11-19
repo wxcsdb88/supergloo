@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/solo-io/solo-kit/pkg/errors"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/supergloo/cli/pkg/constants"
 	"github.com/solo-io/supergloo/cli/pkg/model/info"
@@ -17,7 +19,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-type SuperglooClient interface {
+type SuperglooInfoClient interface {
 	ListResourceTypes() ([]string, error)
 	ListResources(resourceType, resourceName string) (info.ResourceInfo, error)
 }
@@ -27,7 +29,7 @@ type KubernetesSuperglooClient struct {
 	meshClient    *v1.MeshClient
 }
 
-func NewClient() (SuperglooClient, error) {
+func NewClient() (SuperglooInfoClient, error) {
 	cache := kube.NewKubeCache()
 	config, err := kubeutils.GetConfig("", "")
 	if err != nil {
@@ -82,34 +84,23 @@ func (client *KubernetesSuperglooClient) ListResources(resourceType, resourceNam
 	// TODO(marco): make code more generic. Ideally we don't want to enumerate the different options, but I could not
 	// find an interface that all of the generated clients implement
 	switch resourceType {
-	case "mesh":
+	case "meshes":
 		if resourceName == "" {
-			mesh, err := (*client.meshClient).Read(constants.SuperglooNamespace, resourceName, clients.ReadOpts{})
-			if err != nil {
-				return nil, err
-			}
-			return info.From(mesh), nil
-		} else {
 			meshList, err := (*client.meshClient).List(constants.SuperglooNamespace, clients.ListOpts{})
 			if err != nil {
 				return nil, err
 			}
 			return info.FromList(&meshList), nil
+		} else {
+			mesh, err := (*client.meshClient).Read(constants.SuperglooNamespace, resourceName, clients.ReadOpts{})
+			if err != nil {
+				return nil, err
+			}
+			return info.From(mesh), nil
 		}
 	default:
-		//TODO: remove mock data
-		var data info.Data = make([]map[string]info.Field, 0)
-		m := make(map[string]info.Field)
-		header := info.Header{Name: "name", WideOnly: false}
-		m["name"] = info.Field{Header: header}
-		data = append(data, m)
-		return info.MeshInfo{
-			Header: []info.Header{header},
-			Data:   data,
-		}, nil
-
 		// Should not happen since we validate the resource
-		//return nil, errors.Errorf(constants.UnknownResourceTypeMsg, resourceType)
+		return nil, errors.Errorf(constants.UnknownResourceTypeMsg, resourceType)
 	}
 }
 

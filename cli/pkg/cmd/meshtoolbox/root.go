@@ -10,8 +10,8 @@ import (
 func FaultInjection(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fault-injection",
-		Short: `stress test your mesh with faults`,
-		Long:  `stress test your mesh with faults`,
+		Short: `Stress test your mesh with faults`,
+		Long:  `Stress test your mesh with faults`,
 		Run: func(c *cobra.Command, args []string) {
 			fmt.Println("this feature will be available in 2019")
 		},
@@ -23,8 +23,8 @@ func FaultInjection(opts *options.Options) *cobra.Command {
 func LoadBalancing(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "load-balancing",
-		Short: `specify traffic distribution`,
-		Long:  `specify traffic distribution`,
+		Short: `Specify traffic distribution`,
+		Long:  `Specify traffic distribution`,
 		Run: func(c *cobra.Command, args []string) {
 			fmt.Println("this feature will be available in 2019")
 		},
@@ -36,8 +36,8 @@ func LoadBalancing(opts *options.Options) *cobra.Command {
 func Retries(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "retries",
-		Short: `configure retry parameters`,
-		Long:  `configure retry parameters`,
+		Short: `Configure retry parameters`,
+		Long:  `Configure retry parameters`,
 		Run: func(c *cobra.Command, args []string) {
 			meshToolPlaceholder(opts)
 		},
