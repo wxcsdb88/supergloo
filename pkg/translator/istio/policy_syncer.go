@@ -29,21 +29,23 @@ func (s *PolicySyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot) er
 	var multiErr *multierror.Error
 
 	for _, mesh := range snap.Meshes.List() {
-		switch mesh.TargetMesh.MeshType {
-		case v1.MeshType_ISTIO:
-			policy := mesh.Policy
-			if policy == nil {
-				err := s.removePolicy(ctx)
-				if err != nil {
-					multiErr = multierror.Append(multiErr, err)
-				}
-				continue
-			}
-
-			err := s.syncPolicy(ctx, policy)
+		_, ok := mesh.MeshType.(*v1.Mesh_Istio)
+		if !ok {
+			// not our mesh, we don't care
+			continue
+		}
+		policy := mesh.Policy
+		if policy == nil {
+			err := s.removePolicy(ctx)
 			if err != nil {
 				multiErr = multierror.Append(multiErr, err)
 			}
+			continue
+		}
+
+		err := s.syncPolicy(ctx, policy)
+		if err != nil {
+			multiErr = multierror.Append(multiErr, err)
 		}
 	}
 	return multiErr.ErrorOrNil()
@@ -190,6 +192,9 @@ func (s *PolicySyncer) updateMetadata(meta *core.Metadata) {
 	meta.Namespace = s.WriteNamespace
 	if meta.Annotations == nil {
 		meta.Annotations = make(map[string]string)
+	}
+	if meta.Labels == nil && len(s.WriteSelector) > 0{
+		meta.Labels = make(map[string]string)
 	}
 	meta.Annotations["created_by"] = "supergloo"
 	for k, v := range s.WriteSelector {

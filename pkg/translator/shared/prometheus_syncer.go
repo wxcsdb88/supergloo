@@ -3,10 +3,6 @@ package shared
 import (
 	"context"
 
-	"go.uber.org/multierr"
-
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/solo-kit/pkg/errors"
@@ -15,7 +11,13 @@ import (
 	prometheusv1 "github.com/solo-io/supergloo/pkg/api/external/prometheus/v1"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/translator/kube"
+	"go.uber.org/multierr"
+	"k8s.io/client-go/kubernetes"
 )
+
+type MeshWithPrometheus interface {
+	GetPrometheusConfigmap() *core.ResourceRef
+}
 
 type PrometheusSyncer struct {
 	// it's okay for this to be nil, it's only used
@@ -24,14 +26,19 @@ type PrometheusSyncer struct {
 	Kube                 kubernetes.Interface
 	PrometheusClient     prometheusv1.ConfigClient // for reading/writing configmaps
 	DesiredScrapeConfigs []prometheus.ScrapeConfig
-	MeshType             v1.MeshType
+	// the implementing syncer puts in a function to return the configmap resource ref
+	// if the configmap ref is nil, we return, assume there is no work for us to do on this mesh
+	GetConfigMap func(*v1.Mesh) *core.ResourceRef
 }
 
 func (s *PrometheusSyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot) error {
 	ctx = contextutils.WithLogger(ctx, "prometheus-syncer")
 	logger := contextutils.LoggerFrom(ctx)
-	logger.Infof("begin sync %v (%v meshes, %v upstreams)", snap.Hash(),
-		len(snap.Meshes), len(snap.Upstreams))
+	meshes := snap.Meshes.List()
+	upstreams := snap.Upstreams.List()
+
+	logger.Infof("begin sync %v (%v meshes)", snap.Hash(),
+		len(meshes), len(upstreams))
 	defer logger.Infof("end sync %v", snap.Hash())
 	logger.Debugf("%v", snap)
 
@@ -47,14 +54,6 @@ func (s *PrometheusSyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot
 }
 
 func (s *PrometheusSyncer) syncMesh(ctx context.Context, mesh *v1.Mesh) error {
-	if mesh.TargetMesh == nil {
-		// ilackarms (todo): reporting for this error
-		return errors.Errorf("invalid mesh %v: target_mesh required", mesh.Metadata.Ref())
-	}
-	if mesh.TargetMesh.MeshType != s.MeshType {
-		return nil
-	}
-
 	if mesh.Observability == nil {
 		return nil
 	}
@@ -64,12 +63,13 @@ func (s *PrometheusSyncer) syncMesh(ctx context.Context, mesh *v1.Mesh) error {
 	if !mesh.Observability.Prometheus.EnableMetrics {
 		return nil
 	}
-	if mesh.Observability.Prometheus.PrometheusConfigMap == nil {
-		// ilackarms (todo): reporting for this error
-		return errors.Errorf("invalid mesh %v: must provide a reference to the target prometheus config map", mesh.Metadata.Ref())
+
+	configMap := s.GetConfigMap(mesh)
+	if configMap == nil {
+		// nothing to configure for this mesh
+		return nil
 	}
-	configMap := *mesh.Observability.Prometheus.PrometheusConfigMap
-	prometheusConfig, err := s.getPrometheusConfig(ctx, configMap)
+	prometheusConfig, err := s.getPrometheusConfig(ctx, *configMap)
 	if err != nil {
 		return errors.Wrapf(err, "retrieving existing prometheus config")
 	}
@@ -82,7 +82,7 @@ func (s *PrometheusSyncer) syncMesh(ctx context.Context, mesh *v1.Mesh) error {
 
 	contextutils.LoggerFrom(ctx).Infof("syncing prometheus config for mesh %v", mesh.Metadata.Ref())
 
-	if err := s.writePrometheusConfig(ctx, configMap, prometheusConfig); err != nil {
+	if err := s.writePrometheusConfig(ctx, *configMap, prometheusConfig); err != nil {
 		return errors.Wrapf(err, "writing prometheus config")
 	}
 	// no pod labels specified, nothing to restart

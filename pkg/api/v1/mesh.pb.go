@@ -22,35 +22,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-type MeshType int32
-
-const (
-	MeshType_ISTIO    MeshType = 0
-	MeshType_LINKERD1 MeshType = 1
-	MeshType_LINKERD2 MeshType = 2
-	MeshType_CONSUL   MeshType = 3
-)
-
-var MeshType_name = map[int32]string{
-	0: "ISTIO",
-	1: "LINKERD1",
-	2: "LINKERD2",
-	3: "CONSUL",
-}
-var MeshType_value = map[string]int32{
-	"ISTIO":    0,
-	"LINKERD1": 1,
-	"LINKERD2": 2,
-	"CONSUL":   3,
-}
-
-func (x MeshType) String() string {
-	return proto.EnumName(MeshType_name, int32(x))
-}
-func (MeshType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_3fc9080a9e707d03, []int{0}
-}
-
 //
 // @solo-kit:resource.short_name=mesh
 // @solo-kit:resource.plural_name=meshes
@@ -60,9 +31,16 @@ type Mesh struct {
 	// Status is read-only by clients, and set by gloo during validation
 	Status core.Status `protobuf:"bytes,6,opt,name=status" json:"status" testdiff:"ignore"`
 	// Metadata contains the object metadata for this resource
-	Metadata             core.Metadata  `protobuf:"bytes,7,opt,name=metadata" json:"metadata"`
-	TargetMesh           *TargetMesh    `protobuf:"bytes,2,opt,name=target_mesh,json=targetMesh" json:"target_mesh,omitempty"`
-	Routing              *Routing       `protobuf:"bytes,1,opt,name=routing" json:"routing,omitempty"`
+	Metadata core.Metadata `protobuf:"bytes,7,opt,name=metadata" json:"metadata"`
+	// mesh-specific configuration
+	//
+	// Types that are valid to be assigned to MeshType:
+	//	*Mesh_Istio
+	//	*Mesh_Linkerd2
+	//	*Mesh_Consul
+	MeshType isMesh_MeshType `protobuf_oneof:"mesh_type"`
+	// policy applied to the mesh
+	// TODO: rick-ducott, yuval-k: consider splitting these out as in routing.proto
 	Encryption           *Encryption    `protobuf:"bytes,98,opt,name=encryption" json:"encryption,omitempty"`
 	Observability        *Observability `protobuf:"bytes,99,opt,name=observability" json:"observability,omitempty"`
 	Policy               *Policy        `protobuf:"bytes,100,opt,name=policy" json:"policy,omitempty"`
@@ -75,7 +53,7 @@ func (m *Mesh) Reset()         { *m = Mesh{} }
 func (m *Mesh) String() string { return proto.CompactTextString(m) }
 func (*Mesh) ProtoMessage()    {}
 func (*Mesh) Descriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_3fc9080a9e707d03, []int{0}
+	return fileDescriptor_mesh_030d2a4f061df2b5, []int{0}
 }
 func (m *Mesh) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Mesh.Unmarshal(m, b)
@@ -95,6 +73,32 @@ func (m *Mesh) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Mesh proto.InternalMessageInfo
 
+type isMesh_MeshType interface {
+	isMesh_MeshType()
+	Equal(interface{}) bool
+}
+
+type Mesh_Istio struct {
+	Istio *Istio `protobuf:"bytes,10,opt,name=istio,oneof"`
+}
+type Mesh_Linkerd2 struct {
+	Linkerd2 *Linkerd2 `protobuf:"bytes,20,opt,name=linkerd2,oneof"`
+}
+type Mesh_Consul struct {
+	Consul *Consul `protobuf:"bytes,30,opt,name=consul,oneof"`
+}
+
+func (*Mesh_Istio) isMesh_MeshType()    {}
+func (*Mesh_Linkerd2) isMesh_MeshType() {}
+func (*Mesh_Consul) isMesh_MeshType()   {}
+
+func (m *Mesh) GetMeshType() isMesh_MeshType {
+	if m != nil {
+		return m.MeshType
+	}
+	return nil
+}
+
 func (m *Mesh) GetStatus() core.Status {
 	if m != nil {
 		return m.Status
@@ -109,16 +113,23 @@ func (m *Mesh) GetMetadata() core.Metadata {
 	return core.Metadata{}
 }
 
-func (m *Mesh) GetTargetMesh() *TargetMesh {
-	if m != nil {
-		return m.TargetMesh
+func (m *Mesh) GetIstio() *Istio {
+	if x, ok := m.GetMeshType().(*Mesh_Istio); ok {
+		return x.Istio
 	}
 	return nil
 }
 
-func (m *Mesh) GetRouting() *Routing {
-	if m != nil {
-		return m.Routing
+func (m *Mesh) GetLinkerd2() *Linkerd2 {
+	if x, ok := m.GetMeshType().(*Mesh_Linkerd2); ok {
+		return x.Linkerd2
+	}
+	return nil
+}
+
+func (m *Mesh) GetConsul() *Consul {
+	if x, ok := m.GetMeshType().(*Mesh_Consul); ok {
+		return x.Consul
 	}
 	return nil
 }
@@ -144,118 +155,90 @@ func (m *Mesh) GetPolicy() *Policy {
 	return nil
 }
 
-type TargetMesh struct {
-	MeshType MeshType `protobuf:"varint,1,opt,name=mesh_type,json=meshType,proto3,enum=supergloo.solo.io.MeshType" json:"mesh_type,omitempty"`
-	// Types that are valid to be assigned to DeploymentLocation:
-	//	*TargetMesh_KubeLocation
-	DeploymentLocation   isTargetMesh_DeploymentLocation `protobuf_oneof:"deployment_location"`
-	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
-	XXX_unrecognized     []byte                          `json:"-"`
-	XXX_sizecache        int32                           `json:"-"`
-}
-
-func (m *TargetMesh) Reset()         { *m = TargetMesh{} }
-func (m *TargetMesh) String() string { return proto.CompactTextString(m) }
-func (*TargetMesh) ProtoMessage()    {}
-func (*TargetMesh) Descriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_3fc9080a9e707d03, []int{1}
-}
-func (m *TargetMesh) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_TargetMesh.Unmarshal(m, b)
-}
-func (m *TargetMesh) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_TargetMesh.Marshal(b, m, deterministic)
-}
-func (dst *TargetMesh) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TargetMesh.Merge(dst, src)
-}
-func (m *TargetMesh) XXX_Size() int {
-	return xxx_messageInfo_TargetMesh.Size(m)
-}
-func (m *TargetMesh) XXX_DiscardUnknown() {
-	xxx_messageInfo_TargetMesh.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_TargetMesh proto.InternalMessageInfo
-
-type isTargetMesh_DeploymentLocation interface {
-	isTargetMesh_DeploymentLocation()
-	Equal(interface{}) bool
-}
-
-type TargetMesh_KubeLocation struct {
-	KubeLocation *KubeLocation `protobuf:"bytes,2,opt,name=kube_location,json=kubeLocation,oneof"`
-}
-
-func (*TargetMesh_KubeLocation) isTargetMesh_DeploymentLocation() {}
-
-func (m *TargetMesh) GetDeploymentLocation() isTargetMesh_DeploymentLocation {
-	if m != nil {
-		return m.DeploymentLocation
-	}
-	return nil
-}
-
-func (m *TargetMesh) GetMeshType() MeshType {
-	if m != nil {
-		return m.MeshType
-	}
-	return MeshType_ISTIO
-}
-
-func (m *TargetMesh) GetKubeLocation() *KubeLocation {
-	if x, ok := m.GetDeploymentLocation().(*TargetMesh_KubeLocation); ok {
-		return x.KubeLocation
-	}
-	return nil
-}
-
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*TargetMesh) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _TargetMesh_OneofMarshaler, _TargetMesh_OneofUnmarshaler, _TargetMesh_OneofSizer, []interface{}{
-		(*TargetMesh_KubeLocation)(nil),
+func (*Mesh) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _Mesh_OneofMarshaler, _Mesh_OneofUnmarshaler, _Mesh_OneofSizer, []interface{}{
+		(*Mesh_Istio)(nil),
+		(*Mesh_Linkerd2)(nil),
+		(*Mesh_Consul)(nil),
 	}
 }
 
-func _TargetMesh_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*TargetMesh)
-	// deployment_location
-	switch x := m.DeploymentLocation.(type) {
-	case *TargetMesh_KubeLocation:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.KubeLocation); err != nil {
+func _Mesh_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*Mesh)
+	// mesh_type
+	switch x := m.MeshType.(type) {
+	case *Mesh_Istio:
+		_ = b.EncodeVarint(10<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Istio); err != nil {
+			return err
+		}
+	case *Mesh_Linkerd2:
+		_ = b.EncodeVarint(20<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Linkerd2); err != nil {
+			return err
+		}
+	case *Mesh_Consul:
+		_ = b.EncodeVarint(30<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Consul); err != nil {
 			return err
 		}
 	case nil:
 	default:
-		return fmt.Errorf("TargetMesh.DeploymentLocation has unexpected type %T", x)
+		return fmt.Errorf("Mesh.MeshType has unexpected type %T", x)
 	}
 	return nil
 }
 
-func _TargetMesh_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*TargetMesh)
+func _Mesh_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*Mesh)
 	switch tag {
-	case 2: // deployment_location.kube_location
+	case 10: // mesh_type.istio
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(KubeLocation)
+		msg := new(Istio)
 		err := b.DecodeMessage(msg)
-		m.DeploymentLocation = &TargetMesh_KubeLocation{msg}
+		m.MeshType = &Mesh_Istio{msg}
+		return true, err
+	case 20: // mesh_type.linkerd2
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Linkerd2)
+		err := b.DecodeMessage(msg)
+		m.MeshType = &Mesh_Linkerd2{msg}
+		return true, err
+	case 30: // mesh_type.consul
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Consul)
+		err := b.DecodeMessage(msg)
+		m.MeshType = &Mesh_Consul{msg}
 		return true, err
 	default:
 		return false, nil
 	}
 }
 
-func _TargetMesh_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*TargetMesh)
-	// deployment_location
-	switch x := m.DeploymentLocation.(type) {
-	case *TargetMesh_KubeLocation:
-		s := proto.Size(x.KubeLocation)
+func _Mesh_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*Mesh)
+	// mesh_type
+	switch x := m.MeshType.(type) {
+	case *Mesh_Istio:
+		s := proto.Size(x.Istio)
 		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Mesh_Linkerd2:
+		s := proto.Size(x.Linkerd2)
+		n += 2 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Mesh_Consul:
+		s := proto.Size(x.Consul)
+		n += 2 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case nil:
@@ -265,65 +248,188 @@ func _TargetMesh_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
-type KubeLocation struct {
-	Kubeconfig           string   `protobuf:"bytes,1,opt,name=kubeconfig,proto3" json:"kubeconfig,omitempty"`
-	MasterAddress        string   `protobuf:"bytes,2,opt,name=master_address,json=masterAddress,proto3" json:"master_address,omitempty"`
-	Namespace            string   `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+// configuration for an istio mesh. this will be autogenerated if Supergloo installs Istio for you.
+type Istio struct {
+	// which namespace is istio installed to?
+	InstallationNamespace string `protobuf:"bytes,1,opt,name=installation_namespace,json=installationNamespace,proto3" json:"installation_namespace,omitempty"`
+	// the namespaces istio is watching for its crd-based configuration. leave empty if istio install is cluster-wide
+	WatchNamespaces []string `protobuf:"bytes,2,rep,name=watch_namespaces,json=watchNamespaces" json:"watch_namespaces,omitempty"`
+	// if provided, this will give Supergloo a reference to the prometheus configuration associated with this istio install
+	// if empty, Supergloo will look for the configmap `istio-system.prometheus`
+	PrometheusConfigmap  *core.ResourceRef `protobuf:"bytes,3,opt,name=prometheus_configmap,json=prometheusConfigmap" json:"prometheus_configmap,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *KubeLocation) Reset()         { *m = KubeLocation{} }
-func (m *KubeLocation) String() string { return proto.CompactTextString(m) }
-func (*KubeLocation) ProtoMessage()    {}
-func (*KubeLocation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_mesh_3fc9080a9e707d03, []int{2}
+func (m *Istio) Reset()         { *m = Istio{} }
+func (m *Istio) String() string { return proto.CompactTextString(m) }
+func (*Istio) ProtoMessage()    {}
+func (*Istio) Descriptor() ([]byte, []int) {
+	return fileDescriptor_mesh_030d2a4f061df2b5, []int{1}
 }
-func (m *KubeLocation) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_KubeLocation.Unmarshal(m, b)
+func (m *Istio) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Istio.Unmarshal(m, b)
 }
-func (m *KubeLocation) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_KubeLocation.Marshal(b, m, deterministic)
+func (m *Istio) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Istio.Marshal(b, m, deterministic)
 }
-func (dst *KubeLocation) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_KubeLocation.Merge(dst, src)
+func (dst *Istio) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Istio.Merge(dst, src)
 }
-func (m *KubeLocation) XXX_Size() int {
-	return xxx_messageInfo_KubeLocation.Size(m)
+func (m *Istio) XXX_Size() int {
+	return xxx_messageInfo_Istio.Size(m)
 }
-func (m *KubeLocation) XXX_DiscardUnknown() {
-	xxx_messageInfo_KubeLocation.DiscardUnknown(m)
+func (m *Istio) XXX_DiscardUnknown() {
+	xxx_messageInfo_Istio.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_KubeLocation proto.InternalMessageInfo
+var xxx_messageInfo_Istio proto.InternalMessageInfo
 
-func (m *KubeLocation) GetKubeconfig() string {
+func (m *Istio) GetInstallationNamespace() string {
 	if m != nil {
-		return m.Kubeconfig
+		return m.InstallationNamespace
 	}
 	return ""
 }
 
-func (m *KubeLocation) GetMasterAddress() string {
+func (m *Istio) GetWatchNamespaces() []string {
 	if m != nil {
-		return m.MasterAddress
+		return m.WatchNamespaces
+	}
+	return nil
+}
+
+func (m *Istio) GetPrometheusConfigmap() *core.ResourceRef {
+	if m != nil {
+		return m.PrometheusConfigmap
+	}
+	return nil
+}
+
+// configuration for an istio mesh. this will be autogenerated if Supergloo installs Istio for you.
+type Linkerd2 struct {
+	// which namespace is linkerd2 installed to?
+	InstallationNamespace string `protobuf:"bytes,1,opt,name=installation_namespace,json=installationNamespace,proto3" json:"installation_namespace,omitempty"`
+	// the namespaces linkerd2 is watching for its crd-based configuration. leave empty if linkerd2 install is cluster-wide
+	WatchNamespaces []string `protobuf:"bytes,2,rep,name=watch_namespaces,json=watchNamespaces" json:"watch_namespaces,omitempty"`
+	// if provided, this will give Supergloo a reference to the prometheus configuration associated with this linkerd2 install
+	// if empty, Supergloo will look for the configmap `linkerd.prometheus`
+	PrometheusConfigmap  *core.ResourceRef `protobuf:"bytes,3,opt,name=prometheus_configmap,json=prometheusConfigmap" json:"prometheus_configmap,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *Linkerd2) Reset()         { *m = Linkerd2{} }
+func (m *Linkerd2) String() string { return proto.CompactTextString(m) }
+func (*Linkerd2) ProtoMessage()    {}
+func (*Linkerd2) Descriptor() ([]byte, []int) {
+	return fileDescriptor_mesh_030d2a4f061df2b5, []int{2}
+}
+func (m *Linkerd2) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Linkerd2.Unmarshal(m, b)
+}
+func (m *Linkerd2) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Linkerd2.Marshal(b, m, deterministic)
+}
+func (dst *Linkerd2) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Linkerd2.Merge(dst, src)
+}
+func (m *Linkerd2) XXX_Size() int {
+	return xxx_messageInfo_Linkerd2.Size(m)
+}
+func (m *Linkerd2) XXX_DiscardUnknown() {
+	xxx_messageInfo_Linkerd2.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Linkerd2 proto.InternalMessageInfo
+
+func (m *Linkerd2) GetInstallationNamespace() string {
+	if m != nil {
+		return m.InstallationNamespace
 	}
 	return ""
 }
 
-func (m *KubeLocation) GetNamespace() string {
+func (m *Linkerd2) GetWatchNamespaces() []string {
 	if m != nil {
-		return m.Namespace
+		return m.WatchNamespaces
+	}
+	return nil
+}
+
+func (m *Linkerd2) GetPrometheusConfigmap() *core.ResourceRef {
+	if m != nil {
+		return m.PrometheusConfigmap
+	}
+	return nil
+}
+
+// configuration for an istio mesh. this will be autogenerated if Supergloo installs Istio for you.
+type Consul struct {
+	// which namespace is consul instatlled to?
+	InstallationNamespace string `protobuf:"bytes,1,opt,name=installation_namespace,json=installationNamespace,proto3" json:"installation_namespace,omitempty"`
+	// address of the consul api server
+	ServerAddress string `protobuf:"bytes,2,opt,name=server_address,json=serverAddress,proto3" json:"server_address,omitempty"`
+	// if provided, this will give Supergloo a reference to the prometheus configuration associated with this consul install
+	// if empty, Supergloo will look for the configmap `linkerd.prometheus`
+	PrometheusConfigmap  *core.ResourceRef `protobuf:"bytes,3,opt,name=prometheus_configmap,json=prometheusConfigmap" json:"prometheus_configmap,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *Consul) Reset()         { *m = Consul{} }
+func (m *Consul) String() string { return proto.CompactTextString(m) }
+func (*Consul) ProtoMessage()    {}
+func (*Consul) Descriptor() ([]byte, []int) {
+	return fileDescriptor_mesh_030d2a4f061df2b5, []int{3}
+}
+func (m *Consul) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Consul.Unmarshal(m, b)
+}
+func (m *Consul) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Consul.Marshal(b, m, deterministic)
+}
+func (dst *Consul) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Consul.Merge(dst, src)
+}
+func (m *Consul) XXX_Size() int {
+	return xxx_messageInfo_Consul.Size(m)
+}
+func (m *Consul) XXX_DiscardUnknown() {
+	xxx_messageInfo_Consul.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Consul proto.InternalMessageInfo
+
+func (m *Consul) GetInstallationNamespace() string {
+	if m != nil {
+		return m.InstallationNamespace
 	}
 	return ""
+}
+
+func (m *Consul) GetServerAddress() string {
+	if m != nil {
+		return m.ServerAddress
+	}
+	return ""
+}
+
+func (m *Consul) GetPrometheusConfigmap() *core.ResourceRef {
+	if m != nil {
+		return m.PrometheusConfigmap
+	}
+	return nil
 }
 
 func init() {
 	proto.RegisterType((*Mesh)(nil), "supergloo.solo.io.Mesh")
-	proto.RegisterType((*TargetMesh)(nil), "supergloo.solo.io.TargetMesh")
-	proto.RegisterType((*KubeLocation)(nil), "supergloo.solo.io.KubeLocation")
-	proto.RegisterEnum("supergloo.solo.io.MeshType", MeshType_name, MeshType_value)
+	proto.RegisterType((*Istio)(nil), "supergloo.solo.io.Istio")
+	proto.RegisterType((*Linkerd2)(nil), "supergloo.solo.io.Linkerd2")
+	proto.RegisterType((*Consul)(nil), "supergloo.solo.io.Consul")
 }
 func (this *Mesh) Equal(that interface{}) bool {
 	if that == nil {
@@ -350,10 +456,13 @@ func (this *Mesh) Equal(that interface{}) bool {
 	if !this.Metadata.Equal(&that1.Metadata) {
 		return false
 	}
-	if !this.TargetMesh.Equal(that1.TargetMesh) {
+	if that1.MeshType == nil {
+		if this.MeshType != nil {
+			return false
+		}
+	} else if this.MeshType == nil {
 		return false
-	}
-	if !this.Routing.Equal(that1.Routing) {
+	} else if !this.MeshType.Equal(that1.MeshType) {
 		return false
 	}
 	if !this.Encryption.Equal(that1.Encryption) {
@@ -370,14 +479,14 @@ func (this *Mesh) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *TargetMesh) Equal(that interface{}) bool {
+func (this *Mesh_Istio) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	that1, ok := that.(*TargetMesh)
+	that1, ok := that.(*Mesh_Istio)
 	if !ok {
-		that2, ok := that.(TargetMesh)
+		that2, ok := that.(Mesh_Istio)
 		if ok {
 			that1 = &that2
 		} else {
@@ -389,16 +498,90 @@ func (this *TargetMesh) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if this.MeshType != that1.MeshType {
+	if !this.Istio.Equal(that1.Istio) {
 		return false
 	}
-	if that1.DeploymentLocation == nil {
-		if this.DeploymentLocation != nil {
+	return true
+}
+func (this *Mesh_Linkerd2) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*Mesh_Linkerd2)
+	if !ok {
+		that2, ok := that.(Mesh_Linkerd2)
+		if ok {
+			that1 = &that2
+		} else {
 			return false
 		}
-	} else if this.DeploymentLocation == nil {
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
 		return false
-	} else if !this.DeploymentLocation.Equal(that1.DeploymentLocation) {
+	}
+	if !this.Linkerd2.Equal(that1.Linkerd2) {
+		return false
+	}
+	return true
+}
+func (this *Mesh_Consul) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*Mesh_Consul)
+	if !ok {
+		that2, ok := that.(Mesh_Consul)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !this.Consul.Equal(that1.Consul) {
+		return false
+	}
+	return true
+}
+func (this *Istio) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*Istio)
+	if !ok {
+		that2, ok := that.(Istio)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if this.InstallationNamespace != that1.InstallationNamespace {
+		return false
+	}
+	if len(this.WatchNamespaces) != len(that1.WatchNamespaces) {
+		return false
+	}
+	for i := range this.WatchNamespaces {
+		if this.WatchNamespaces[i] != that1.WatchNamespaces[i] {
+			return false
+		}
+	}
+	if !this.PrometheusConfigmap.Equal(that1.PrometheusConfigmap) {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
@@ -406,14 +589,14 @@ func (this *TargetMesh) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *TargetMesh_KubeLocation) Equal(that interface{}) bool {
+func (this *Linkerd2) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	that1, ok := that.(*TargetMesh_KubeLocation)
+	that1, ok := that.(*Linkerd2)
 	if !ok {
-		that2, ok := that.(TargetMesh_KubeLocation)
+		that2, ok := that.(Linkerd2)
 		if ok {
 			that1 = &that2
 		} else {
@@ -425,19 +608,33 @@ func (this *TargetMesh_KubeLocation) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if !this.KubeLocation.Equal(that1.KubeLocation) {
+	if this.InstallationNamespace != that1.InstallationNamespace {
+		return false
+	}
+	if len(this.WatchNamespaces) != len(that1.WatchNamespaces) {
+		return false
+	}
+	for i := range this.WatchNamespaces {
+		if this.WatchNamespaces[i] != that1.WatchNamespaces[i] {
+			return false
+		}
+	}
+	if !this.PrometheusConfigmap.Equal(that1.PrometheusConfigmap) {
+		return false
+	}
+	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true
 }
-func (this *KubeLocation) Equal(that interface{}) bool {
+func (this *Consul) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	that1, ok := that.(*KubeLocation)
+	that1, ok := that.(*Consul)
 	if !ok {
-		that2, ok := that.(KubeLocation)
+		that2, ok := that.(Consul)
 		if ok {
 			that1 = &that2
 		} else {
@@ -449,13 +646,13 @@ func (this *KubeLocation) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if this.Kubeconfig != that1.Kubeconfig {
+	if this.InstallationNamespace != that1.InstallationNamespace {
 		return false
 	}
-	if this.MasterAddress != that1.MasterAddress {
+	if this.ServerAddress != that1.ServerAddress {
 		return false
 	}
-	if this.Namespace != that1.Namespace {
+	if !this.PrometheusConfigmap.Equal(that1.PrometheusConfigmap) {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
@@ -464,43 +661,43 @@ func (this *KubeLocation) Equal(that interface{}) bool {
 	return true
 }
 
-func init() { proto.RegisterFile("mesh.proto", fileDescriptor_mesh_3fc9080a9e707d03) }
+func init() { proto.RegisterFile("mesh.proto", fileDescriptor_mesh_030d2a4f061df2b5) }
 
-var fileDescriptor_mesh_3fc9080a9e707d03 = []byte{
-	// 557 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x93, 0xd1, 0x6e, 0xd3, 0x3e,
-	0x14, 0xc6, 0xd7, 0x6d, 0xff, 0xae, 0x3d, 0x6b, 0xa7, 0xce, 0xdb, 0x1f, 0x65, 0x05, 0xd6, 0xa9,
-	0x12, 0x02, 0x21, 0x2d, 0x51, 0x0b, 0x17, 0x13, 0xd2, 0x90, 0x28, 0x0c, 0xa8, 0xd6, 0xad, 0xc8,
-	0x2d, 0x37, 0xdc, 0x54, 0x4e, 0xe2, 0xa6, 0x56, 0x93, 0x38, 0x8a, 0x9d, 0x49, 0x7d, 0x20, 0x24,
-	0x5e, 0x81, 0x37, 0xe0, 0x29, 0x76, 0xc1, 0x23, 0xf0, 0x04, 0x28, 0x8e, 0xdb, 0xa6, 0x22, 0x48,
-	0x5c, 0xc5, 0x3e, 0xe7, 0xf7, 0x7d, 0xf1, 0xf9, 0x2c, 0x03, 0x04, 0x54, 0xcc, 0xcc, 0x28, 0xe6,
-	0x92, 0xa3, 0x43, 0x91, 0x44, 0x34, 0xf6, 0x7c, 0xce, 0x4d, 0xc1, 0x7d, 0x6e, 0x32, 0xde, 0x3c,
-	0xf6, 0xb8, 0xc7, 0x55, 0xd7, 0x4a, 0x57, 0x19, 0xd8, 0xec, 0x78, 0x4c, 0xce, 0x12, 0xdb, 0x74,
-	0x78, 0x60, 0xa5, 0xe4, 0x39, 0xe3, 0xd9, 0x77, 0xce, 0xa4, 0x45, 0x22, 0x66, 0xdd, 0x75, 0xac,
-	0x80, 0x4a, 0xe2, 0x12, 0x49, 0xb4, 0xc4, 0xfa, 0x07, 0x89, 0x90, 0x44, 0x26, 0x42, 0x0b, 0xea,
-	0x31, 0x4f, 0x24, 0x0b, 0x3d, 0xbd, 0x3d, 0xe2, 0xb6, 0xa0, 0xf1, 0x1d, 0xb1, 0x99, 0xcf, 0xe4,
-	0x42, 0x17, 0x1b, 0x34, 0x74, 0xe2, 0x45, 0x24, 0x19, 0x0f, 0x75, 0xa5, 0x16, 0x71, 0x9f, 0x39,
-	0xba, 0xdf, 0xfe, 0xbe, 0x03, 0xbb, 0x37, 0x54, 0xcc, 0xd0, 0x07, 0x28, 0x67, 0xe6, 0x46, 0xf9,
-	0xac, 0xf4, 0x6c, 0xbf, 0x7b, 0x6c, 0x3a, 0x3c, 0xa6, 0xcb, 0x29, 0xcd, 0x91, 0xea, 0xf5, 0x4e,
-	0x7e, 0xdc, 0xb7, 0xb6, 0x7e, 0xdd, 0xb7, 0x0e, 0x25, 0x15, 0xd2, 0x65, 0xd3, 0xe9, 0xab, 0x36,
-	0xf3, 0x42, 0x1e, 0xd3, 0x36, 0xd6, 0x72, 0x74, 0x01, 0x95, 0xe5, 0x60, 0xc6, 0x9e, 0xb2, 0x7a,
-	0xb0, 0x69, 0x75, 0xa3, 0xbb, 0xbd, 0xdd, 0xd4, 0x0c, 0xaf, 0x68, 0xf4, 0x1a, 0xf6, 0x25, 0x89,
-	0x3d, 0x2a, 0x27, 0x69, 0xe2, 0xc6, 0xb6, 0x12, 0x3f, 0x36, 0xff, 0x88, 0xdc, 0x1c, 0x2b, 0x2a,
-	0x3d, 0x36, 0x06, 0xb9, 0x5a, 0xa3, 0x97, 0xb0, 0xa7, 0x13, 0x31, 0x4a, 0x4a, 0xdb, 0x2c, 0xd0,
-	0xe2, 0x8c, 0xc0, 0x4b, 0x14, 0x5d, 0x02, 0xac, 0x33, 0x32, 0xec, 0xbf, 0xfe, 0xf4, 0x6a, 0x05,
-	0xe1, 0x9c, 0x00, 0xbd, 0x87, 0xfa, 0x46, 0xee, 0x86, 0xa3, 0x1c, 0xce, 0x0a, 0x1c, 0x86, 0x79,
-	0x0e, 0x6f, 0xca, 0x50, 0x07, 0xca, 0xd9, 0xc5, 0x18, 0xae, 0x32, 0x38, 0x29, 0x30, 0xf8, 0xa4,
-	0x00, 0xac, 0xc1, 0xf6, 0xd7, 0x12, 0xc0, 0x3a, 0x0a, 0x74, 0x01, 0xd5, 0x34, 0xb7, 0x89, 0x5c,
-	0x44, 0x54, 0x05, 0x70, 0xd0, 0x7d, 0x58, 0x60, 0x92, 0xb2, 0xe3, 0x45, 0x44, 0xd3, 0xe0, 0xb3,
-	0x55, 0x3a, 0xc3, 0x3c, 0xb1, 0xe9, 0xc4, 0xe7, 0x0e, 0x51, 0x29, 0x64, 0xd1, 0xb7, 0x0a, 0xd4,
-	0xd7, 0x89, 0x4d, 0x07, 0x1a, 0xfb, 0xb8, 0x85, 0x6b, 0xf3, 0xdc, 0xbe, 0xf7, 0x3f, 0x1c, 0xb9,
-	0x34, 0xf2, 0xf9, 0x22, 0xa0, 0xa1, 0x5c, 0xb9, 0xb5, 0x05, 0xd4, 0xf2, 0x32, 0x74, 0x0a, 0x90,
-	0xca, 0x1c, 0x1e, 0x4e, 0x59, 0x76, 0x55, 0x55, 0x9c, 0xab, 0xa0, 0x27, 0x70, 0x10, 0x10, 0x21,
-	0x69, 0x3c, 0x21, 0xae, 0x1b, 0x53, 0x21, 0xd4, 0x79, 0xaa, 0xb8, 0x9e, 0x55, 0xdf, 0x64, 0x45,
-	0xf4, 0x08, 0xaa, 0x21, 0x09, 0xa8, 0x88, 0x88, 0x43, 0x8d, 0x1d, 0x45, 0xac, 0x0b, 0xcf, 0x2f,
-	0xa1, 0xb2, 0x9c, 0x14, 0x55, 0xe1, 0xbf, 0xfe, 0x68, 0xdc, 0x1f, 0x36, 0xb6, 0x50, 0x0d, 0x2a,
-	0x83, 0xfe, 0xed, 0xf5, 0x15, 0x7e, 0xd7, 0x69, 0x94, 0x72, 0xbb, 0x6e, 0x63, 0x1b, 0x01, 0x94,
-	0xdf, 0x0e, 0x6f, 0x47, 0x9f, 0x07, 0x8d, 0x9d, 0xde, 0xf9, 0xb7, 0x9f, 0xa7, 0xa5, 0x2f, 0x4f,
-	0x8b, 0x9e, 0xe4, 0x32, 0x13, 0x2b, 0x9a, 0x7b, 0xfa, 0x5d, 0xda, 0x65, 0xf5, 0x9a, 0x5e, 0xfc,
-	0x0e, 0x00, 0x00, 0xff, 0xff, 0x84, 0x97, 0xe3, 0x4e, 0x2c, 0x04, 0x00, 0x00,
+var fileDescriptor_mesh_030d2a4f061df2b5 = []byte{
+	// 556 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x94, 0xdf, 0x6a, 0xd4, 0x4c,
+	0x14, 0xc0, 0x37, 0x5f, 0xdb, 0x7c, 0xdd, 0xa9, 0xd5, 0x76, 0xba, 0x96, 0x69, 0xc5, 0x76, 0x59,
+	0x10, 0x57, 0xb0, 0x89, 0xdb, 0x22, 0xa8, 0xe0, 0x85, 0x5b, 0xd4, 0x15, 0x5a, 0x95, 0xf1, 0xce,
+	0x9b, 0x65, 0x36, 0x99, 0xcd, 0x0e, 0x9b, 0xe4, 0x84, 0x99, 0x49, 0x65, 0xdf, 0xc8, 0x07, 0x10,
+	0x04, 0x9f, 0xc0, 0xa7, 0xe8, 0x85, 0x8f, 0xd0, 0x27, 0x90, 0x4c, 0x26, 0xfb, 0x07, 0x57, 0x28,
+	0xe2, 0x8d, 0x57, 0x09, 0xe7, 0xfc, 0x7e, 0x27, 0x27, 0x73, 0x0e, 0x83, 0x50, 0xc2, 0xd5, 0xc8,
+	0xcb, 0x24, 0x68, 0xc0, 0xdb, 0x2a, 0xcf, 0xb8, 0x8c, 0x62, 0x00, 0x4f, 0x41, 0x0c, 0x9e, 0x80,
+	0xfd, 0x46, 0x04, 0x11, 0x98, 0xac, 0x5f, 0xbc, 0x95, 0xe0, 0x7e, 0x27, 0x12, 0x7a, 0x94, 0x0f,
+	0xbc, 0x00, 0x12, 0xbf, 0x20, 0x8f, 0x04, 0x94, 0xcf, 0xb1, 0xd0, 0x3e, 0xcb, 0x84, 0x7f, 0xd1,
+	0xf1, 0x13, 0xae, 0x59, 0xc8, 0x34, 0xb3, 0x8a, 0x7f, 0x0d, 0x45, 0x69, 0xa6, 0x73, 0x65, 0x85,
+	0x87, 0xd7, 0x10, 0x24, 0x1f, 0x5a, 0x7a, 0x07, 0x06, 0x8a, 0xcb, 0x0b, 0x36, 0x10, 0xb1, 0xd0,
+	0x13, 0x1b, 0xdc, 0xe2, 0x69, 0x20, 0x27, 0x99, 0x16, 0x90, 0xda, 0xc8, 0x8d, 0x0c, 0x62, 0x11,
+	0xd8, 0x7c, 0xeb, 0x6a, 0x05, 0xad, 0x9e, 0x73, 0x35, 0xc2, 0xaf, 0x91, 0x5b, 0x7e, 0x9b, 0xb8,
+	0x4d, 0xa7, 0xbd, 0x71, 0xdc, 0xf0, 0x02, 0x90, 0xbc, 0x3a, 0x04, 0xef, 0x83, 0xc9, 0x75, 0xf7,
+	0xbe, 0x5f, 0x1e, 0xd6, 0xae, 0x2e, 0x0f, 0xb7, 0x35, 0x57, 0x3a, 0x14, 0xc3, 0xe1, 0xb3, 0x96,
+	0x88, 0x52, 0x90, 0xbc, 0x45, 0xad, 0x8e, 0x9f, 0xa0, 0xf5, 0xea, 0xbf, 0xc9, 0xff, 0xa6, 0xd4,
+	0xee, 0x62, 0xa9, 0x73, 0x9b, 0xed, 0xae, 0x16, 0xc5, 0xe8, 0x94, 0xc6, 0x8f, 0xd0, 0x9a, 0x50,
+	0x5a, 0x00, 0x41, 0x46, 0x23, 0xde, 0x2f, 0xb3, 0xf0, 0xde, 0x14, 0xf9, 0x5e, 0x8d, 0x96, 0x20,
+	0x7e, 0x8a, 0xd6, 0x63, 0x91, 0x8e, 0xb9, 0x0c, 0x8f, 0x49, 0xc3, 0x48, 0x77, 0x96, 0x48, 0x67,
+	0x16, 0xe9, 0xd5, 0xe8, 0x14, 0xc7, 0x27, 0xc8, 0x0d, 0x20, 0x55, 0x79, 0x4c, 0x0e, 0x8c, 0xb8,
+	0xb7, 0x44, 0x3c, 0x35, 0x40, 0xaf, 0x46, 0x2d, 0x8a, 0x9f, 0x23, 0x34, 0x3b, 0x4f, 0x32, 0x30,
+	0xe2, 0xdd, 0x25, 0xe2, 0xcb, 0x29, 0x44, 0xe7, 0x04, 0xfc, 0x0a, 0x6d, 0x2e, 0xcc, 0x88, 0x04,
+	0xa6, 0x42, 0x73, 0x49, 0x85, 0x77, 0xf3, 0x1c, 0x5d, 0xd4, 0x70, 0x07, 0xb9, 0xe5, 0x10, 0x49,
+	0xf8, 0xdb, 0xde, 0xdf, 0x1b, 0x80, 0x5a, 0xb0, 0xbb, 0x81, 0xea, 0xc5, 0x96, 0xf7, 0xf5, 0x24,
+	0xe3, 0xad, 0xaf, 0x0e, 0x5a, 0x33, 0x27, 0x89, 0x1f, 0xa3, 0x5d, 0x91, 0x2a, 0xcd, 0xe2, 0x98,
+	0x15, 0x1d, 0xf6, 0x53, 0x96, 0x70, 0x95, 0xb1, 0x80, 0x13, 0xa7, 0xe9, 0xb4, 0xeb, 0xf4, 0xf6,
+	0x7c, 0xf6, 0x6d, 0x95, 0xc4, 0x0f, 0xd0, 0xd6, 0x27, 0xa6, 0x83, 0xd1, 0x8c, 0x57, 0xe4, 0xbf,
+	0xe6, 0x4a, 0xbb, 0x4e, 0x6f, 0x99, 0xf8, 0x94, 0x54, 0xf8, 0x0c, 0x35, 0x32, 0x09, 0x09, 0xd7,
+	0x23, 0x9e, 0xab, 0x7e, 0x00, 0xe9, 0x50, 0x44, 0x09, 0xcb, 0xc8, 0x8a, 0xed, 0x7c, 0x61, 0x35,
+	0x28, 0x57, 0x90, 0xcb, 0x80, 0x53, 0x3e, 0xa4, 0x3b, 0x33, 0xed, 0xb4, 0xb2, 0x5a, 0xdf, 0x1c,
+	0xb4, 0x5e, 0x8d, 0xf3, 0x9f, 0x6b, 0xfe, 0x8b, 0x83, 0xdc, 0x72, 0xa5, 0xfe, 0xb4, 0xf5, 0x7b,
+	0xe8, 0x66, 0xb1, 0x07, 0x5c, 0xf6, 0x59, 0x18, 0x4a, 0xae, 0x8a, 0xc6, 0x0b, 0x7c, 0xb3, 0x8c,
+	0xbe, 0x28, 0x83, 0x7f, 0xb7, 0xed, 0xee, 0xd1, 0xe7, 0x1f, 0x07, 0xce, 0xc7, 0xfb, 0xcb, 0xee,
+	0xa2, 0x6a, 0xeb, 0xfc, 0x6c, 0x1c, 0xd9, 0x0b, 0x69, 0xe0, 0x9a, 0x8b, 0xe5, 0xe4, 0x67, 0x00,
+	0x00, 0x00, 0xff, 0xff, 0x79, 0x4d, 0x82, 0x09, 0x56, 0x05, 0x00, 0x00,
 }
