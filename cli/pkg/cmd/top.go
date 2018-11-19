@@ -26,7 +26,7 @@ func App(version string) *cobra.Command {
 	app.SuggestionsMinimumDistance = 1
 	app.AddCommand(
 		install.Cmd(&opts),
-		get.Cmd(),
+		get.Cmd(&opts),
 		meshtoolbox.FaultInjection(&opts),
 		meshtoolbox.LoadBalancing(&opts),
 		meshtoolbox.Retries(&opts),

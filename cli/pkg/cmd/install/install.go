@@ -11,8 +11,8 @@ import (
 func Cmd(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: `install a mesh`,
-		Long:  `install a mesh.`,
+		Short: `Install a mesh`,
+		Long:  `Install a mesh.`,
 		Run: func(c *cobra.Command, args []string) {
 			install(opts)
 		},

@@ -10,8 +10,8 @@ import (
 func FortifyIngress(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fortify-ingress",
-		Short: `configure ingress security parameters`,
-		Long:  `configure ingress security parameters`,
+		Short: `Configure ingress security parameters`,
+		Long:  `Configure ingress security parameters`,
 		Run: func(c *cobra.Command, args []string) {
 			ingressToolPlaceholder(opts)
 		},
@@ -23,8 +23,8 @@ func FortifyIngress(opts *options.Options) *cobra.Command {
 func AddRoute(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-route",
-		Short: `define new route`,
-		Long:  `define new route`,
+		Short: `Define new route`,
+		Long:  `Define new route`,
 		Run: func(c *cobra.Command, args []string) {
 			ingressToolPlaceholder(opts)
 		},

@@ -5,6 +5,7 @@ type Options struct {
 	Install     Install
 	MeshTool    MeshTool
 	IngressTool IngressTool
+	Get         Get
 }
 
 type Top struct {
@@ -26,4 +27,8 @@ type MeshTool struct {
 type IngressTool struct {
 	IngressId string
 	RouteId   string
+}
+
+type Get struct {
+	Output string
 }
