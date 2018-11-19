@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	consul2 "github.com/solo-io/supergloo/pkg/install/consul"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
@@ -79,6 +81,18 @@ func Main() error {
 		return err
 	}
 
+	installClient, err := v1.NewInstallClient(&factory.KubeResourceClientFactory{
+		Crd:         v1.InstallCrd,
+		Cfg:         restConfig,
+		SharedCache: kubeCache,
+	})
+	if err != nil {
+		return err
+	}
+	if err := installClient.Register(); err != nil {
+		return err
+	}
+
 	upstreamClient, err := gloov1.NewUpstreamClient(&factory.KubeResourceClientFactory{
 		Crd:         gloov1.UpstreamCrd,
 		Cfg:         restConfig,
@@ -101,7 +115,9 @@ func Main() error {
 		return err
 	}
 
-	emitter := v1.NewTranslatorEmitter(meshClient, upstreamClient, secretClient)
+	installEmitter := v1.NewInstallEmitter(installClient)
+
+	translatorEmitter := v1.NewTranslatorEmitter(meshClient, upstreamClient, secretClient)
 
 	rpt := reporter.NewReporter("supergloo", meshClient.BaseClient())
 	writeErrs := make(chan error)
@@ -123,7 +139,7 @@ func Main() error {
 		SecretClient: secretClient,
 	}
 
-	syncers := v1.TranslatorSyncers{
+	translatorSyncers := v1.TranslatorSyncers{
 		istioRoutingSyncer,
 		istioPrometheusSyncer,
 		linkerd2PrometheusSyncer,
@@ -131,7 +147,16 @@ func Main() error {
 		istioEncryptionSyncer,
 	}
 
-	eventLoop := v1.NewTranslatorEventLoop(emitter, syncers)
+	consulInstallSyncer := &consul2.ConsulInstallSyncer{
+		Kube:       kubeClient,
+		MeshClient: meshClient,
+	}
+	installSyncers := v1.InstallSyncers{
+		consulInstallSyncer,
+	}
+
+	translatorEventLoop := v1.NewTranslatorEventLoop(translatorEmitter, translatorSyncers)
+	installEventLoop := v1.NewInstallEventLoop(installEmitter, installSyncers)
 
 	ctx := contextutils.WithLogger(context.Background(), "supergloo")
 	watchOpts := clients.WatchOpts{
@@ -139,11 +164,17 @@ func Main() error {
 		RefreshRate: time.Second * 1,
 	}
 
-	eventLoopErrs, err := eventLoop.Run([]string{"supergloo-system", "gloo-system"}, watchOpts)
+	translatorEventLoopErrs, err := translatorEventLoop.Run([]string{"supergloo-system", "gloo-system"}, watchOpts)
 	if err != nil {
 		return err
 	}
-	go errutils.AggregateErrs(watchOpts.Ctx, writeErrs, eventLoopErrs, "event_loop")
+	go errutils.AggregateErrs(watchOpts.Ctx, writeErrs, translatorEventLoopErrs, "translator_event_loop")
+
+	installEventLoopErrs, err := installEventLoop.Run([]string{"supergloo-system", "gloo-system"}, watchOpts)
+	if err != nil {
+		return err
+	}
+	go errutils.AggregateErrs(watchOpts.Ctx, writeErrs, installEventLoopErrs, "install_event_loop")
 
 	logger := contextutils.LoggerFrom(watchOpts.Ctx)
 
