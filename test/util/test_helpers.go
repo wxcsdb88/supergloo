@@ -124,7 +124,14 @@ func DeleteCrb(crbName string) {
 
 func DeleteWebhookConfigIfExists(webhookName string) {
 	client := GetKubeClient()
-	client.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().Delete(webhookName, &kubemeta.DeleteOptions{})
+	hooks, err := client.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().List(kubemeta.ListOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	for _, hook := range hooks.Items {
+		if strings.HasSuffix(hook.Name, webhookName) {
+			client.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().Delete(hook.Name, &kubemeta.DeleteOptions{})
+		}
+	}
+
 }
 
 func GetConsulServerPodName(namespace string) string {
@@ -132,7 +139,7 @@ func GetConsulServerPodName(namespace string) string {
 	podList, err := client.CoreV1().Pods(namespace).List(kubemeta.ListOptions{})
 	Expect(err).NotTo(HaveOccurred())
 	for _, pod := range podList.Items {
-		if strings.Contains(pod.Name, "consul-server-0") {
+		if strings.Contains(pod.Name, "consul-mesh-server-0") {
 			return pod.Name
 		}
 	}
