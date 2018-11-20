@@ -17,6 +17,7 @@ import (
 )
 
 /*
+TODO: These should be merged with tests in e2e folder
 End to end tests for consul installs with and without mTLS enabled.
 Tests assume you already have a Kubernetes environment with Helm / Tiller set up, and with a "supergloo-system" namespace.
 The tests will install Consul and get it configured and validate all services up and running, then tear down and
@@ -64,6 +65,7 @@ var _ = Describe("Consul Installer", func() {
 	var syncer install.InstallSyncer
 
 	BeforeEach(func() {
+		util.TryCreateNamespace("supergloo-system")
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
@@ -72,10 +74,12 @@ var _ = Describe("Consul Installer", func() {
 	})
 
 	AfterEach(func() {
+		util.UninstallHelmRelease(meshName)
 		util.DeleteWebhookConfigIfExists(consul.WebhookCfg)
 		util.DeleteCrb(consul.CrbName)
 		util.TerminateNamespaceBlocking(installNamespace)
 		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
+		util.TerminateNamespaceBlocking("supergloo-system")
 	})
 
 	It("Can install consul with mtls enabled", func() {

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	istiosecret "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
+
 	"github.com/hashicorp/consul/api"
 
 	"github.com/solo-io/supergloo/pkg/install"
@@ -55,18 +57,11 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 	var (
 		tunnel         *helmkube.Tunnel
 		meshClient     v1.MeshClient
+		secretClient   istiosecret.IstioCacertsSecretClient
 		upstreamClient gloo.UpstreamClient
-		secretClient   gloo.SecretClient
 		installSyncer  install.InstallSyncer
-
-		pathToUds string
+		pathToUds      string
 	)
-
-	BeforeSuite(func() {
-		var err error
-		pathToUds, err = gexec.Build("github.com/solo-io/solo-projects/projects/discovery/cmd")
-		Expect(err).ShouldNot(HaveOccurred())
-	})
 
 	BeforeEach(func() {
 		ns := &kubecore.Namespace{
@@ -88,9 +83,6 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		util.TerminateNamespaceBlocking("supergloo-system")
 		// delete gloo system to remove gloo resources like upstreams
 		util.TerminateNamespaceBlocking("gloo-system")
-	})
-	AfterSuite(func() {
-		gexec.CleanupBuildArtifacts()
 	})
 
 	getSnapshot := func(mtls bool, secret *core.ResourceRef) *v1.InstallSnapshot {
@@ -124,11 +116,11 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		}
 	}
 
-	getTranslatorSnapshot := func(mesh *v1.Mesh, secret *gloo.Secret) *v1.TranslatorSnapshot {
-		secrets := gloo.SecretsByNamespace{}
+	getTranslatorSnapshot := func(mesh *v1.Mesh, secret *istiosecret.IstioCacertsSecret) *v1.TranslatorSnapshot {
+		secrets := istiosecret.IstiocertsByNamespace{}
 		if secret != nil {
-			secrets = gloo.SecretsByNamespace{
-				superglooNamespace: gloo.SecretList{
+			secrets = istiosecret.IstiocertsByNamespace{
+				superglooNamespace: istiosecret.IstioCacertsSecretList{
 					secret,
 				},
 			}
@@ -139,7 +131,7 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 					mesh,
 				},
 			},
-			Secrets: secrets,
+			Istiocerts: secrets,
 		}
 	}
 
@@ -148,6 +140,7 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 	})
 
 	BeforeEach(func() {
+		pathToUds = PathToUds // set up by before suite
 		meshClient = util.GetMeshClient(kubeCache)
 		upstreamClient = util.GetUpstreamClient(kubeCache)
 		secretClient = util.GetSecretClient()
@@ -169,7 +162,6 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		if secretClient != nil {
 			secretClient.Delete(superglooNamespace, secretName, clients.DeleteOpts{})
 		}
-
 		util.DeleteWebhookConfigIfExists(consul.WebhookCfg)
 		util.DeleteCrb(consul.CrbName)
 		util.TerminateNamespaceBlocking(installNamespace)
@@ -196,7 +188,7 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		err = meshSyncer.Sync(context.TODO(), syncSnapshot)
 		Expect(err).NotTo(HaveOccurred())
 
-		util.CheckCertMatches(tunnel.Local, util.TestRoot)
+		util.CheckCertMatchesConsul(tunnel.Local, util.TestRoot)
 	})
 
 	It("Can install consul without mtls enabled", func() {
@@ -224,6 +216,7 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		})
 
 		AfterEach(func() {
+			// TODO: use helper
 			util.GetKubeClient().CoreV1().Namespaces().Delete(bookinfons, &kubemeta.DeleteOptions{})
 		})
 

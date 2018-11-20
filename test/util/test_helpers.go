@@ -19,9 +19,12 @@ import (
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	gloo "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
+	istiosecret "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
+	istioSync "github.com/solo-io/supergloo/pkg/translator/istio"
 	"k8s.io/client-go/kubernetes"
 
 	kubecore "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	helmlib "k8s.io/helm/pkg/helm"
 	helmkube "k8s.io/helm/pkg/kube"
@@ -65,10 +68,9 @@ func GetSecurityClient() *security.Clientset {
 	return securityClient
 }
 
-func GetSecretClient() gloo.SecretClient {
-	kube := GetKubeClient()
-	secretClient, err := gloo.NewSecretClient(&factory.KubeSecretClientFactory{
-		Clientset: kube,
+func GetSecretClient() istiosecret.IstioCacertsSecretClient {
+	secretClient, err := istiosecret.NewIstioCacertsSecretClient(&factory.KubeSecretClientFactory{
+		Clientset: GetKubeClient(),
 	})
 	Expect(err).Should(BeNil())
 	err = secretClient.Register()
@@ -76,16 +78,34 @@ func GetSecretClient() gloo.SecretClient {
 	return secretClient
 }
 
+func TryCreateNamespace(namespace string) {
+	client := GetKubeClient()
+	resource := &kubecore.Namespace{
+		ObjectMeta: kubemeta.ObjectMeta{
+			Name: namespace,
+		},
+	}
+	_, err := client.CoreV1().Namespaces().Create(resource)
+	if err != nil {
+		Expect(apierrors.IsAlreadyExists(err)).To(BeTrue())
+	}
+}
+
 func TerminateNamespaceBlocking(namespace string) {
 	client := GetKubeClient()
-	client.CoreV1().Namespaces().Delete(namespace, &kubemeta.DeleteOptions{})
+	gracePeriod := int64(0)
+	deleteOptions := &kubemeta.DeleteOptions{
+		GracePeriodSeconds: &gracePeriod,
+	}
+	client.CoreV1().Pods(namespace).DeleteCollection(deleteOptions, kubemeta.ListOptions{})
+	client.CoreV1().Namespaces().Delete(namespace, deleteOptions)
 	Eventually(func() error {
 		_, err := client.CoreV1().Namespaces().Get(namespace, kubemeta.GetOptions{})
 		return err
 	}, "120s", "1s").ShouldNot(BeNil()) // will be non-nil when NS is gone
 }
 
-func WaitForAvailablePods(namespace string) {
+func WaitForAvailablePodsWithTimeout(namespace string, timeout string) {
 	client := GetKubeClient()
 	Eventually(func() bool {
 		podList, err := client.CoreV1().Pods(namespace).List(kubemeta.ListOptions{})
@@ -102,7 +122,11 @@ func WaitForAvailablePods(namespace string) {
 			}
 		}
 		return done
-	}, "120s", "1s").Should(BeTrue())
+	}, timeout, "1s").Should(BeTrue())
+}
+
+func WaitForAvailablePods(namespace string) {
+	WaitForAvailablePodsWithTimeout(namespace, "120s")
 }
 
 func GetMeshClient(kubeCache *kube.KubeCache) v1.MeshClient {
@@ -167,21 +191,16 @@ func CreateConsulTunnel(namespace string, port int) (*helmkube.Tunnel, error) {
 	return t, t.ForwardPort()
 }
 
-func CreateTestSecret(namespace string, name string) (*gloo.Secret, *core.ResourceRef) {
-	tls := gloo.TlsSecret{
-		RootCa:     TestRoot,
-		PrivateKey: testKey,
-		CertChain:  testCertChain,
-	}
-	tlsWrapper := gloo.Secret_Tls{
-		Tls: &tls,
-	}
-	secret := &gloo.Secret{
+func CreateTestSecret(namespace string, name string) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
+	secret := &istiosecret.IstioCacertsSecret{
 		Metadata: core.Metadata{
 			Namespace: namespace,
 			Name:      name,
 		},
-		Kind: &tlsWrapper,
+		CaCert:    TestRoot,
+		CaKey:     testKey,
+		RootCert:  TestRoot,
+		CertChain: testCertChain,
 	}
 	GetSecretClient().Delete(namespace, name, clients.DeleteOpts{})
 	_, err := GetSecretClient().Write(secret, clients.WriteOpts{})
@@ -193,7 +212,7 @@ func CreateTestSecret(namespace string, name string) (*gloo.Secret, *core.Resour
 	return secret, ref
 }
 
-func CheckCertMatches(consulTunnelPort int, rootCert string) {
+func CheckCertMatchesConsul(consulTunnelPort int, rootCert string) {
 	config := &api.Config{
 		Address: fmt.Sprintf("127.0.0.1:%d", consulTunnelPort),
 	}
@@ -205,6 +224,15 @@ func CheckCertMatches(consulTunnelPort int, rootCert string) {
 
 	currentRoot := currentConfig.Config["RootCert"]
 	Expect(currentRoot).To(BeEquivalentTo(rootCert))
+}
+
+func CheckCertMatchesIstio(installNamespace string) {
+	actual, err := GetSecretClient().Read(installNamespace, istioSync.CustomRootCertificateSecretName, clients.ReadOpts{})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(actual.RootCert).Should(BeEquivalentTo(TestRoot))
+	Expect(actual.CaCert).Should(BeEquivalentTo(TestRoot))
+	Expect(actual.CaKey).Should(BeEquivalentTo(testKey))
+	Expect(actual.CertChain).Should(BeEquivalentTo(testCertChain))
 }
 
 func UninstallHelmRelease(releaseName string) error {

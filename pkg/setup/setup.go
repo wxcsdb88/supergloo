@@ -14,6 +14,7 @@ import (
 	"github.com/solo-io/solo-kit/pkg/utils/errutils"
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
 	gloov1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
+	istiosecret "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
 	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 	prometheusv1 "github.com/solo-io/supergloo/pkg/api/external/prometheus/v1"
 	"github.com/solo-io/supergloo/pkg/api/v1"
@@ -117,7 +118,7 @@ func Main() error {
 		return err
 	}
 
-	secretClient, err := gloov1.NewSecretClient(&factory.KubeSecretClientFactory{
+	secretClient, err := istiosecret.NewIstioCacertsSecretClient(&factory.KubeSecretClientFactory{
 		Clientset: kubeClient,
 	})
 	if err != nil {
