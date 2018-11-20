@@ -3,6 +3,8 @@ package install
 import (
 	"context"
 
+	"github.com/solo-io/supergloo/pkg/install/linkerd2"
+
 	"github.com/solo-io/supergloo/pkg/install/istio"
 
 	"github.com/pkg/errors"
@@ -54,6 +56,8 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 		meshInstaller = &istio.IstioInstaller{
 			SecurityClient: syncer.SecurityClient,
 		}
+	case *v1.Install_Linkerd2:
+		meshInstaller = &linkerd2.Linkerd2Installer{}
 	default:
 		return errors.Errorf("Unsupported mesh type %v", install.MeshType)
 	}
@@ -99,7 +103,6 @@ func (syncer *InstallSyncer) syncInstallImpl(_ context.Context, install *v1.Inst
 
 func (syncer *InstallSyncer) SetupInstallNamespace(install *v1.Install, defaultNamespace string) (string, error) {
 	installNamespace := getInstallNamespace(install, defaultNamespace)
-
 	err := syncer.createNamespaceIfNotExist(installNamespace) // extract to CRD
 	if err != nil {
 		return installNamespace, errors.Wrap(err, "Error setting up namespace")
@@ -205,12 +208,15 @@ func helmInstallChart(chartPath string, releaseName string, installNamespace str
 }
 
 func (syncer *InstallSyncer) createMesh(install *v1.Install) error {
-	mesh := getMeshObject(install)
-	_, err := syncer.MeshClient.Write(mesh, clients.WriteOpts{})
+	mesh, err := getMeshObject(install)
+	if err != nil {
+		return err
+	}
+	_, err = syncer.MeshClient.Write(mesh, clients.WriteOpts{})
 	return err
 }
 
-func getMeshObject(install *v1.Install) *v1.Mesh {
+func getMeshObject(install *v1.Install) (*v1.Mesh, error) {
 	mesh := &v1.Mesh{
 		Metadata: core.Metadata{
 			Name:      install.Metadata.Name,
@@ -218,6 +224,7 @@ func getMeshObject(install *v1.Install) *v1.Mesh {
 		},
 		Encryption: install.Encryption,
 	}
+	var err error
 	switch x := install.MeshType.(type) {
 	case *v1.Install_Istio:
 		mesh.MeshType = &v1.Mesh_Istio{
@@ -231,6 +238,8 @@ func getMeshObject(install *v1.Install) *v1.Mesh {
 		mesh.MeshType = &v1.Mesh_Linkerd2{
 			Linkerd2: x.Linkerd2,
 		}
+	default:
+		err = errors.Errorf("Unsupported mesh type.")
 	}
-	return mesh
+	return mesh, err
 }
