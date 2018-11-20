@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	glooV1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
+
 	"github.com/solo-io/solo-kit/pkg/errors"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
@@ -14,7 +16,7 @@ import (
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
-	"github.com/solo-io/supergloo/pkg/api/v1"
+	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
 	k8sApiExt "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	k8s "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -26,15 +28,16 @@ type SuperglooInfoClient interface {
 }
 
 type KubernetesSuperglooClient struct {
-	kubeCrdClient *k8sApiExt.CustomResourceDefinitionInterface
-	meshClient    *v1.MeshClient
+	kubeCrdClient     *k8sApiExt.CustomResourceDefinitionInterface
+	meshClient        *superglooV1.MeshClient
+	routingRuleClient *superglooV1.RoutingRuleClient
+	upstreamClient    *glooV1.UpstreamClient
 }
 
 func NewClient() (SuperglooInfoClient, error) {
-	cache := kube.NewKubeCache()
 	config, err := kubeutils.GetConfig("", "")
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving Kubernetes configuration: %v \n", err)
+		return nil, fmt.Errorf(cliConstants.KubeConfigError, err)
 	}
 
 	crdClient, err := getCrdClient(config)
@@ -42,10 +45,10 @@ func NewClient() (SuperglooInfoClient, error) {
 		return nil, err
 	}
 
-	meshClient, err := v1.NewMeshClient(&factory.KubeResourceClientFactory{
-		Crd:         v1.MeshCrd,
+	meshClient, err := superglooV1.NewMeshClient(&factory.KubeResourceClientFactory{
+		Crd:         superglooV1.MeshCrd,
 		Cfg:         config,
-		SharedCache: cache,
+		SharedCache: kube.NewKubeCache(),
 	})
 	if err != nil {
 		return nil, err
@@ -54,9 +57,35 @@ func NewClient() (SuperglooInfoClient, error) {
 		return nil, err
 	}
 
+	routingRuleClient, err := superglooV1.NewRoutingRuleClient(&factory.KubeResourceClientFactory{
+		Crd:         superglooV1.RoutingRuleCrd,
+		Cfg:         config,
+		SharedCache: kube.NewKubeCache(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err = routingRuleClient.Register(); err != nil {
+		return nil, err
+	}
+
+	upstreamClient, err := glooV1.NewUpstreamClient(&factory.KubeResourceClientFactory{
+		Crd:         glooV1.UpstreamCrd,
+		Cfg:         config,
+		SharedCache: kube.NewKubeCache(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err = upstreamClient.Register(); err != nil {
+		return nil, err
+	}
+
 	client := &KubernetesSuperglooClient{
-		kubeCrdClient: crdClient,
-		meshClient:    &meshClient,
+		kubeCrdClient:     crdClient,
+		meshClient:        &meshClient,
+		routingRuleClient: &routingRuleClient,
+		upstreamClient:    &upstreamClient,
 	}
 
 	return client, nil

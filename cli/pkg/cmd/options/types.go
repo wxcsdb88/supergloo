@@ -10,6 +10,7 @@ type Options struct {
 	MeshTool    MeshTool
 	IngressTool IngressTool
 	Get         Get
+	Create      Create
 }
 
 type Top struct {
@@ -41,4 +42,17 @@ type IngressTool struct {
 
 type Get struct {
 	Output string
+}
+
+type RoutingRule struct {
+	Mesh             string
+	Namespace        string
+	Sources          string
+	Destinations     string
+	Matchers         string
+	OverrideExisting bool
+}
+
+type Create struct {
+	RoutingRule RoutingRule
 }
