@@ -32,6 +32,20 @@ func GetUpstreamClient() (*glooV1.UpstreamClient, error) {
 	return &upstreamClient, nil
 }
 
+func GetSecretClient() (*glooV1.SecretClient, error) {
+	clientset, err := GetKubernetesClient()
+	secretClient, err := glooV1.NewSecretClient(&factory.KubeSecretClientFactory{
+		Clientset: clientset,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err = secretClient.Register(); err != nil {
+		return nil, err
+	}
+	return &secretClient, nil
+}
+
 func GetMeshClient() (*superglooV1.MeshClient, error) {
 	config, err := GetKubernetesConfig()
 	if err != nil {
