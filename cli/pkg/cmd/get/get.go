@@ -23,8 +23,7 @@ func Cmd(opts *options.Options) *cobra.Command {
 		Long:  `Display one or many supergloo resources`,
 		Args:  cobra.RangeArgs(1, 2),
 		Run: func(c *cobra.Command, args []string) {
-			err := get(args, opts)
-			if err != nil {
+			if err := get(args, opts); err != nil {
 				fmt.Println(err)
 			}
 		},
