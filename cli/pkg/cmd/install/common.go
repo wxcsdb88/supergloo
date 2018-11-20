@@ -20,11 +20,18 @@ func getInstallClient() (v1.InstallClient, error) {
 		fmt.Println(err)
 		return nil, err
 	}
-	return v1.NewInstallClient(&factory.KubeResourceClientFactory{
+	client, err := v1.NewInstallClient(&factory.KubeResourceClientFactory{
 		Crd:         v1.InstallCrd,
 		Cfg:         cfg,
 		SharedCache: cache,
 	})
+	if err != nil {
+		return nil, err
+	}
+	if err = client.Register(); err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func installationSummaryMessage(opts *options.Options) {
