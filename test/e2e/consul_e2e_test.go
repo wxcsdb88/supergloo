@@ -3,6 +3,8 @@ package e2e
 import (
 	"context"
 
+	"github.com/solo-io/supergloo/pkg/install"
+
 	gloo "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	"github.com/solo-io/supergloo/test/util"
 
@@ -26,7 +28,7 @@ The tests will install Consul and get it configured and validate all services up
 up any other configuration, then tear down and clean up all resources created.
 This will take about 80 seconds with mTLS, and 50 seconds without.
 */
-var _ = Describe("ConsulInstallSyncer", func() {
+var _ = Describe("Consul Install and Encryption E2E", func() {
 
 	installNamespace := "consul"
 	superglooNamespace := "supergloo-system" // this needs to be made before running tests
@@ -44,9 +46,17 @@ var _ = Describe("ConsulInstallSyncer", func() {
 							Namespace: superglooNamespace,
 							Name:      meshName,
 						},
-						Consul: &v1.ConsulInstall{
-							Path:      "https://github.com/hashicorp/consul-helm/archive/v0.3.0.tar.gz",
-							Namespace: installNamespace,
+						MeshType: &v1.Install_Consul{
+							Consul: &v1.Consul{
+								InstallationNamespace: installNamespace,
+							},
+						},
+						ChartLocator: &v1.HelmChartLocator{
+							Kind: &v1.HelmChartLocator_ChartPath{
+								ChartPath: &v1.HelmChartPath{
+									Path: "https://github.com/hashicorp/consul-helm/archive/v0.3.0.tar.gz",
+								},
+							},
 						},
 						Encryption: &v1.Encryption{
 							TlsEnabled: mtls,
@@ -80,12 +90,12 @@ var _ = Describe("ConsulInstallSyncer", func() {
 	var tunnel *helmkube.Tunnel
 	var meshClient v1.MeshClient
 	var secretClient gloo.SecretClient
-	var installSyncer consul.ConsulInstallSyncer
+	var installSyncer install.InstallSyncer
 
 	BeforeEach(func() {
 		meshClient = util.GetMeshClient(kubeCache)
 		secretClient = util.GetSecretClient()
-		installSyncer = consul.ConsulInstallSyncer{
+		installSyncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
 			MeshClient: meshClient,
 		}
@@ -109,7 +119,7 @@ var _ = Describe("ConsulInstallSyncer", func() {
 		util.TerminateNamespaceBlocking(installNamespace)
 	})
 
-	It("Can install consul with mtls enabled", func() {
+	It("Can install consul with mtls enabled and custom root cert", func() {
 		secret, ref := util.CreateTestSecret(superglooNamespace, secretName)
 		snap := getSnapshot(true, ref)
 		err := installSyncer.Sync(context.TODO(), snap)

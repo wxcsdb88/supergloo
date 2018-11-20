@@ -3,6 +3,8 @@ package consul_test
 import (
 	"context"
 
+	"github.com/solo-io/supergloo/pkg/install"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/supergloo/test/util"
 
@@ -20,7 +22,7 @@ Tests assume you already have a Kubernetes environment with Helm / Tiller set up
 The tests will install Consul and get it configured and validate all services up and running, then tear down and
 clean up all resources created. This will take about 45 seconds with mTLS, and 20 seconds without.
 */
-var _ = Describe("ConsulInstallSyncer", func() {
+var _ = Describe("Consul Installer", func() {
 
 	installNamespace := "consul"
 	superglooNamespace := "supergloo-system" // this needs to be made before running tests
@@ -35,9 +37,17 @@ var _ = Describe("ConsulInstallSyncer", func() {
 							Namespace: superglooNamespace,
 							Name:      meshName,
 						},
-						Consul: &v1.ConsulInstall{
-							Path:      "https://github.com/hashicorp/consul-helm/archive/v0.3.0.tar.gz",
-							Namespace: installNamespace,
+						MeshType: &v1.Install_Consul{
+							Consul: &v1.Consul{
+								InstallationNamespace: installNamespace,
+							},
+						},
+						ChartLocator: &v1.HelmChartLocator{
+							Kind: &v1.HelmChartLocator_ChartPath{
+								ChartPath: &v1.HelmChartPath{
+									Path: "https://github.com/hashicorp/consul-helm/archive/v0.3.0.tar.gz",
+								},
+							},
 						},
 						Encryption: &v1.Encryption{
 							TlsEnabled: mtls,
@@ -51,11 +61,11 @@ var _ = Describe("ConsulInstallSyncer", func() {
 	kubeCache := kube.NewKubeCache()
 
 	var meshClient v1.MeshClient
-	var syncer consul.ConsulInstallSyncer
+	var syncer install.InstallSyncer
 
 	BeforeEach(func() {
 		meshClient = util.GetMeshClient(kubeCache)
-		syncer = consul.ConsulInstallSyncer{
+		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
 			MeshClient: meshClient,
 		}

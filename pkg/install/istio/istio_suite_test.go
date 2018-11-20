@@ -1,4 +1,4 @@
-package consul
+package istio
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestConsulInstall(t *testing.T) {
+func TestIstioInstall(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Consul Installer Suite")
+	RunSpecs(t, "Istio Installer Suite")
 }

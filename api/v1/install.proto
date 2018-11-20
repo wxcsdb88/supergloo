@@ -9,6 +9,7 @@ import "github.com/solo-io/solo-kit/api/v1/metadata.proto";
 import "github.com/solo-io/solo-kit/api/v1/status.proto";
 
 import "encryption.proto";
+import "mesh.proto";
 
 /*
 @solo-kit:resource.short_name=install
@@ -23,16 +24,26 @@ message Install {
     // Metadata contains the object metadata for this resource
     core.solo.io.Metadata metadata = 2 [(gogoproto.nullable) = false];
 
-    ConsulInstall consul = 4;
+    // mesh-specific configuration
+    oneof mesh_type {
+        Istio istio = 10;
+        Linkerd2 linkerd2= 20;
+        Consul consul= 30;
+    };
 
-    Encryption encryption = 5;
+    HelmChartLocator chartLocator = 6;
+
+    Encryption encryption = 7;
 }
 
-message ConsulInstall {
-    // This is a path to the helm chart. This can be any path that the helm CLI would accept, including
-    // local filesystem paths to archives or directories, or a URL to the archive
+message HelmChartLocator {
+
+    oneof kind {
+        // path to a local directory, local tar.gz, or url tar.gz
+        HelmChartPath chartPath = 1;
+    }
+}
+
+message HelmChartPath {
     string path = 1;
-
-    string namespace = 2;
 }
-

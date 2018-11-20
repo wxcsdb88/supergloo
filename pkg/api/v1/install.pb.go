@@ -31,19 +31,26 @@ type Install struct {
 	// Status is read-only by clients, and set by gloo during validation
 	Status core.Status `protobuf:"bytes,1,opt,name=status" json:"status" testdiff:"ignore"`
 	// Metadata contains the object metadata for this resource
-	Metadata             core.Metadata  `protobuf:"bytes,2,opt,name=metadata" json:"metadata"`
-	Consul               *ConsulInstall `protobuf:"bytes,4,opt,name=consul" json:"consul,omitempty"`
-	Encryption           *Encryption    `protobuf:"bytes,5,opt,name=encryption" json:"encryption,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	Metadata core.Metadata `protobuf:"bytes,2,opt,name=metadata" json:"metadata"`
+	// mesh-specific configuration
+	//
+	// Types that are valid to be assigned to MeshType:
+	//	*Install_Istio
+	//	*Install_Linkerd2
+	//	*Install_Consul
+	MeshType             isInstall_MeshType `protobuf_oneof:"mesh_type"`
+	ChartLocator         *HelmChartLocator  `protobuf:"bytes,6,opt,name=chartLocator" json:"chartLocator,omitempty"`
+	Encryption           *Encryption        `protobuf:"bytes,7,opt,name=encryption" json:"encryption,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
 func (m *Install) Reset()         { *m = Install{} }
 func (m *Install) String() string { return proto.CompactTextString(m) }
 func (*Install) ProtoMessage()    {}
 func (*Install) Descriptor() ([]byte, []int) {
-	return fileDescriptor_install_57c18a0eb554c83e, []int{0}
+	return fileDescriptor_install_c4b0ad946107cce5, []int{0}
 }
 func (m *Install) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Install.Unmarshal(m, b)
@@ -63,6 +70,32 @@ func (m *Install) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Install proto.InternalMessageInfo
 
+type isInstall_MeshType interface {
+	isInstall_MeshType()
+	Equal(interface{}) bool
+}
+
+type Install_Istio struct {
+	Istio *Istio `protobuf:"bytes,10,opt,name=istio,oneof"`
+}
+type Install_Linkerd2 struct {
+	Linkerd2 *Linkerd2 `protobuf:"bytes,20,opt,name=linkerd2,oneof"`
+}
+type Install_Consul struct {
+	Consul *Consul `protobuf:"bytes,30,opt,name=consul,oneof"`
+}
+
+func (*Install_Istio) isInstall_MeshType()    {}
+func (*Install_Linkerd2) isInstall_MeshType() {}
+func (*Install_Consul) isInstall_MeshType()   {}
+
+func (m *Install) GetMeshType() isInstall_MeshType {
+	if m != nil {
+		return m.MeshType
+	}
+	return nil
+}
+
 func (m *Install) GetStatus() core.Status {
 	if m != nil {
 		return m.Status
@@ -77,9 +110,30 @@ func (m *Install) GetMetadata() core.Metadata {
 	return core.Metadata{}
 }
 
-func (m *Install) GetConsul() *ConsulInstall {
+func (m *Install) GetIstio() *Istio {
+	if x, ok := m.GetMeshType().(*Install_Istio); ok {
+		return x.Istio
+	}
+	return nil
+}
+
+func (m *Install) GetLinkerd2() *Linkerd2 {
+	if x, ok := m.GetMeshType().(*Install_Linkerd2); ok {
+		return x.Linkerd2
+	}
+	return nil
+}
+
+func (m *Install) GetConsul() *Consul {
+	if x, ok := m.GetMeshType().(*Install_Consul); ok {
+		return x.Consul
+	}
+	return nil
+}
+
+func (m *Install) GetChartLocator() *HelmChartLocator {
 	if m != nil {
-		return m.Consul
+		return m.ChartLocator
 	}
 	return nil
 }
@@ -91,57 +145,254 @@ func (m *Install) GetEncryption() *Encryption {
 	return nil
 }
 
-type ConsulInstall struct {
-	// This is a path to the helm chart. This can be any path that the helm CLI would accept, including
-	// local filesystem paths to archives or directories, or a URL to the archive
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*Install) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _Install_OneofMarshaler, _Install_OneofUnmarshaler, _Install_OneofSizer, []interface{}{
+		(*Install_Istio)(nil),
+		(*Install_Linkerd2)(nil),
+		(*Install_Consul)(nil),
+	}
+}
+
+func _Install_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*Install)
+	// mesh_type
+	switch x := m.MeshType.(type) {
+	case *Install_Istio:
+		_ = b.EncodeVarint(10<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Istio); err != nil {
+			return err
+		}
+	case *Install_Linkerd2:
+		_ = b.EncodeVarint(20<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Linkerd2); err != nil {
+			return err
+		}
+	case *Install_Consul:
+		_ = b.EncodeVarint(30<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Consul); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("Install.MeshType has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _Install_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*Install)
+	switch tag {
+	case 10: // mesh_type.istio
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Istio)
+		err := b.DecodeMessage(msg)
+		m.MeshType = &Install_Istio{msg}
+		return true, err
+	case 20: // mesh_type.linkerd2
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Linkerd2)
+		err := b.DecodeMessage(msg)
+		m.MeshType = &Install_Linkerd2{msg}
+		return true, err
+	case 30: // mesh_type.consul
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Consul)
+		err := b.DecodeMessage(msg)
+		m.MeshType = &Install_Consul{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _Install_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*Install)
+	// mesh_type
+	switch x := m.MeshType.(type) {
+	case *Install_Istio:
+		s := proto.Size(x.Istio)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Install_Linkerd2:
+		s := proto.Size(x.Linkerd2)
+		n += 2 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Install_Consul:
+		s := proto.Size(x.Consul)
+		n += 2 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type HelmChartLocator struct {
+	// Types that are valid to be assigned to Kind:
+	//	*HelmChartLocator_ChartPath
+	Kind                 isHelmChartLocator_Kind `protobuf_oneof:"kind"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *HelmChartLocator) Reset()         { *m = HelmChartLocator{} }
+func (m *HelmChartLocator) String() string { return proto.CompactTextString(m) }
+func (*HelmChartLocator) ProtoMessage()    {}
+func (*HelmChartLocator) Descriptor() ([]byte, []int) {
+	return fileDescriptor_install_c4b0ad946107cce5, []int{1}
+}
+func (m *HelmChartLocator) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HelmChartLocator.Unmarshal(m, b)
+}
+func (m *HelmChartLocator) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HelmChartLocator.Marshal(b, m, deterministic)
+}
+func (dst *HelmChartLocator) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HelmChartLocator.Merge(dst, src)
+}
+func (m *HelmChartLocator) XXX_Size() int {
+	return xxx_messageInfo_HelmChartLocator.Size(m)
+}
+func (m *HelmChartLocator) XXX_DiscardUnknown() {
+	xxx_messageInfo_HelmChartLocator.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HelmChartLocator proto.InternalMessageInfo
+
+type isHelmChartLocator_Kind interface {
+	isHelmChartLocator_Kind()
+	Equal(interface{}) bool
+}
+
+type HelmChartLocator_ChartPath struct {
+	ChartPath *HelmChartPath `protobuf:"bytes,1,opt,name=chartPath,oneof"`
+}
+
+func (*HelmChartLocator_ChartPath) isHelmChartLocator_Kind() {}
+
+func (m *HelmChartLocator) GetKind() isHelmChartLocator_Kind {
+	if m != nil {
+		return m.Kind
+	}
+	return nil
+}
+
+func (m *HelmChartLocator) GetChartPath() *HelmChartPath {
+	if x, ok := m.GetKind().(*HelmChartLocator_ChartPath); ok {
+		return x.ChartPath
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*HelmChartLocator) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _HelmChartLocator_OneofMarshaler, _HelmChartLocator_OneofUnmarshaler, _HelmChartLocator_OneofSizer, []interface{}{
+		(*HelmChartLocator_ChartPath)(nil),
+	}
+}
+
+func _HelmChartLocator_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*HelmChartLocator)
+	// kind
+	switch x := m.Kind.(type) {
+	case *HelmChartLocator_ChartPath:
+		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ChartPath); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("HelmChartLocator.Kind has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _HelmChartLocator_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*HelmChartLocator)
+	switch tag {
+	case 1: // kind.chartPath
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(HelmChartPath)
+		err := b.DecodeMessage(msg)
+		m.Kind = &HelmChartLocator_ChartPath{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _HelmChartLocator_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*HelmChartLocator)
+	// kind
+	switch x := m.Kind.(type) {
+	case *HelmChartLocator_ChartPath:
+		s := proto.Size(x.ChartPath)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type HelmChartPath struct {
 	Path                 string   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ConsulInstall) Reset()         { *m = ConsulInstall{} }
-func (m *ConsulInstall) String() string { return proto.CompactTextString(m) }
-func (*ConsulInstall) ProtoMessage()    {}
-func (*ConsulInstall) Descriptor() ([]byte, []int) {
-	return fileDescriptor_install_57c18a0eb554c83e, []int{1}
+func (m *HelmChartPath) Reset()         { *m = HelmChartPath{} }
+func (m *HelmChartPath) String() string { return proto.CompactTextString(m) }
+func (*HelmChartPath) ProtoMessage()    {}
+func (*HelmChartPath) Descriptor() ([]byte, []int) {
+	return fileDescriptor_install_c4b0ad946107cce5, []int{2}
 }
-func (m *ConsulInstall) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ConsulInstall.Unmarshal(m, b)
+func (m *HelmChartPath) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HelmChartPath.Unmarshal(m, b)
 }
-func (m *ConsulInstall) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ConsulInstall.Marshal(b, m, deterministic)
+func (m *HelmChartPath) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HelmChartPath.Marshal(b, m, deterministic)
 }
-func (dst *ConsulInstall) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ConsulInstall.Merge(dst, src)
+func (dst *HelmChartPath) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HelmChartPath.Merge(dst, src)
 }
-func (m *ConsulInstall) XXX_Size() int {
-	return xxx_messageInfo_ConsulInstall.Size(m)
+func (m *HelmChartPath) XXX_Size() int {
+	return xxx_messageInfo_HelmChartPath.Size(m)
 }
-func (m *ConsulInstall) XXX_DiscardUnknown() {
-	xxx_messageInfo_ConsulInstall.DiscardUnknown(m)
+func (m *HelmChartPath) XXX_DiscardUnknown() {
+	xxx_messageInfo_HelmChartPath.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ConsulInstall proto.InternalMessageInfo
+var xxx_messageInfo_HelmChartPath proto.InternalMessageInfo
 
-func (m *ConsulInstall) GetPath() string {
+func (m *HelmChartPath) GetPath() string {
 	if m != nil {
 		return m.Path
 	}
 	return ""
 }
 
-func (m *ConsulInstall) GetNamespace() string {
-	if m != nil {
-		return m.Namespace
-	}
-	return ""
-}
-
 func init() {
 	proto.RegisterType((*Install)(nil), "supergloo.solo.io.Install")
-	proto.RegisterType((*ConsulInstall)(nil), "supergloo.solo.io.ConsulInstall")
+	proto.RegisterType((*HelmChartLocator)(nil), "supergloo.solo.io.HelmChartLocator")
+	proto.RegisterType((*HelmChartPath)(nil), "supergloo.solo.io.HelmChartPath")
 }
 func (this *Install) Equal(that interface{}) bool {
 	if that == nil {
@@ -168,7 +419,16 @@ func (this *Install) Equal(that interface{}) bool {
 	if !this.Metadata.Equal(&that1.Metadata) {
 		return false
 	}
-	if !this.Consul.Equal(that1.Consul) {
+	if that1.MeshType == nil {
+		if this.MeshType != nil {
+			return false
+		}
+	} else if this.MeshType == nil {
+		return false
+	} else if !this.MeshType.Equal(that1.MeshType) {
+		return false
+	}
+	if !this.ChartLocator.Equal(that1.ChartLocator) {
 		return false
 	}
 	if !this.Encryption.Equal(that1.Encryption) {
@@ -179,14 +439,143 @@ func (this *Install) Equal(that interface{}) bool {
 	}
 	return true
 }
-func (this *ConsulInstall) Equal(that interface{}) bool {
+func (this *Install_Istio) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
 	}
 
-	that1, ok := that.(*ConsulInstall)
+	that1, ok := that.(*Install_Istio)
 	if !ok {
-		that2, ok := that.(ConsulInstall)
+		that2, ok := that.(Install_Istio)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !this.Istio.Equal(that1.Istio) {
+		return false
+	}
+	return true
+}
+func (this *Install_Linkerd2) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*Install_Linkerd2)
+	if !ok {
+		that2, ok := that.(Install_Linkerd2)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !this.Linkerd2.Equal(that1.Linkerd2) {
+		return false
+	}
+	return true
+}
+func (this *Install_Consul) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*Install_Consul)
+	if !ok {
+		that2, ok := that.(Install_Consul)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !this.Consul.Equal(that1.Consul) {
+		return false
+	}
+	return true
+}
+func (this *HelmChartLocator) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*HelmChartLocator)
+	if !ok {
+		that2, ok := that.(HelmChartLocator)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if that1.Kind == nil {
+		if this.Kind != nil {
+			return false
+		}
+	} else if this.Kind == nil {
+		return false
+	} else if !this.Kind.Equal(that1.Kind) {
+		return false
+	}
+	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+		return false
+	}
+	return true
+}
+func (this *HelmChartLocator_ChartPath) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*HelmChartLocator_ChartPath)
+	if !ok {
+		that2, ok := that.(HelmChartLocator_ChartPath)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !this.ChartPath.Equal(that1.ChartPath) {
+		return false
+	}
+	return true
+}
+func (this *HelmChartPath) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*HelmChartPath)
+	if !ok {
+		that2, ok := that.(HelmChartPath)
 		if ok {
 			that1 = &that2
 		} else {
@@ -201,38 +590,42 @@ func (this *ConsulInstall) Equal(that interface{}) bool {
 	if this.Path != that1.Path {
 		return false
 	}
-	if this.Namespace != that1.Namespace {
-		return false
-	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true
 }
 
-func init() { proto.RegisterFile("install.proto", fileDescriptor_install_57c18a0eb554c83e) }
+func init() { proto.RegisterFile("install.proto", fileDescriptor_install_c4b0ad946107cce5) }
 
-var fileDescriptor_install_57c18a0eb554c83e = []byte{
-	// 329 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x91, 0xc1, 0x4e, 0x02, 0x31,
-	0x10, 0x86, 0x85, 0x20, 0x4a, 0x0d, 0x89, 0x34, 0xc4, 0xac, 0x44, 0x85, 0xec, 0x45, 0x2f, 0xb4,
-	0x41, 0x2f, 0xc4, 0xc4, 0x83, 0x18, 0x63, 0x3c, 0x78, 0x59, 0x6f, 0xde, 0xca, 0x52, 0x96, 0x86,
-	0xa5, 0xd3, 0x6c, 0x67, 0x4d, 0x7c, 0x00, 0xdf, 0xc5, 0x47, 0xf1, 0x29, 0x38, 0xf8, 0x08, 0x3e,
-	0x81, 0xa1, 0x5b, 0x40, 0x22, 0x07, 0x4f, 0x6d, 0x66, 0xfe, 0xef, 0xcf, 0x3f, 0x33, 0xa4, 0xae,
-	0xb4, 0x45, 0x91, 0xa6, 0xcc, 0x64, 0x80, 0x40, 0x1b, 0x36, 0x37, 0x32, 0x4b, 0x52, 0x00, 0x66,
-	0x21, 0x05, 0xa6, 0xa0, 0xd5, 0x4c, 0x20, 0x01, 0xd7, 0xe5, 0x8b, 0x5f, 0x21, 0x6c, 0xf5, 0x12,
-	0x85, 0x93, 0x7c, 0xc8, 0x62, 0x98, 0xf1, 0x85, 0xb2, 0xab, 0xa0, 0x78, 0xa7, 0x0a, 0xb9, 0x30,
-	0x8a, 0xbf, 0xf6, 0xf8, 0x4c, 0xa2, 0x18, 0x09, 0x14, 0x1e, 0xe1, 0xff, 0x40, 0x2c, 0x0a, 0xcc,
-	0xad, 0x07, 0x0e, 0xa5, 0x8e, 0xb3, 0x37, 0x83, 0x0a, 0x74, 0x51, 0x09, 0xdf, 0xcb, 0x64, 0xef,
-	0xb1, 0x08, 0x4c, 0x1f, 0x48, 0xb5, 0x50, 0x07, 0xa5, 0x4e, 0xe9, 0xe2, 0xe0, 0xb2, 0xc9, 0x62,
-	0xc8, 0xe4, 0x32, 0x36, 0x7b, 0x76, 0xbd, 0xc1, 0xf1, 0xe7, 0xbc, 0xbd, 0xf3, 0x3d, 0x6f, 0x37,
-	0x50, 0x5a, 0x1c, 0xa9, 0xf1, 0xf8, 0x3a, 0x54, 0x89, 0x86, 0x4c, 0x86, 0x91, 0xc7, 0x69, 0x9f,
-	0xec, 0x2f, 0x93, 0x06, 0x65, 0x67, 0x75, 0xb4, 0x69, 0xf5, 0xe4, 0xbb, 0x83, 0xca, 0xc2, 0x2c,
-	0x5a, 0xa9, 0x69, 0x9f, 0x54, 0x63, 0xd0, 0x36, 0x4f, 0x83, 0x8a, 0xe3, 0x3a, 0xec, 0xcf, 0xfa,
-	0xd8, 0x9d, 0x13, 0xf8, 0xd0, 0x91, 0xd7, 0xd3, 0x1b, 0x42, 0xd6, 0xc3, 0x05, 0xbb, 0x8e, 0x3e,
-	0xdd, 0x42, 0xdf, 0xaf, 0x44, 0xd1, 0x2f, 0x20, 0xbc, 0x25, 0xf5, 0x0d, 0x5f, 0x4a, 0x49, 0xc5,
-	0x08, 0x9c, 0xb8, 0x55, 0xd4, 0x22, 0xf7, 0xa7, 0x27, 0xa4, 0xa6, 0xc5, 0x4c, 0x5a, 0x23, 0x62,
-	0xe9, 0x06, 0xab, 0x45, 0xeb, 0xc2, 0xa0, 0xfb, 0xf1, 0x75, 0x56, 0x7a, 0x39, 0xdf, 0x76, 0x93,
-	0x65, 0x0a, 0x6e, 0xa6, 0x89, 0x3f, 0xcc, 0xb0, 0xea, 0x0e, 0x70, 0xf5, 0x13, 0x00, 0x00, 0xff,
-	0xff, 0xd0, 0x34, 0xae, 0x31, 0x30, 0x02, 0x00, 0x00,
+var fileDescriptor_install_c4b0ad946107cce5 = []byte{
+	// 434 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xd1, 0x6a, 0xd4, 0x40,
+	0x14, 0x86, 0xb3, 0xba, 0xa6, 0xdd, 0x53, 0x0b, 0xed, 0xb0, 0x48, 0x5a, 0xb1, 0x2d, 0xe9, 0x85,
+	0xde, 0x74, 0x62, 0xdb, 0x1b, 0x15, 0x04, 0x49, 0x91, 0xa6, 0x50, 0x41, 0xc6, 0x3b, 0x11, 0x64,
+	0x9a, 0x9d, 0x66, 0x87, 0xcd, 0xe6, 0x84, 0x99, 0xb3, 0x42, 0xdf, 0xc8, 0xf7, 0xf0, 0xc6, 0xa7,
+	0xe8, 0x85, 0x8f, 0xe0, 0x13, 0x48, 0x26, 0xb3, 0xdb, 0x5d, 0x0d, 0xd2, 0xab, 0x0c, 0x39, 0xdf,
+	0xf7, 0xcf, 0x49, 0xce, 0x81, 0x4d, 0x5d, 0x59, 0x92, 0x65, 0xc9, 0x6b, 0x83, 0x84, 0x6c, 0xdb,
+	0xce, 0x6a, 0x65, 0x8a, 0x12, 0x91, 0x5b, 0x2c, 0x91, 0x6b, 0xdc, 0x1d, 0x16, 0x58, 0xa0, 0xab,
+	0x26, 0xcd, 0xa9, 0x05, 0x77, 0x8f, 0x0b, 0x4d, 0xe3, 0xd9, 0x15, 0xcf, 0x71, 0x9a, 0x34, 0xe4,
+	0x91, 0xc6, 0xf6, 0x39, 0xd1, 0x94, 0xc8, 0x5a, 0x27, 0xdf, 0x8e, 0x93, 0xa9, 0x22, 0x39, 0x92,
+	0x24, 0xbd, 0x92, 0xdc, 0x43, 0xb1, 0x24, 0x69, 0x66, 0xbd, 0xb0, 0xa5, 0xaa, 0xdc, 0xdc, 0xd4,
+	0xa4, 0xb1, 0xf2, 0x6f, 0x60, 0xaa, 0xec, 0xb8, 0x3d, 0xc7, 0x3f, 0x1e, 0xc2, 0xda, 0x45, 0xdb,
+	0x3c, 0x3b, 0x87, 0xb0, 0x35, 0xa3, 0xde, 0x41, 0xef, 0xc5, 0xc6, 0xc9, 0x90, 0xe7, 0x68, 0xd4,
+	0xfc, 0x13, 0xf8, 0x27, 0x57, 0x4b, 0x77, 0x7e, 0xde, 0xee, 0x07, 0xbf, 0x6f, 0xf7, 0xb7, 0x49,
+	0x59, 0x1a, 0xe9, 0xeb, 0xeb, 0x37, 0xb1, 0x2e, 0x2a, 0x34, 0x2a, 0x16, 0x5e, 0x67, 0xaf, 0x60,
+	0x7d, 0xde, 0x75, 0xf4, 0xc0, 0x45, 0x3d, 0x59, 0x8d, 0xfa, 0xe0, 0xab, 0x69, 0xbf, 0x09, 0x13,
+	0x0b, 0x9a, 0xbd, 0x84, 0x47, 0xda, 0x92, 0xc6, 0x08, 0x9c, 0x16, 0xf1, 0x7f, 0xfe, 0x24, 0xbf,
+	0x68, 0xea, 0x59, 0x20, 0x5a, 0x90, 0xbd, 0x86, 0xf5, 0x52, 0x57, 0x13, 0x65, 0x46, 0x27, 0xd1,
+	0xd0, 0x49, 0x4f, 0x3b, 0xa4, 0x4b, 0x8f, 0x64, 0x81, 0x58, 0xe0, 0xec, 0x14, 0xc2, 0x1c, 0x2b,
+	0x3b, 0x2b, 0xa3, 0x3d, 0x27, 0xee, 0x74, 0x88, 0x67, 0x0e, 0xc8, 0x02, 0xe1, 0x51, 0x76, 0x0e,
+	0x8f, 0xf3, 0xb1, 0x34, 0x74, 0x89, 0xb9, 0x24, 0x34, 0x51, 0xe8, 0xd4, 0xc3, 0x0e, 0x35, 0x53,
+	0xe5, 0xf4, 0x6c, 0x09, 0x15, 0x2b, 0x22, 0x7b, 0x0b, 0x70, 0x37, 0x99, 0x68, 0xcd, 0xc5, 0x3c,
+	0xeb, 0x88, 0x79, 0xbf, 0x80, 0xc4, 0x92, 0x90, 0x6e, 0xc0, 0xa0, 0x19, 0xe3, 0x57, 0xba, 0xa9,
+	0x55, 0xfc, 0x05, 0xb6, 0xfe, 0xbe, 0x8d, 0xbd, 0x83, 0x81, 0xbb, 0xef, 0xa3, 0xa4, 0xb1, 0x1f,
+	0xe8, 0xc1, 0xff, 0xba, 0x6c, 0xb8, 0x2c, 0x10, 0x77, 0x52, 0x1a, 0x42, 0x7f, 0xa2, 0xab, 0x51,
+	0x7c, 0x08, 0x9b, 0x2b, 0x14, 0x63, 0xd0, 0xaf, 0xe7, 0xa9, 0x03, 0xe1, 0xce, 0xe9, 0xd1, 0xf7,
+	0x5f, 0x7b, 0xbd, 0xcf, 0xcf, 0xbb, 0xb6, 0x73, 0x7e, 0x67, 0x52, 0x4f, 0x0a, 0xbf, 0xa2, 0x57,
+	0xa1, 0x5b, 0xbf, 0xd3, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x32, 0xe1, 0xf0, 0x3a, 0x3a, 0x03,
+	0x00, 0x00,
 }
