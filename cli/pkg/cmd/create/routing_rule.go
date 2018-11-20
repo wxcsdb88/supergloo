@@ -34,17 +34,19 @@ func RoutingRuleCmd(opts *options.RoutingRule) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
+	flags.StringVarP(&opts.Mesh, "mesh", "", "", "The mesh that will be the target for this rule")
 	flags.StringVarP(&opts.Namespace, "namespace", "n", "default",
 		"The namespace for this routing rule. Defaults to \"default\"")
-	flags.StringVarP(&opts.Sources, "sources", "", "", "Sources for this rule")
-	flags.StringVarP(&opts.Destinations, "destinations", "", "", "Destinations for this rule")
+	flags.StringVarP(&opts.Sources, "sources", "", "", "Sources for this rule. Each entry "+
+		"consists of an upstream namespace and and upstream name, separated by a colon.")
+	flags.StringVarP(&opts.Destinations, "destinations", "", "", "Destinations for this rule. Same format as for 'sources'")
 	flags.StringVarP(&opts.Matchers, "matchers", "", "", "Matchers for this rule")
-	flags.StringVarP(&opts.Mesh, "mesh", "", "", "The mesh that will be the target for this rule")
 	flags.BoolVarP(&opts.OverrideExisting, "override", "", false, "If set to \"true\", "+
 		"the command will override any existing routing rule that matches the given namespace and name")
 
 	// The only required option is the target mesh
 	cmd.MarkFlagRequired("mesh")
+
 	return cmd
 }
 
