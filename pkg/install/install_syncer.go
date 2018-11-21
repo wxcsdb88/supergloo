@@ -3,6 +3,8 @@ package install
 import (
 	"context"
 
+	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
+
 	"github.com/solo-io/supergloo/pkg/install/linkerd2"
 
 	"github.com/solo-io/supergloo/pkg/install/istio"
@@ -38,6 +40,7 @@ type MeshInstaller interface {
 }
 
 func (syncer *InstallSyncer) Sync(ctx context.Context, snap *v1.InstallSnapshot) error {
+	ctx = contextutils.WithLogger(ctx, "install-syncer")
 	for _, install := range snap.Installs.List() {
 		err := syncer.syncInstall(ctx, install)
 		if err != nil {
@@ -65,10 +68,11 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 	if err := syncer.syncInstallImpl(ctx, install, meshInstaller); err != nil {
 		return err
 	}
-	return syncer.createMesh(install)
+	return syncer.createMesh(ctx, install)
 }
 
-func (syncer *InstallSyncer) syncInstallImpl(_ context.Context, install *v1.Install, installer MeshInstaller) error {
+func (syncer *InstallSyncer) syncInstallImpl(ctx context.Context, install *v1.Install, installer MeshInstaller) error {
+	contextutils.LoggerFrom(ctx).Infof("setting up namespace")
 	// 1. Setup namespace
 	installNamespace, err := syncer.SetupInstallNamespace(install, installer.GetDefaultNamespace())
 	if err != nil {
@@ -85,18 +89,21 @@ func (syncer *InstallSyncer) syncInstallImpl(_ context.Context, install *v1.Inst
 		}
 	}
 
+	contextutils.LoggerFrom(ctx).Infof("helm pre-install")
 	// 3. Do any pre-helm tasks
 	err = installer.DoPreHelmInstall()
 	if err != nil {
 		return errors.Wrap(err, "Error doing pre-helm install steps")
 	}
 
+	contextutils.LoggerFrom(ctx).Infof("helm install")
 	// 4. Install mesh via helm chart
 	releaseName, err := syncer.HelmInstall(install.ChartLocator, install.Metadata.Name, installNamespace, installer.GetOverridesYaml(install))
 	if err != nil {
 		return errors.Wrap(err, "Error installing helm chart")
 	}
 
+	contextutils.LoggerFrom(ctx).Infof("installed %v", releaseName)
 	// 5. Do any additional steps
 	return installer.DoPostHelmInstall(install, syncer.Kube, releaseName)
 }
@@ -207,12 +214,12 @@ func helmInstallChart(chartPath string, releaseName string, installNamespace str
 	return response.Release.Name, nil
 }
 
-func (syncer *InstallSyncer) createMesh(install *v1.Install) error {
+func (syncer *InstallSyncer) createMesh(ctx context.Context, install *v1.Install) error {
 	mesh, err := getMeshObject(install)
 	if err != nil {
 		return err
 	}
-	_, err = syncer.MeshClient.Write(mesh, clients.WriteOpts{})
+	_, err = syncer.MeshClient.Write(mesh, clients.WriteOpts{Ctx: ctx})
 	return err
 }
 
@@ -242,4 +249,14 @@ func getMeshObject(install *v1.Install) (*v1.Mesh, error) {
 		err = errors.Errorf("Unsupported mesh type.")
 	}
 	return mesh, err
+}
+
+func uninstallHelmRelease(releaseName string) error {
+	helmClient, err := helm.GetHelmClient()
+	if err != nil {
+		return err
+	}
+	_, err = helmClient.DeleteRelease(releaseName, helmlib.DeletePurge(true))
+	helm.Teardown()
+	return err
 }
