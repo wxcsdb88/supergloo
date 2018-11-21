@@ -24,6 +24,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+var defaultNamespaces = []string{"supergloo-system", "gloo-system", "default"}
+
 func Main() error {
 	// TODO: ilackarms: suport options
 	kubeCache := kube.NewKubeCache()
@@ -136,11 +138,11 @@ func Main() error {
 	writeErrs := make(chan error)
 
 	istioRoutingSyncer := &istio.MeshRoutingSyncer{
+		WriteNamespaces:           defaultNamespaces,
 		DestinationRuleReconciler: v1alpha3.NewDestinationRuleReconciler(destinationRuleClient),
 		VirtualServiceReconciler:  v1alpha3.NewVirtualServiceReconciler(virtualServiceClient),
 		Reporter:                  rpt,
 		WriteSelector:             map[string]string{"reconciler.solo.io": "supergloo.istio.routing"},
-		WriteNamespace:            "supergloo-system",
 	}
 
 	linkerd2PrometheusSyncer := linkerd2.NewPrometheusSyncer(kubeClient, prometheusClient)
@@ -180,13 +182,13 @@ func Main() error {
 		RefreshRate: time.Second * 1,
 	}
 
-	translatorEventLoopErrs, err := translatorEventLoop.Run([]string{"supergloo-system", "gloo-system"}, watchOpts)
+	translatorEventLoopErrs, err := translatorEventLoop.Run(defaultNamespaces, watchOpts)
 	if err != nil {
 		return err
 	}
 	go errutils.AggregateErrs(watchOpts.Ctx, writeErrs, translatorEventLoopErrs, "translator_event_loop")
 
-	installEventLoopErrs, err := installEventLoop.Run([]string{"supergloo-system", "gloo-system"}, watchOpts)
+	installEventLoopErrs, err := installEventLoop.Run(defaultNamespaces, watchOpts)
 	if err != nil {
 		return err
 	}

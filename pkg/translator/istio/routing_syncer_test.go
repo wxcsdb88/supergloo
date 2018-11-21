@@ -43,7 +43,6 @@ var _ = Describe("RoutingSyncer", func() {
 		drReconciler := v1alpha3.NewDestinationRuleReconciler(drClient)
 		s := &MeshRoutingSyncer{
 			WriteSelector:             map[string]string{"creatd_by": "syncer"},
-			WriteNamespace:            "gloo-system",
 			VirtualServiceReconciler:  vsReconciler,
 			DestinationRuleReconciler: drReconciler,
 		}
