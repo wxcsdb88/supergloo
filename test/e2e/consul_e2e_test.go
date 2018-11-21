@@ -3,8 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/solo-io/gloo/test/helpers"
-	helpers2 "github.com/solo-io/solo-kit/test/helpers"
+	"github.com/solo-io/solo-kit/test/helpers"
 	"github.com/solo-io/solo-kit/test/setup"
 	"log"
 	"os"
@@ -48,7 +47,7 @@ This will take about 80 seconds with mTLS, and 50 seconds without.
 */
 var _ = FDescribe("Consul Install and Encryption E2E", func() {
 
-	var namespace = helpers2.RandString(6)
+	var namespace = helpers.RandString(6)
 	const (
 		meshName         = "test-consul-mesh"
 		secretName       = "test-tls-secret"
@@ -117,12 +116,12 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 	}
 
 	BeforeEach(func() {
-		namespace = helpers2.RandString(8)
+		namespace = helpers.RandString(8)
 		err := setup.SetupKubeForTest(namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 	AfterEach(func() {
-		helpers2.TeardownKube(namespace)
+		setup.TeardownKube(namespace)
 	})
 
 	BeforeEach(func() {
