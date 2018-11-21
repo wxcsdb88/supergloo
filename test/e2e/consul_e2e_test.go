@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"github.com/gogo/protobuf/types"
 	"github.com/solo-io/solo-kit/test/helpers"
 	"github.com/solo-io/solo-kit/test/setup"
 	"log"
@@ -49,9 +50,9 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 
 	var namespace = helpers.RandString(6)
 	const (
-		meshName         = "test-consul-mesh"
-		secretName       = "test-tls-secret"
-		consulPort       = 8500
+		meshName   = "test-consul-mesh"
+		secretName = "test-tls-secret"
+		consulPort = 8500
 	)
 
 	kubeCache := kube.NewKubeCache()
@@ -65,7 +66,7 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 		pathToUds      string
 	)
 
-	getSnapshot := func(mtls bool, secret *core.ResourceRef) *v1.InstallSnapshot {
+	createInstallSnapshot := func(mtls bool, secret *core.ResourceRef, enable bool) *v1.InstallSnapshot {
 		return &v1.InstallSnapshot{
 			Installs: v1.InstallsByNamespace{
 				namespace: v1.InstallList{
@@ -89,6 +90,9 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 						Encryption: &v1.Encryption{
 							TlsEnabled: mtls,
 							Secret:     secret,
+						},
+						Enabled: &types.BoolValue{
+							Value: enable,
 						},
 					},
 				},
@@ -157,9 +161,9 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 		gexec.TerminateAndWait(2 * time.Second)
 	})
 
-	FIt("Can install consul with mtls enabled and custom root cert", func() {
+	It("Can install consul with mtls enabled and custom root cert", func() {
 		secret, ref := util.CreateTestSecret(namespace, secretName)
-		snap := getSnapshot(true, ref)
+		snap := createInstallSnapshot(true, ref, true)
 		err := installSyncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -177,17 +181,17 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 		err = meshSyncer.Sync(context.TODO(), syncSnapshot)
 		Expect(err).NotTo(HaveOccurred())
 
-
-
 		util.CheckCertMatchesConsul(tunnel.Local, util.TestRoot)
 
-		log.Printf("should be a no-op")
-		err = meshSyncer.Sync(context.TODO(), syncSnapshot)
+		log.Printf("now delete")
+		snap = createInstallSnapshot(true, ref, false)
+		err = installSyncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
+		util.WaitForDeletedPods(namespace)
 	})
 
 	It("Can install consul without mtls enabled", func() {
-		snap := getSnapshot(false, nil)
+		snap := createInstallSnapshot(false, nil, true)
 		err := installSyncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
 		util.WaitForAvailablePods(namespace)
@@ -255,7 +259,7 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 		}
 
 		It("Can change consul policy", func() {
-			snap := getSnapshot(true, nil)
+			snap := createInstallSnapshot(true, nil, true)
 			err := installSyncer.Sync(context.TODO(), snap)
 			Expect(err).NotTo(HaveOccurred())
 

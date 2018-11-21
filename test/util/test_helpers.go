@@ -126,8 +126,21 @@ func WaitForAvailablePodsWithTimeout(namespace string, timeout string) {
 	}, timeout, "1s").Should(BeTrue())
 }
 
+func WaitForDeletedPodsWithTimeout(namespace string, timeout string) {
+	client := GetKubeClient()
+	Eventually(func() bool {
+		podList, err := client.CoreV1().Pods(namespace).List(kubemeta.ListOptions{})
+		Expect(err).To(BeNil())
+		return len(podList.Items) == 0
+	}, timeout, "1s").Should(BeTrue())
+}
+
 func WaitForAvailablePods(namespace string) {
 	WaitForAvailablePodsWithTimeout(namespace, "120s")
+}
+
+func WaitForDeletedPods(namespace string) {
+	WaitForDeletedPodsWithTimeout(namespace, "120s")
 }
 
 func GetMeshClient(kubeCache *kube.KubeCache) v1.MeshClient {
