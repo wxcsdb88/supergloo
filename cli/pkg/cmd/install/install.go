@@ -1,7 +1,7 @@
 package install
 
 import (
-	"fmt"
+	"github.com/solo-io/supergloo/cli/pkg/setup"
 
 	"github.com/solo-io/supergloo/cli/pkg/common"
 
@@ -17,8 +17,11 @@ func Cmd(opts *options.Options) *cobra.Command {
 		Use:   "install",
 		Short: `Install a mesh`,
 		Long:  `Install a mesh.`,
-		Run: func(c *cobra.Command, args []string) {
-			install(opts)
+		RunE: func(c *cobra.Command, args []string) error {
+			if err := setup.InitKubeOptions(opts); err != nil {
+				return err
+			}
+			return install(opts)
 		},
 	}
 	iop := &opts.Install
@@ -33,18 +36,16 @@ func Cmd(opts *options.Options) *cobra.Command {
 	return cmd
 }
 
-func install(opts *options.Options) {
+func install(opts *options.Options) error {
 
 	err := qualifyFlags(opts)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	installClient, err := common.GetInstallClient()
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	var installSpec *v1.Install
@@ -59,9 +60,9 @@ func install(opts *options.Options) {
 
 	_, err = (*installClient).Write(installSpec, clients.WriteOpts{})
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
+
 	installationSummaryMessage(opts)
-	return
+	return nil
 }

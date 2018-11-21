@@ -1,7 +1,7 @@
 package get
 
 import (
-	"fmt"
+	"github.com/solo-io/supergloo/cli/pkg/setup"
 	"os"
 	"strings"
 
@@ -22,10 +22,14 @@ func Cmd(opts *options.Options) *cobra.Command {
 		Short: `Display one or many supergloo resources`,
 		Long:  `Display one or many supergloo resources`,
 		Args:  cobra.RangeArgs(1, 2),
-		Run: func(c *cobra.Command, args []string) {
-			if err := get(args, opts); err != nil {
-				fmt.Println(err)
+		RunE: func(c *cobra.Command, args []string) error {
+			if err := setup.InitKubeOptions(opts); err != nil {
+				return err
 			}
+			if err := get(args, opts); err != nil {
+				return err
+			}
+			return nil
 		},
 	}
 	getOpts := &opts.Get

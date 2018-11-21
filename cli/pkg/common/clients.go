@@ -89,7 +89,6 @@ func GetInstallClient() (*superglooV1.InstallClient, error) {
 	cfg, err := kubeutils.GetConfig("", "")
 	cache := kube.NewKubeCache()
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	installClient, err := superglooV1.NewInstallClient(&factory.KubeResourceClientFactory{
