@@ -167,6 +167,10 @@ For users, this will provide the ability to migrate between service mesh provide
     <tbody>
         <tr>
             <td align=center>⬜</td>
+            <td>Service Mesh Discovery</td>
+        </tr>
+        <tr>
+            <td align=center>⬜</td>
             <td>Linkerd 2 encryption</td>
         </tr>
         <tr>
