@@ -25,6 +25,8 @@ import (
 	helmlib "k8s.io/helm/pkg/helm"
 )
 
+const releaseNameKey = "helm_release"
+
 type InstallSyncer struct {
 	Kube           *kubernetes.Clientset
 	MeshClient     v1.MeshClient
@@ -65,18 +67,29 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 		return errors.Errorf("Unsupported mesh type %v", install.MeshType)
 	}
 
-	if err := syncer.syncInstallImpl(ctx, install, meshInstaller); err != nil {
-		return err
+	mesh, meshErr := syncer.MeshClient.Read(install.Metadata.Namespace, install.Metadata.Name, clients.ReadOpts{Ctx: ctx})
+	switch {
+	case meshErr == nil && !install.Enabled:
+		if err := uninstallHelmRelease(mesh.Metadata.Annotations[releaseNameKey]); err != nil {
+			return err
+		}
+		return syncer.MeshClient.Delete(mesh.Metadata.Namespace, mesh.Metadata.Name, clients.DeleteOpts{Ctx: ctx})
+	case meshErr != nil && install.Enabled:
+		releaseName, err := syncer.installHelmRelease(ctx, install, meshInstaller)
+		if err != nil {
+			return err
+		}
+		return syncer.createMesh(ctx, install, releaseName)
 	}
-	return syncer.createMesh(ctx, install)
+	return nil
 }
 
-func (syncer *InstallSyncer) syncInstallImpl(ctx context.Context, install *v1.Install, installer MeshInstaller) error {
+func (syncer *InstallSyncer) installHelmRelease(ctx context.Context, install *v1.Install, installer MeshInstaller) (string, error) {
 	contextutils.LoggerFrom(ctx).Infof("setting up namespace")
 	// 1. Setup namespace
 	installNamespace, err := syncer.SetupInstallNamespace(install, installer.GetDefaultNamespace())
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// 2. Set up ClusterRoleBinding for that namespace
@@ -85,7 +98,7 @@ func (syncer *InstallSyncer) syncInstallImpl(ctx context.Context, install *v1.In
 	if crbName != "" {
 		err = syncer.CreateCrbIfNotExist(crbName, installNamespace)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
@@ -93,19 +106,19 @@ func (syncer *InstallSyncer) syncInstallImpl(ctx context.Context, install *v1.In
 	// 3. Do any pre-helm tasks
 	err = installer.DoPreHelmInstall()
 	if err != nil {
-		return errors.Wrap(err, "Error doing pre-helm install steps")
+		return "", errors.Wrap(err, "Error doing pre-helm install steps")
 	}
 
 	contextutils.LoggerFrom(ctx).Infof("helm install")
 	// 4. Install mesh via helm chart
 	releaseName, err := syncer.HelmInstall(install.ChartLocator, install.Metadata.Name, installNamespace, installer.GetOverridesYaml(install))
 	if err != nil {
-		return errors.Wrap(err, "Error installing helm chart")
+		return "", errors.Wrap(err, "Error installing helm chart")
 	}
 
 	contextutils.LoggerFrom(ctx).Infof("installed %v", releaseName)
 	// 5. Do any additional steps
-	return installer.DoPostHelmInstall(install, syncer.Kube, releaseName)
+	return releaseName, installer.DoPostHelmInstall(install, syncer.Kube, releaseName)
 }
 
 func (syncer *InstallSyncer) SetupInstallNamespace(install *v1.Install, defaultNamespace string) (string, error) {
@@ -214,8 +227,8 @@ func helmInstallChart(chartPath string, releaseName string, installNamespace str
 	return response.Release.Name, nil
 }
 
-func (syncer *InstallSyncer) createMesh(ctx context.Context, install *v1.Install) error {
-	mesh, err := getMeshObject(install)
+func (syncer *InstallSyncer) createMesh(ctx context.Context, install *v1.Install, releaseName string) error {
+	mesh, err := getMeshObject(install, releaseName)
 	if err != nil {
 		return err
 	}
@@ -223,11 +236,12 @@ func (syncer *InstallSyncer) createMesh(ctx context.Context, install *v1.Install
 	return err
 }
 
-func getMeshObject(install *v1.Install) (*v1.Mesh, error) {
+func getMeshObject(install *v1.Install, releaseName string) (*v1.Mesh, error) {
 	mesh := &v1.Mesh{
 		Metadata: core.Metadata{
-			Name:      install.Metadata.Name,
-			Namespace: install.Metadata.Namespace,
+			Name:        install.Metadata.Name,
+			Namespace:   install.Metadata.Namespace,
+			Annotations: map[string]string{releaseNameKey: releaseName},
 		},
 		Encryption: install.Encryption,
 	}
