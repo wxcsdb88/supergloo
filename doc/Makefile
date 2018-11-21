@@ -28,6 +28,6 @@ docker-site: site
 	docker build -t soloio/supergloo-docs:$(VERSION) .
 
 .PHONY: docker-site-push
-docker-site-push:
+docker-site-push: docker-site
 	docker push soloio/supergloo-docs:$(VERSION)
 
