@@ -5,7 +5,9 @@ import (
 
 	"github.com/solo-io/supergloo/cli/pkg/common"
 
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
+	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/constants"
 	"gopkg.in/AlecAivazis/survey.v1"
 )
@@ -23,6 +25,23 @@ func installationSummaryMessage(opts *options.Options) {
 // kubernetes has good messaging for name collisions so just print the error
 func getNewInstallName(opts *options.Options) string {
 	return fmt.Sprintf("%v-%v", opts.Install.MeshType, common.RandStringBytes(6))
+}
+
+func getMetadataFromOpts(opts *options.Options) core.Metadata {
+	return core.Metadata{
+		Name:      getNewInstallName(opts),
+		Namespace: constants.SuperglooNamespace,
+	}
+}
+
+func getEncryptionFromOpts(opts *options.Options) *v1.Encryption {
+	if opts.Install.Mtls {
+		return &v1.Encryption{
+			TlsEnabled: opts.Install.Mtls,
+			Secret:     &opts.Install.SecretRef,
+		}
+	}
+	return &v1.Encryption{}
 }
 
 func qualifyFlags(opts *options.Options) error {
@@ -62,6 +81,14 @@ func qualifyFlags(opts *options.Options) error {
 			return fmt.Errorf("input error")
 		}
 		iop.Namespace = namespace
+	}
+
+	if common.Contains([]string{common.Istio, common.Linkerd2}, iop.MeshType) {
+		watchNamespaces, err := chooseWatchNamespaces(opts)
+		if err != nil {
+			return fmt.Errorf("input error")
+		}
+		iop.WatchNamespaces = watchNamespaces
 	}
 
 	chosenMtls, err := chooseMtls()

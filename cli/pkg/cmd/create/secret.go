@@ -57,8 +57,7 @@ func SecretCmd(opts *options.Options) *cobra.Command {
 
 func validateSecretArgs(opts *options.Options) error {
 	sOpts := &(opts.Create).Secret
-
-	// user must specify a namespace when in static mode
+	// check if we are interactive mode
 	if opts.Top.Static && sOpts.Namespace == "" {
 		return fmt.Errorf("Please provide a namespace for the secret")
 	}
