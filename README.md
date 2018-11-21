@@ -2,7 +2,7 @@
 <h1 align="center">
     <img src="docs/SuperGloo.png" alt="SuperGloo" width="372" height="242">
   <br>
-  The Service Mesh Orchestrator
+  The Service Mesh Orchestration Platform
 </h1>
 
 SuperGloo, an open-source project to manage and orchestrate service meshes at scale. SuperGloo is an opinionated abstraction layer that will simplify the installation, management, and operation of your service mesh, whether you use (or plan to use) a single mesh or multiple mesh technologies, on-site, in the cloud, or on any topology that best fits you. 
@@ -10,9 +10,11 @@ SuperGloo, an open-source project to manage and orchestrate service meshes at sc
 [**Installation**](docs/installation.md) &nbsp; |
 &nbsp; [**Developers**](docs/developers.md) &nbsp; |
 &nbsp; [**Documentation**](https://supergloo.solo.io) &nbsp; |
-&nbsp; [**Blog**]() &nbsp; |
+&nbsp; [**Blog**](https://medium.com/solo-io/https-medium-com-solo-io-supergloo-ff2aae1fb96f) &nbsp; |
 &nbsp; [**Slack**](https://slack.solo.io) &nbsp; |
 &nbsp; [**Twitter**](https://twitter.com/soloio_inc)
+
+<BR><center><img src="docs/architecture.svg" alt="SuperGloo Architecture" width="906"></center>
 
 ## Summary
 
@@ -22,21 +24,23 @@ SuperGloo, an open-source project to manage and orchestrate service meshes at sc
 - [**Roadmap**](#Roadmap)
 - [**Vision**](#vision)
 
-
+  
 ## Why SuperGloo?
 
 **SuperGloo helps users kick off their service mesh experience.** Users who contemplate working with service mesh can be deterred by the many configuration choices they have to make. SuperGloo solves this problem by providing an opinionated API that automates the installation process, obviating the need for writing and deploying complicated yaml files. 
 
-**SuperGloo takes charge of key functionalities associated with the mesh,** including encryption, telemetry, and tracing. Launching any of these with SuperGloo is as simple as flipping a switch, completely bypassing the need for complicated configuration steps. 
+**SuperGloo takes charge of key functionalities associated with the mesh, including encryption, telemetry, and tracing.** Launching any of these with SuperGloo is as simple as flipping a switch, completely bypassing the need for complicated configuration steps. 
 
-**SuperGloo provides a framework to control all traffic, on the edge of the mesh center and between services within it.** As the service mesh is responsible for traffic inside your data center (“east/west”), an ingress controller is in charge of all traffic from services outside the cluster to services inside the cluster (“north/south”). Some service mesh products offer some integration with specific ingress controllers, but setting it up is far from trivial. With SuperGloo, users are provided a unified framework that integrates the service mesh and the ingress, provide unified traffic controller. 
+**SuperGloo unifies management of ingress traffic (“north/south”) and mesh traffic (“east/west”).** Every service mesh relies on ingress controllers to manage traffic across clusters and from the internet. SuperGloo provides a fully-automated opinionated workflow for configuring your mesh to work with your ingress, offering a unified management experience for all traffic.
 
-**SuperGloo gives you the freedom to pair any service mesh with any ingress.** While letting them operate together, SuperGloo completely abstracts the mesh from the ingress. Users are free to choose their favorites mesh and ingress, and leave it to SuperGloo to take care of the installation and configuration necessary to let them work together.
+**SuperGloo gives you the freedom to pair any service mesh with any ingress.** The mesh abstraction provided by SuperGloo lets users be free to choose their favorites mesh and ingress, and leave it to SuperGloo to take care of the installation and configuration necessary to let them work together. SuperGloo also supports running multiple ingress with multiple mesh in the same cluster.
 
 **SuperGloo makes it easy to explore different meshes and migrate between them.** The unified interface, as well as the automated installation, makes the transition from one mesh to another fast and painless.
 
-**SuperGloo allows using the same tools with different meshes.** Users will find it easier to 
-This means that products that work on top of a service mesh can be completely agnostic to which server mesh (or meshes) are actually being used. In turn, users can decide to migrate between service mesh providers without changing the tooling they are work with. 
+**SuperGloo allows using the same tools with different meshes.** The abstraction we seek to provide will allow developers to build a single product that runs on any mesh, or across meshes.
+For users, this will provide the ability to migrate between service mesh providers without changing the tooling they are work with. 
+
+**SuperGloo will ‘glue’ meshes of any type into a multi-mesh.** For companies that run multiple service mesh instances, SuperGloo will connect all the different meshes together, across namespaces, across clusters, across clouds. All with flat-networking and policy applied at the level, rather than repeated at each individual level, without any effort of synchronizing config across meshes. 
 
 
 ## Features
@@ -80,7 +84,7 @@ This means that products that work on top of a service mesh can be completely ag
             <td align=center>✔</td>
         </tr>
         <tr>
-            <td colspan=2><B>Discovery</B></td>
+            <td colspan=2><B>Discovery</B></td>arch
             <td align=center>🚧</td>
             <td align=center>🚧</td>
             <td align=center>🚧</td>
@@ -187,7 +191,7 @@ This means that products that work on top of a service mesh can be completely ag
 
 ## Vision
 
-At Solo, we believe that companies at any stage of adoption will gain from experiencing multiple service meshes. At the early stages of adoption, users will benefit from the ability to experiment with multiple technologies. Groups within the same organization may favor different options, making multi-mesh a favorable reality. Whether multi-mesh is a transition-phase or the end-game, keeping your options open without compromising on ease-of-use, functionality or flexibility will give early adopters a competitive edge.
+At Solo, we believe that companies at any stage of adoption will gain from experiencing multiple service meshes. At the early stages of adoption, users will benefit from the ability to experiment with multiple technologies. Groups within the same organization may favor different options, making multi-mesh a lasting reality. Whether multi-mesh is a transition-phase or the end-game, keeping your options open without compromising on ease-of-use, functionality or flexibility will give early adopters a competitive edge.
 
 Our vision is to enable multi-mesh, the ability to connect meshes of any type together, across namespaces, across clusters, across clouds. All with flat-networking and policy applied at the super-mesh level, rather than repeated at each individual level, without any effort of synchronizing config across meshes. The abstraction we seek to provide will allow developers to build a single product that runs on any mesh, or across meshes.
 
