@@ -1,7 +1,9 @@
 package common
 
 const (
-	SuperglooGroupName = "supergloo.solo.io"
+	SuperglooGroupName     = "supergloo.solo.io"
+	HelmSetupFileName      = "https://raw.githubusercontent.com/solo-io/supergloo/master/hack/install/helm/helm-service-account.yaml"
+	SuperglooSetupFileName = "https://raw.githubusercontent.com/solo-io/supergloo/master/hack/install/supergloo.yaml"
 
 	// Mesh types
 	Istio    = "istio"

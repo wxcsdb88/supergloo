@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/pkg/errors"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/create"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/get"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/ingresstoolbox"
@@ -17,17 +18,18 @@ func App(version string) *cobra.Command {
 	app := &cobra.Command{
 		Use:   "supergloo",
 		Short: "manage mesh resources with supergloo",
-		Long: `superglooctl configures resources used by Supergloo server.
+		Long: `supergloo configures resources used by Supergloo server.
 	Find more information at https://solo.io`,
 		Version: version,
-		// BashCompletionFunction: bashCompletion,
 	}
+
 	pflags := app.PersistentFlags()
 	pflags.BoolVarP(&opts.Top.Static, "static", "s", false, "disable interactive mode")
 
 	app.SuggestionsMinimumDistance = 1
 	app.AddCommand(
 		install.Cmd(&opts),
+
 		get.Cmd(&opts),
 		create.Cmd(&opts),
 		meshtoolbox.FaultInjection(&opts),
@@ -38,6 +40,11 @@ func App(version string) *cobra.Command {
 	)
 
 	setup.InitCache(&opts)
+
+	err := setup.Init(&opts)
+	if err != nil {
+		panic(errors.Wrap(err, "Error during initialization."))
+	}
 
 	return app
 }
