@@ -8,7 +8,6 @@ import (
 	"github.com/solo-io/supergloo/cli/pkg/cmd/install"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
-	"github.com/solo-io/supergloo/cli/pkg/setup"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +18,7 @@ func App(version string) *cobra.Command {
 		Use:   "supergloo",
 		Short: "manage mesh resources with supergloo",
 		Long: `supergloo configures resources used by Supergloo server.
-	Find more information at https://solo.io`,
+	Find more information at https://supergloo.solo.io`,
 		Version: version,
 	}
 
@@ -39,12 +38,18 @@ func App(version string) *cobra.Command {
 		ingresstoolbox.AddRoute(&opts),
 	)
 
-	setup.InitCache(&opts)
-
-	err := setup.Init(&opts)
-	if err != nil {
-		panic(errors.Wrap(err, "Error during initialization."))
-	}
-
 	return app
+}
+
+func withInit(command *cobra.Command, initFunc func() error) {
+	if command.RunE != nil {
+		return
+	}
+	original := command.RunE
+	command.RunE = func(cmd *cobra.Command, args []string) error {
+		if err := initFunc(); err != nil {
+			return errors.Wrapf(err, "initialization error")
+		}
+		return original(cmd, args)
+	}
 }

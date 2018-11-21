@@ -9,7 +9,8 @@ import (
 	"github.com/solo-io/supergloo/cli/pkg/cmd"
 )
 
-var Version = "0.0.1"
+// TODO: set this using compile time linker flag
+var Version = "0.1.0"
 
 func main() {
 	start := time.Now()

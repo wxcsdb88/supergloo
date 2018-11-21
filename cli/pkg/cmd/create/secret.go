@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"github.com/solo-io/supergloo/cli/pkg/setup"
 	"io/ioutil"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
@@ -19,23 +20,24 @@ func SecretCmd(opts *options.Options) *cobra.Command {
 		Short: `Create a secret with the given name`,
 		Long:  `Create a secret with the given name`,
 		Args:  cobra.ExactArgs(1),
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
+			if err := setup.InitKubeOptions(opts); err != nil {
+				return err
+			}
 			// make sure the given args are valid
 			if err := validateSecretArgs(opts); err != nil {
-				fmt.Println(err)
-				return
+				return err
 			}
 			// gather any missing args that are available through interactive mode
 			if err := gatherSecretArgs(args, opts); err != nil {
-				fmt.Println(err)
-				return
+				return err
 			}
 			// create the secret
 			if err := createSecret(opts); err != nil {
-				fmt.Println(err)
-				return
+				return err
 			}
 			fmt.Printf("Created secret [%v] in namespace [%v]\n", args[0], sOpts.Namespace)
+			return nil
 		},
 	}
 

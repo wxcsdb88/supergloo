@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	"github.com/solo-io/supergloo/cli/pkg/setup"
 	"strings"
 
 	"github.com/solo-io/supergloo/cli/pkg/common"
@@ -24,12 +25,15 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 		Short: `Create a route rule with the given name`,
 		Long:  `Create a route rule with the given name`,
 		Args:  cobra.ExactArgs(1),
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
+			if err := setup.InitKubeOptions(opts); err != nil {
+				return err
+			}
 			if err := createRoutingRule(args[0], opts); err != nil {
-				fmt.Println(err)
-				return
+				return err
 			}
 			fmt.Printf("Created routing rule [%v] in namespace [%v]\n", args[0], rrOpts.Namespace)
+			return nil
 		},
 	}
 
