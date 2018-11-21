@@ -84,7 +84,7 @@ For users, this will provide the ability to migrate between service mesh provide
             <td align=center>✔</td>
         </tr>
         <tr>
-            <td colspan=2><B>Discovery</B></td>arch
+            <td colspan=2><B>Discovery</B></td>
             <td align=center>🚧</td>
             <td align=center>🚧</td>
             <td align=center>🚧</td>
