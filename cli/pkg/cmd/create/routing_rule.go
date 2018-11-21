@@ -6,13 +6,12 @@ import (
 
 	"github.com/solo-io/supergloo/cli/pkg/common"
 
-	"github.com/solo-io/supergloo/pkg/constants"
-
 	"github.com/solo-io/solo-kit/pkg/errors"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
+	"github.com/solo-io/supergloo/cli/pkg/meshutil"
 	glooV1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/spf13/cobra"
@@ -33,16 +32,38 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 			fmt.Printf("Created routing rule [%v] in namespace [%v]\n", args[0], rrOpts.Namespace)
 		},
 	}
-	flags := cmd.Flags()
-	flags.StringVar(&rrOpts.Mesh, "mesh", "", "The mesh that will be the target for this rule")
-	flags.StringVarP(&rrOpts.Namespace, "namespace", "n", "default", "The namespace for this routing rule. Defaults to \"default\"")
-	flags.StringVar(&rrOpts.Sources, "sources", "", "Sources for this rule. Each entry consists of an upstream namespace and and upstream name, separated by a colon.")
-	flags.StringVar(&rrOpts.Destinations, "destinations", "", "Destinations for this rule. Same format as for 'sources'")
-	flags.BoolVar(&rrOpts.OverrideExisting, "override", false, "If set to \"true\", the command will override any existing routing rule that matches the given namespace and name")
-	rrOpts.Matchers = *flags.StringArrayP("matchers", "m", nil, "Matcher for this rule")
 
-	// The only required option is the target mesh
-	cmd.MarkFlagRequired("mesh")
+	flags := cmd.Flags()
+
+	flags.StringVar(&rrOpts.Mesh,
+		"mesh",
+		"",
+		"The mesh that will be the target for this rule")
+
+	flags.StringVarP(&rrOpts.Namespace,
+		"namespace", "n",
+		"",
+		"The namespace for this routing rule. Defaults to \"default\"")
+
+	flags.StringVar(&rrOpts.Sources,
+		"sources",
+		"",
+		"Sources for this rule. Each entry consists of an upstream namespace and and upstream name, separated by a colon.")
+
+	flags.StringVar(&rrOpts.Destinations,
+		"destinations",
+		"",
+		"Destinations for this rule. Same format as for 'sources'")
+
+	flags.BoolVar(&rrOpts.OverrideExisting,
+		"override",
+		false,
+		"If set to \"true\", the command will override any existing routing rule that matches the given namespace and name")
+
+	rrOpts.Matchers = *flags.StringArrayP("matchers",
+		"m",
+		nil,
+		"Matcher for this rule")
 
 	return cmd
 }
@@ -51,19 +72,35 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 	rrOpts := &(opts.Create).RoutingRule
 
 	// Ensure that the given mesh exists
-	meshClient, err := common.GetMeshClient()
-	if err != nil {
-		return err
-	}
-	mesh, err := (*meshClient).Read(constants.SuperglooNamespace, rrOpts.Mesh, clients.ReadOpts{})
-	if err != nil {
-		return err
+	if opts.Top.Static {
+		if rrOpts.Namespace == "" {
+			return fmt.Errorf("Please specify a mesh namespace")
+		}
+		if rrOpts.Mesh == "" {
+			return fmt.Errorf("Please specify a mesh")
+		}
 	}
 
-	// Validate namespace
-	if rrOpts.Namespace != "" && rrOpts.Namespace != "default" {
-		if common.Contains(opts.Cache.Namespaces, rrOpts.Namespace) {
-			return fmt.Errorf("Namespace %v does not exist.\n", rrOpts.Namespace)
+	if rrOpts.Namespace != "" {
+		if !common.Contains(opts.Cache.Namespaces, rrOpts.Namespace) {
+			return fmt.Errorf("Please specify a valid mesh namespace. Namespace %v not found", rrOpts.Namespace)
+		}
+		if len(opts.Cache.NsResources[rrOpts.Namespace].Meshes) == 0 {
+			return fmt.Errorf("Please choose a namespace with meshes. Namespace %v contains no meshes.", rrOpts.Namespace)
+		}
+	}
+
+	if rrOpts.Mesh == "" {
+		// Q(mitchdraft)jdo we want to prefilter this by namespace if they have chosen one?
+		mesh, namespace, err := meshutil.ChooseMesh(opts.Cache.NsResources)
+		if err != nil {
+			return fmt.Errorf("input error")
+		}
+		rrOpts.Mesh = mesh
+		rrOpts.Namespace = namespace
+	} else {
+		if !common.Contains(opts.Cache.NsResources[rrOpts.Namespace].Meshes, rrOpts.Mesh) {
+			return fmt.Errorf("Please specify a valid mesh name. Mesh %v not found in namespace %v not found", rrOpts.Mesh, rrOpts.Namespace)
 		}
 	}
 
@@ -102,8 +139,8 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 			Namespace: rrOpts.Namespace,
 		},
 		TargetMesh: &core.ResourceRef{
-			Name:      mesh.Metadata.Name,
-			Namespace: mesh.Metadata.Namespace,
+			Name:      rrOpts.Mesh,
+			Namespace: rrOpts.Namespace,
 		},
 		Sources:         toResourceRefs(sources),
 		Destinations:    toResourceRefs(destinations),
