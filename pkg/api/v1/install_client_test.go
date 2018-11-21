@@ -74,6 +74,7 @@ func InstallClientTest(namespace string, client InstallClient) {
 	Expect(r1.Consul).To(Equal(input.Consul))
 	Expect(r1.ChartLocator).To(Equal(input.ChartLocator))
 	Expect(r1.Encryption).To(Equal(input.Encryption))
+	Expect(r1.Enabled).To(Equal(input.Enabled))
 
 	_, err = client.Write(input, clients.WriteOpts{
 		OverwriteExisting: true,

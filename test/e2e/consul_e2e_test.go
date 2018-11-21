@@ -3,6 +3,10 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"github.com/gogo/protobuf/types"
+	"github.com/solo-io/solo-kit/test/helpers"
+	"github.com/solo-io/solo-kit/test/setup"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,14 +46,13 @@ The tests will install Consul and get it configured and validate all services up
 up any other configuration, then tear down and clean up all resources created.
 This will take about 80 seconds with mTLS, and 50 seconds without.
 */
-var _ = Describe("Consul Install and Encryption E2E", func() {
+var _ = FDescribe("Consul Install and Encryption E2E", func() {
 
+	var namespace = helpers.RandString(6)
 	const (
-		installNamespace   = "consul"
-		superglooNamespace = "supergloo-system" // this needs to be made before running tests
-		meshName           = "test-consul-mesh"
-		secretName         = "test-tls-secret"
-		consulPort         = 8500
+		meshName   = "test-consul-mesh"
+		secretName = "test-tls-secret"
+		consulPort = 8500
 	)
 
 	kubeCache := kube.NewKubeCache()
@@ -63,18 +66,18 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		pathToUds      string
 	)
 
-	getSnapshot := func(mtls bool, secret *core.ResourceRef) *v1.InstallSnapshot {
+	createInstallSnapshot := func(mtls bool, secret *core.ResourceRef, enable bool) *v1.InstallSnapshot {
 		return &v1.InstallSnapshot{
 			Installs: v1.InstallsByNamespace{
-				installNamespace: v1.InstallList{
+				namespace: v1.InstallList{
 					&v1.Install{
 						Metadata: core.Metadata{
-							Namespace: superglooNamespace,
+							Namespace: namespace,
 							Name:      meshName,
 						},
 						MeshType: &v1.Install_Consul{
 							Consul: &v1.Consul{
-								InstallationNamespace: installNamespace,
+								InstallationNamespace: namespace,
 							},
 						},
 						ChartLocator: &v1.HelmChartLocator{
@@ -88,6 +91,9 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 							TlsEnabled: mtls,
 							Secret:     secret,
 						},
+						Enabled: &types.BoolValue{
+							Value: enable,
+						},
 					},
 				},
 			},
@@ -98,14 +104,14 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		secrets := istiosecret.IstiocertsByNamespace{}
 		if secret != nil {
 			secrets = istiosecret.IstiocertsByNamespace{
-				superglooNamespace: istiosecret.IstioCacertsSecretList{
+				namespace: istiosecret.IstioCacertsSecretList{
 					secret,
 				},
 			}
 		}
 		return &v1.TranslatorSnapshot{
 			Meshes: v1.MeshesByNamespace{
-				superglooNamespace: v1.MeshList{
+				namespace: v1.MeshList{
 					mesh,
 				},
 			},
@@ -114,8 +120,15 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 	}
 
 	BeforeEach(func() {
-		util.TryCreateNamespace("gloo-system")
-		util.TryCreateNamespace("supergloo-system")
+		namespace = helpers.RandString(8)
+		err := setup.SetupKubeForTest(namespace)
+		Expect(err).NotTo(HaveOccurred())
+	})
+	AfterEach(func() {
+		setup.TeardownKube(namespace)
+	})
+
+	BeforeEach(func() {
 		pathToUds = PathToUds // set up by before suite
 		meshClient = util.GetMeshClient(kubeCache)
 		upstreamClient = util.GetUpstreamClient(kubeCache)
@@ -133,14 +146,14 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 			tunnel = nil
 		}
 		if meshClient != nil {
-			meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
+			meshClient.Delete(namespace, meshName, clients.DeleteOpts{})
 		}
 		if secretClient != nil {
-			secretClient.Delete(superglooNamespace, secretName, clients.DeleteOpts{})
+			secretClient.Delete(namespace, secretName, clients.DeleteOpts{})
 		}
 		util.DeleteWebhookConfigIfExists(consul.WebhookCfg)
 		util.DeleteCrb(consul.CrbName)
-		util.TerminateNamespaceBlocking(installNamespace)
+		util.TerminateNamespaceBlocking(namespace)
 		util.UninstallHelmRelease(meshName)
 		util.TerminateNamespaceBlocking("supergloo-system")
 		// delete gloo system to remove gloo resources like upstreams
@@ -149,16 +162,16 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 	})
 
 	It("Can install consul with mtls enabled and custom root cert", func() {
-		secret, ref := util.CreateTestSecret(superglooNamespace, secretName)
-		snap := getSnapshot(true, ref)
+		secret, ref := util.CreateTestSecret(namespace, secretName)
+		snap := createInstallSnapshot(true, ref, true)
 		err := installSyncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
 
-		util.WaitForAvailablePods(installNamespace)
-		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+		util.WaitForAvailablePods(namespace)
+		mesh, err := meshClient.Read(namespace, meshName, clients.ReadOpts{})
 		Expect(err).NotTo(HaveOccurred())
 
-		tunnel, err = util.CreateConsulTunnel(installNamespace, consulPort)
+		tunnel, err = util.CreateConsulTunnel(namespace, consulPort)
 		Expect(err).NotTo(HaveOccurred())
 
 		meshSyncer := consulSync.ConsulSyncer{
@@ -169,15 +182,21 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		util.CheckCertMatchesConsul(tunnel.Local, util.TestRoot)
+
+		log.Printf("now delete")
+		snap = createInstallSnapshot(true, ref, false)
+		err = installSyncer.Sync(context.TODO(), snap)
+		Expect(err).NotTo(HaveOccurred())
+		util.WaitForDeletedPods(namespace)
 	})
 
 	It("Can install consul without mtls enabled", func() {
-		snap := getSnapshot(false, nil)
+		snap := createInstallSnapshot(false, nil, true)
 		err := installSyncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods(installNamespace)
+		util.WaitForAvailablePods(namespace)
 
-		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+		mesh, err := meshClient.Read(namespace, meshName, clients.ReadOpts{})
 		Expect(err).NotTo(HaveOccurred())
 		meshSyncer := consulSync.ConsulSyncer{}
 		syncSnapshot := getTranslatorSnapshot(mesh, nil)
@@ -240,18 +259,18 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		}
 
 		It("Can change consul policy", func() {
-			snap := getSnapshot(true, nil)
+			snap := createInstallSnapshot(true, nil, true)
 			err := installSyncer.Sync(context.TODO(), snap)
 			Expect(err).NotTo(HaveOccurred())
 
-			util.WaitForAvailablePods(installNamespace)
+			util.WaitForAvailablePods(namespace)
 
-			mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+			mesh, err := meshClient.Read(namespace, meshName, clients.ReadOpts{})
 			Expect(err).NotTo(HaveOccurred())
 
 			// portforward consul to here
 
-			tunnel, err = util.CreateConsulTunnel(installNamespace, consulPort)
+			tunnel, err = util.CreateConsulTunnel(namespace, consulPort)
 			Expect(err).NotTo(HaveOccurred())
 
 			localport := tunnel.Local
