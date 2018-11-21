@@ -1,8 +1,10 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,8 +27,8 @@ import (
 // Create a tunnel to tiller, set up a helm client, and ping it to ensure the connection is live
 // Consumers are expected to call Teardown to ensure the tunnel gets closed
 // TODO: Expose configuration options inside setupConnection()
-func GetHelmClient() (*helm.Client, error) {
-	if err := setupConnection(); err != nil {
+func GetHelmClient(ctx context.Context) (*helm.Client, error) {
+	if err := setupConnection(ctx); err != nil {
 		return nil, err
 	}
 	options := []helm.Option{helm.Host(Settings.TillerHost), helm.ConnectTimeout(Settings.TillerConnectionTimeout)}
@@ -70,7 +72,7 @@ func getKubeClient(context string, kubeconfig string) (*rest.Config, kubernetes.
 	return config, client, nil
 }
 
-func setupConnection() error {
+func setupConnection(ctx context.Context) error {
 	var flagSet pflag.FlagSet
 	Settings.AddFlags(&flagSet)
 	if Settings.TillerHost == "" {
@@ -85,13 +87,11 @@ func setupConnection() error {
 		}
 
 		Settings.TillerHost = fmt.Sprintf("127.0.0.1:%d", tillerTunnel.Local)
-		//TODO: remove me
-		fmt.Printf("Created tunnel using local port: '%d'\n", tillerTunnel.Local)
+		contextutils.LoggerFrom(ctx).Infof("Created tunnel using local port: '%d'\n", tillerTunnel.Local)
 	}
 
 	// Set up the gRPC config.
-	// TODO: remove me
-	fmt.Printf("SERVER: %q\n", Settings.TillerHost)
+	contextutils.LoggerFrom(ctx).Infof("SERVER: %q\n", Settings.TillerHost)
 
 	// Plugin support.
 	return nil

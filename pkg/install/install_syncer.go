@@ -78,7 +78,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 			return err
 		}
 		releaseName := mesh.Metadata.Annotations[releaseNameKey]
-		if err := uninstallHelmRelease(releaseName); err != nil {
+		if err := uninstallHelmRelease(ctx, releaseName); err != nil {
 			return err
 		}
 		if err := meshInstaller.DoPostHelmUninstall(); err != nil {
@@ -122,7 +122,7 @@ func (syncer *InstallSyncer) installHelmRelease(ctx context.Context, install *v1
 
 	contextutils.LoggerFrom(ctx).Infof("helm install")
 	// 4. Install mesh via helm chart
-	releaseName, err := syncer.HelmInstall(install.ChartLocator, install.Metadata.Name, installNamespace, installer.GetOverridesYaml(install))
+	releaseName, err := syncer.HelmInstall(ctx, install.ChartLocator, install.Metadata.Name, installNamespace, installer.GetOverridesYaml(install))
 	if err != nil {
 		return "", errors.Wrap(err, "Error installing helm chart")
 	}
@@ -208,16 +208,16 @@ func getCrb(crbName string, namespaceName string) *kuberbac.ClusterRoleBinding {
 	}
 }
 
-func (syncer *InstallSyncer) HelmInstall(chartLocator *v1.HelmChartLocator, releaseName string, installNamespace string, overridesYaml string) (string, error) {
+func (syncer *InstallSyncer) HelmInstall(ctx context.Context, chartLocator *v1.HelmChartLocator, releaseName string, installNamespace string, overridesYaml string) (string, error) {
 	if chartLocator.GetChartPath() != nil {
-		return helmInstallChart(chartLocator.GetChartPath().Path, releaseName, installNamespace, overridesYaml)
+		return helmInstallChart(ctx, chartLocator.GetChartPath().Path, releaseName, installNamespace, overridesYaml)
 	}
 	return "", errors.Errorf("Unsupported kind of chart locator")
 }
 
-func helmInstallChart(chartPath string, releaseName string, installNamespace string, overridesYaml string) (string, error) {
+func helmInstallChart(ctx context.Context, chartPath string, releaseName string, installNamespace string, overridesYaml string) (string, error) {
 	// helm install
-	helmClient, err := helm.GetHelmClient()
+	helmClient, err := helm.GetHelmClient(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -276,8 +276,8 @@ func getMeshObject(install *v1.Install, releaseName string) (*v1.Mesh, error) {
 	return mesh, err
 }
 
-func uninstallHelmRelease(releaseName string) error {
-	helmClient, err := helm.GetHelmClient()
+func uninstallHelmRelease(ctx context.Context, releaseName string) error {
+	helmClient, err := helm.GetHelmClient(ctx)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -237,7 +238,7 @@ func CheckCertMatchesIstio(installNamespace string) {
 
 func UninstallHelmRelease(releaseName string) error {
 	// helm install
-	helmClient, err := helm.GetHelmClient()
+	helmClient, err := helm.GetHelmClient(context.TODO())
 	if err != nil {
 		return err
 	}
