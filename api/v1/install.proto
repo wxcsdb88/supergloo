@@ -7,6 +7,7 @@ option (gogoproto.equal_all) = true;
 
 import "github.com/solo-io/solo-kit/api/v1/metadata.proto";
 import "github.com/solo-io/solo-kit/api/v1/status.proto";
+import "github.com/solo-io/solo-kit/api/v1/ref.proto";
 
 import "encryption.proto";
 import "mesh.proto";
@@ -34,6 +35,10 @@ message Install {
     HelmChartLocator chartLocator = 6;
 
     Encryption encryption = 7;
+
+    bool uninstall = 8;
+    core.solo.io.ResourceRef ref = 9;
+
 }
 
 message HelmChartLocator {

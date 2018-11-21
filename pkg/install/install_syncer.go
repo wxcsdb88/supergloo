@@ -26,6 +26,7 @@ import (
 type InstallSyncer struct {
 	Kube           *kubernetes.Clientset
 	MeshClient     v1.MeshClient
+	InstallClient  v1.InstallClient
 	SecurityClient *security.Clientset
 }
 
@@ -62,10 +63,34 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 		return errors.Errorf("Unsupported mesh type %v", install.MeshType)
 	}
 
-	if err := syncer.syncInstallImpl(ctx, install, meshInstaller); err != nil {
+	if install.Uninstall {
+		if install.Ref == nil {
+			return errors.Errorf("Mesh reference missing")
+		}
+
+		err := syncer.MeshClient.Delete(install.Ref.Namespace, install.Ref.Name, clients.DeleteOpts{})
+		if err != nil {
+			return err
+		}
+		install.Ref = nil
+		_, err = syncer.InstallClient.Write(install, clients.WriteOpts{})
+		return err
+	} else {
+		err := syncer.syncInstallImpl(ctx, install, meshInstaller)
+		if err != nil {
+			return err
+		}
+		mesh, err := syncer.createMesh(install)
+		if err != nil {
+			return err
+		}
+		install.Ref = &core.ResourceRef{
+			Name:      mesh.Metadata.Name,
+			Namespace: mesh.Metadata.Namespace,
+		}
+		_, err = syncer.InstallClient.Write(install, clients.WriteOpts{})
 		return err
 	}
-	return syncer.createMesh(install)
 }
 
 func (syncer *InstallSyncer) syncInstallImpl(_ context.Context, install *v1.Install, installer MeshInstaller) error {
@@ -207,13 +232,12 @@ func helmInstallChart(chartPath string, releaseName string, installNamespace str
 	return response.Release.Name, nil
 }
 
-func (syncer *InstallSyncer) createMesh(install *v1.Install) error {
+func (syncer *InstallSyncer) createMesh(install *v1.Install) (*v1.Mesh, error) {
 	mesh, err := getMeshObject(install)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = syncer.MeshClient.Write(mesh, clients.WriteOpts{})
-	return err
+	return syncer.MeshClient.Write(mesh, clients.WriteOpts{})
 }
 
 func getMeshObject(install *v1.Install) (*v1.Mesh, error) {
@@ -242,4 +266,8 @@ func getMeshObject(install *v1.Install) (*v1.Mesh, error) {
 		err = errors.Errorf("Unsupported mesh type.")
 	}
 	return mesh, err
+}
+
+func (syncer *InstallSyncer) uninstallMesh(install *v1.Install, installer *MeshInstaller) error {
+
 }
