@@ -1,4 +1,4 @@
-package meshutil
+package nsutil
 
 import (
 	"fmt"

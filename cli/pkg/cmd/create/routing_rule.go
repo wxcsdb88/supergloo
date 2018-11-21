@@ -11,7 +11,7 @@ import (
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
-	"github.com/solo-io/supergloo/cli/pkg/meshutil"
+	"github.com/solo-io/supergloo/cli/pkg/nsutil"
 	glooV1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/spf13/cobra"
@@ -92,7 +92,7 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 
 	if rrOpts.Mesh == "" {
 		// Q(mitchdraft)jdo we want to prefilter this by namespace if they have chosen one?
-		mesh, namespace, err := meshutil.ChooseMesh(opts.Cache.NsResources)
+		mesh, namespace, err := nsutil.ChooseMesh(opts.Cache.NsResources)
 		if err != nil {
 			return fmt.Errorf("input error")
 		}
