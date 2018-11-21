@@ -25,16 +25,16 @@ import (
 End to end tests for istio install and mesh syncing.
 */
 var _ = Describe("Istio Install and Encryption E2E", func() {
+	defer GinkgoRecover()
 
 	installNamespace := "istio-system"
 	superglooNamespace := "supergloo-system" // this needs to be made before running tests
 	meshName := "test-istio-mesh"
 	secretName := "test-tls-secret"
 	kubeCache := kube.NewKubeCache()
-
 	path := os.Getenv("HELM_CHART_PATH")
 	if path == "" {
-		//Skip("Set environment variable HELM_CHART_PATH")
+		Skip("Set environment variable HELM_CHART_PATH")
 	}
 
 	getSnapshot := func(mtls bool, secret *core.ResourceRef) *v1.InstallSnapshot {
