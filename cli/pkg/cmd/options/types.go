@@ -12,6 +12,7 @@ type Options struct {
 	IngressTool IngressTool
 	Get         Get
 	Create      Create
+	Config      Config
 	Cache       OptionsCache
 }
 
@@ -78,6 +79,20 @@ type Secret struct {
 type Create struct {
 	RoutingRule RoutingRule
 	Secret      Secret
+}
+
+type Config struct {
+	Ca ConfigCa
+}
+
+type ConfigCa struct {
+	Mesh   ResourceRef
+	Secret Secret
+}
+
+type ResourceRef struct {
+	Name      string
+	Namespace string
 }
 
 // OptionsCache holds resources that multiple commands need
