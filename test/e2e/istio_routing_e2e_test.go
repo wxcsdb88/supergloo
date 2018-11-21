@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-var _ = FDescribe("istio routing E2e", func() {
+var _ = Describe("istio routing E2e", func() {
 	It("works", func() {
 		go setup.Main()
 		meshes, routingRules, err := run()
