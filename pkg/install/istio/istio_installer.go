@@ -90,3 +90,11 @@ func (c *IstioInstaller) AddSccToUsers(users ...string) error {
 	_, err = c.SecurityClient.SecurityV1().SecurityContextConstraints().Update(anyuid)
 	return err
 }
+
+func (c *IstioInstaller) DoPreHelmUninstall() error {
+	return nil
+}
+
+func (c *IstioInstaller) DoPostHelmUninstall() error {
+	return nil
+}
