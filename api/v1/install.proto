@@ -34,6 +34,10 @@ message Install {
     HelmChartLocator chartLocator = 6;
 
     Encryption encryption = 7;
+
+    // whether or not this install should be enabled
+    // if disabled, corresponding resources will be uninstalled
+    bool enabled = 12;
 }
 
 message HelmChartLocator {
