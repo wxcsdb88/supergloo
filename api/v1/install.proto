@@ -4,6 +4,7 @@ option go_package = "github.com/solo-io/supergloo/pkg/api/v1";
 
 import "gogoproto/gogo.proto";
 option (gogoproto.equal_all) = true;
+import "google/protobuf/wrappers.proto";
 
 import "github.com/solo-io/solo-kit/api/v1/metadata.proto";
 import "github.com/solo-io/solo-kit/api/v1/status.proto";
@@ -37,7 +38,8 @@ message Install {
 
     // whether or not this install should be enabled
     // if disabled, corresponding resources will be uninstalled
-    bool enabled = 12;
+    // defaults to true
+    google.protobuf.BoolValue enabled = 12;
 }
 
 message HelmChartLocator {

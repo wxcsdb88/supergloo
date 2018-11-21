@@ -67,14 +67,16 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 		return errors.Errorf("Unsupported mesh type %v", install.MeshType)
 	}
 
+	installEnabled := install.Enabled == nil || install.Enabled.Value
+
 	mesh, meshErr := syncer.MeshClient.Read(install.Metadata.Namespace, install.Metadata.Name, clients.ReadOpts{Ctx: ctx})
 	switch {
-	case meshErr == nil && !install.Enabled:
+	case meshErr == nil && !installEnabled:
 		if err := uninstallHelmRelease(mesh.Metadata.Annotations[releaseNameKey]); err != nil {
 			return err
 		}
 		return syncer.MeshClient.Delete(mesh.Metadata.Namespace, mesh.Metadata.Name, clients.DeleteOpts{Ctx: ctx})
-	case meshErr != nil && install.Enabled:
+	case meshErr != nil && installEnabled:
 		releaseName, err := syncer.installHelmRelease(ctx, install, meshInstaller)
 		if err != nil {
 			return err

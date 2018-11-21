@@ -30,6 +30,7 @@ Description: @solo-kit:resource.short_name=install
 "consul": .supergloo.solo.io.Consul
 "chartLocator": .supergloo.solo.io.HelmChartLocator
 "encryption": .supergloo.solo.io.Encryption
+"enabled": .google.protobuf.BoolValue
 
 ```
 
@@ -42,6 +43,7 @@ Description: @solo-kit:resource.short_name=install
 | consul | [.supergloo.solo.io.Consul](install.proto.sk.md#Install) |  |  |
 | chartLocator | [.supergloo.solo.io.HelmChartLocator](install.proto.sk.md#Install) |  |  |
 | encryption | [.supergloo.solo.io.Encryption](install.proto.sk.md#Install) |  |  |
+| enabled | [.google.protobuf.BoolValue](install.proto.sk.md#Install) | whether or not this install should be enabled if disabled, corresponding resources will be uninstalled defaults to true |  |
   
 ### <a name="HelmChartLocator">HelmChartLocator</a>
 
