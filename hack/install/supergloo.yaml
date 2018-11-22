@@ -42,4 +42,26 @@ spec:
       containers:
       - name: supergloo
         image: soloio/supergloo:dev
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: discovery
+  namespace: supergloo-system
+  labels:
+    gloo: discovery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      gloo: discovery
+  template:
+    metadata:
+      labels:
+        gloo: discovery
+    spec:
+      containers:
+      - name: discovery
+        image: soloio/discovery:dev
+        imagePullPolicy: Always
