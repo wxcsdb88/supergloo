@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/solo-io/supergloo/pkg/constants"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
@@ -15,7 +17,7 @@ import (
 func SecretCmd(opts *options.Options) *cobra.Command {
 	sOpts := &(opts.Create).Secret
 	cmd := &cobra.Command{
-		Use:   "secret",
+		Use:   "secret name",
 		Short: `Create a secret with the given name`,
 		Long:  `Create a secret with the given name`,
 		Args:  cobra.ExactArgs(1),
@@ -47,10 +49,7 @@ func SecretCmd(opts *options.Options) *cobra.Command {
 	flags.StringVar(&sOpts.PrivateKey, "privatekey", "", "filename of privatekey for secret")
 	cmd.MarkFlagRequired("privatekey")
 
-	flags.StringVar(&sOpts.CertChain, "certchain", "", "filename of certchain for secret")
-	cmd.MarkFlagRequired("certchain")
-
-	flags.StringVar(&sOpts.Namespace, "secretnamespace", "", "namespace in which to store the secret")
+	flags.StringVar(&sOpts.Namespace, "namespace", constants.SuperglooNamespace, "namespace in which to store the secret")
 
 	return cmd
 }
@@ -102,17 +101,13 @@ func createSecret(opts *options.Options) error {
 	if err != nil {
 		return fmt.Errorf("Error while reading private key file: %v\n%v", sOpts.PrivateKey, err)
 	}
-	certChain, err := ioutil.ReadFile(sOpts.CertChain)
-	if err != nil {
-		return fmt.Errorf("Error while reading certchain file: %v\n%v", sOpts.CertChain, err)
-	}
 
 	secret := &istiosecret.IstioCacertsSecret{
 		Metadata: core.Metadata{
 			Namespace: sOpts.Namespace,
 			Name:      sOpts.Name,
 		},
-		CertChain: string(certChain),
+		CertChain: "",
 		RootCert:  string(rootCa),
 		CaCert:    string(rootCa),
 		CaKey:     string(privateKey),
