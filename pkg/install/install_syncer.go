@@ -6,6 +6,7 @@ import (
 	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
 
 	"github.com/solo-io/supergloo/pkg/install/linkerd2"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 
 	"github.com/solo-io/supergloo/pkg/install/istio"
 
@@ -23,8 +24,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	helmlib "k8s.io/helm/pkg/helm"
-
-	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
 )
 
 const releaseNameKey = "helm_release"
@@ -33,7 +32,7 @@ type InstallSyncer struct {
 	Kube           *kubernetes.Clientset
 	MeshClient     v1.MeshClient
 	SecurityClient *security.Clientset
-	ApiExtsClient  *apiexts.ApiextensionsClient
+	ApiExts        apiexts.Interface
 }
 
 type MeshInstaller interface {
@@ -65,8 +64,8 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 		meshInstaller = &consul.ConsulInstaller{}
 	case *v1.Install_Istio:
 		meshInstaller = &istio.IstioInstaller{
+			ApiExts:        syncer.ApiExts,
 			SecurityClient: syncer.SecurityClient,
-			ApiExtsClient:  syncer.ApiExtsClient,
 		}
 	case *v1.Install_Linkerd2:
 		meshInstaller = &linkerd2.Linkerd2Installer{}

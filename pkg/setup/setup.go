@@ -4,28 +4,23 @@ import (
 	"context"
 	"time"
 
-	"github.com/solo-io/supergloo/pkg/install"
-
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
-
-	//"github.com/solo-io/solo-kit/pkg/api/v1/reporter"
+	"github.com/solo-io/solo-kit/pkg/errors"
 	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
 	"github.com/solo-io/solo-kit/pkg/utils/errutils"
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
 	gloov1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	istiosecret "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
-
-	//"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 	prometheusv1 "github.com/solo-io/supergloo/pkg/api/external/prometheus/v1"
 	"github.com/solo-io/supergloo/pkg/api/v1"
+	"github.com/solo-io/supergloo/pkg/install"
 	"github.com/solo-io/supergloo/pkg/translator/consul"
 	"github.com/solo-io/supergloo/pkg/translator/istio"
 	"github.com/solo-io/supergloo/pkg/translator/linkerd2"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
-
-	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
 )
 
 var defaultNamespaces = []string{"supergloo-system", "gloo-system", "default"}
@@ -38,11 +33,6 @@ func Main() error {
 		return err
 	}
 	kubeClient, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		return err
-	}
-
-	apiExtsClient, err := apiexts.NewForConfig(restConfig)
 	if err != nil {
 		return err
 	}
@@ -178,10 +168,15 @@ func Main() error {
 		istioPolicySyncer,
 	}
 
+	apiExts, err := apiexts.NewForConfig(restConfig)
+	if err != nil {
+		return errors.Wrapf(err, "creating api extensions client")
+	}
 	installSyncer := &install.InstallSyncer{
-		Kube:          kubeClient,
-		MeshClient:    meshClient,
-		ApiExtsClient: apiExtsClient,
+		ApiExts:    apiExts,
+		Kube:       kubeClient,
+		MeshClient: meshClient,
+		// TODO: set a security client when we resolve minishift issues
 	}
 	installSyncers := v1.InstallSyncers{
 		installSyncer,
