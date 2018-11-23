@@ -27,7 +27,10 @@ import (
 
 var defaultNamespaces = []string{"supergloo-system", "gloo-system", "default"}
 
-func Main() error {
+func Main(namespaces ... string) error {
+	if len(namespaces) == 0 {
+		namespaces = defaultNamespaces
+	}
 	// TODO: ilackarms: suport options
 	kubeCache := kube.NewKubeCache()
 	restConfig, err := kubeutils.GetConfig("", "")
@@ -193,13 +196,13 @@ func Main() error {
 		RefreshRate: time.Second * 1,
 	}
 
-	translatorEventLoopErrs, err := translatorEventLoop.Run(defaultNamespaces, watchOpts)
+	translatorEventLoopErrs, err := translatorEventLoop.Run(namespaces, watchOpts)
 	if err != nil {
 		return err
 	}
 	go errutils.AggregateErrs(watchOpts.Ctx, writeErrs, translatorEventLoopErrs, "translator_event_loop")
 
-	installEventLoopErrs, err := installEventLoop.Run(defaultNamespaces, watchOpts)
+	installEventLoopErrs, err := installEventLoop.Run(namespaces, watchOpts)
 	if err != nil {
 		return err
 	}
