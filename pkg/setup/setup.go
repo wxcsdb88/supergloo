@@ -156,6 +156,10 @@ func Main() error {
 		Kube:         kubeClient,
 		SecretClient: secretClient,
 	}
+	istioPolicySyncer, err := istio.NewPolicySyncer("supergloo-system", kubeCache, restConfig)
+	if err != nil {
+		return err
+	}
 
 	translatorSyncers := v1.TranslatorSyncers{
 		// istioRoutingSyncer, //TODO: Routing creates istio CRDs, causing istio installation to fail. We need to figure out a solution, removing this syncer as a short-term fix.
@@ -164,6 +168,7 @@ func Main() error {
 		consulEncryptionSyncer,
 		consulPolicySyncer,
 		istioEncryptionSyncer,
+		istioPolicySyncer,
 	}
 
 	installSyncer := &install.InstallSyncer{

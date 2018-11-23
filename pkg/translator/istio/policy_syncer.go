@@ -11,6 +11,15 @@ import (
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
+	gloov1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
+	glookubev1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1/plugins/kubernetes"
+	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
+	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/solo-io/supergloo/pkg/api/external/istio/rbac/v1alpha1"
 	"github.com/solo-io/supergloo/pkg/api/v1"
@@ -23,6 +32,60 @@ type PolicySyncer struct {
 	serviceRoleBindingReconciler v1alpha1.ServiceRoleBindingReconciler
 	serviceRoleReconciler        v1alpha1.ServiceRoleReconciler
 	rbacConfigReconciler         v1alpha1.RbacConfigReconciler
+
+	kubeClient *kubernetes.Clientset
+}
+
+func NewPolicySyncer(writens string, kubeCache *kube.KubeCache, restConfig *rest.Config) (*PolicySyncer, error) {
+	var ps PolicySyncer
+	ps.WriteNamespace = writens
+
+	serviceRoleBindingClient, err := v1alpha1.NewServiceRoleBindingClient(&factory.KubeResourceClientFactory{
+		Crd:         v1alpha1.ServiceRoleBindingCrd,
+		Cfg:         restConfig,
+		SharedCache: kubeCache,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := serviceRoleBindingClient.Register(); err != nil {
+		return nil, err
+	}
+	ps.serviceRoleBindingReconciler = v1alpha1.NewServiceRoleBindingReconciler(serviceRoleBindingClient)
+
+	serviceRoleClient, err := v1alpha1.NewServiceRoleClient(&factory.KubeResourceClientFactory{
+		Crd:         v1alpha1.ServiceRoleCrd,
+		Cfg:         restConfig,
+		SharedCache: kubeCache,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := serviceRoleClient.Register(); err != nil {
+		return nil, err
+	}
+	ps.serviceRoleReconciler = v1alpha1.NewServiceRoleReconciler(serviceRoleClient)
+
+	rbacConfigClient, err := v1alpha1.NewRbacConfigClient(&factory.KubeResourceClientFactory{
+		Crd:         v1alpha1.RbacConfigCrd,
+		Cfg:         restConfig,
+		SharedCache: kubeCache,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := rbacConfigClient.Register(); err != nil {
+		return nil, err
+	}
+	ps.rbacConfigReconciler = v1alpha1.NewRbacConfigReconciler(rbacConfigClient)
+
+	ps.kubeClient, err = kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ps, nil
+
 }
 
 func (s *PolicySyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot) error {
@@ -43,7 +106,7 @@ func (s *PolicySyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapshot) er
 			continue
 		}
 
-		err := s.syncPolicy(ctx, policy)
+		err := s.syncPolicy(ctx, snap.Upstreams, policy)
 		if err != nil {
 			multiErr = multierror.Append(multiErr, err)
 		}
@@ -74,21 +137,20 @@ func (s *PolicySyncer) removePolicy(ctx context.Context) error {
 	}
 
 	return nil
-
 }
 
-func (s *PolicySyncer) syncPolicy(ctx context.Context, p *v1.Policy) error {
+func (s *PolicySyncer) syncPolicy(ctx context.Context, upstreams gloov1.UpstreamsByNamespace, p *v1.Policy) error {
 	opts := clients.ListOpts{
 		Ctx:      ctx,
 		Selector: s.WriteSelector,
 	}
 
 	// we have a policy, write a global config
-	rcfg := globalConfig()
+	rcfg := s.globalConfig()
 	var rcfgs v1alpha1.RbacConfigList
 	rcfgs = append(rcfgs, rcfg)
-
-	sr, srb := toIstio(p)
+	converter := convertToIstio{upstreams, p, s.kubeClient}
+	sr, srb := converter.toIstio()
 
 	resources.UpdateMetadata(rcfg, s.updateMetadata)
 	for _, res := range sr {
@@ -114,19 +176,30 @@ func (s *PolicySyncer) syncPolicy(ctx context.Context, p *v1.Policy) error {
 
 }
 
-func globalConfig() *v1alpha1.RbacConfig {
+func (s *PolicySyncer) globalConfig() *v1alpha1.RbacConfig {
 	return &v1alpha1.RbacConfig{
+		Metadata: core.Metadata{
+			// name MUST be default.
+			Name:      "default",
+			Namespace: s.WriteNamespace,
+		},
 		Mode:            v1alpha1.RbacConfig_ON,
 		EnforcementMode: v1alpha1.EnforcementMode_ENFORCED,
 	}
 }
 
-func toIstio(p *v1.Policy) ([]*v1alpha1.ServiceRole, []*v1alpha1.ServiceRoleBinding) {
+type convertToIstio struct {
+	upstreams  gloov1.UpstreamsByNamespace
+	policy     *v1.Policy
+	kubeClient *kubernetes.Clientset
+}
+
+func (c *convertToIstio) toIstio() ([]*v1alpha1.ServiceRole, []*v1alpha1.ServiceRoleBinding) {
 	var roles []*v1alpha1.ServiceRole
 	var bindings []*v1alpha1.ServiceRoleBinding
 
 	rulesByDest := map[core.ResourceRef][]*v1.Rule{}
-	for _, rule := range p.Rules {
+	for _, rule := range c.policy.Rules {
 		if rule.Source == nil {
 			// TODO: should we return error instead?
 			continue
@@ -138,7 +211,7 @@ func toIstio(p *v1.Policy) ([]*v1alpha1.ServiceRole, []*v1alpha1.ServiceRoleBind
 		rulesByDest[*rule.Destination] = append(rulesByDest[*rule.Destination], rule)
 	}
 	// sort for idempotency
-	for _, rule := range p.Rules {
+	for _, rule := range c.policy.Rules {
 		dests := rulesByDest[*rule.Destination]
 		sort.Slice(dests, func(i, j int) bool {
 			return dests[i].Source.String() > dests[j].Source.String()
@@ -146,6 +219,15 @@ func toIstio(p *v1.Policy) ([]*v1alpha1.ServiceRole, []*v1alpha1.ServiceRoleBind
 	}
 
 	for dest, rules := range rulesByDest {
+
+		destupstream := c.getkube(dest)
+		if destupstream == nil {
+			continue
+		}
+		var destref core.ResourceRef
+		destref.Name = destupstream.ServiceName
+		destref.Namespace = destupstream.ServiceNamespace
+
 		ns := dest.Namespace
 		// create an istio service role and binding:
 		name := "access-" + dest.Namespace + "-" + dest.Name
@@ -157,17 +239,28 @@ func toIstio(p *v1.Policy) ([]*v1alpha1.ServiceRole, []*v1alpha1.ServiceRoleBind
 			},
 			Rules: []*v1alpha1.AccessRule{
 				{
+					Methods: []string{"*"},
 					Services: []string{
-						svcname(dest),
+						c.svcname(destref),
 					},
 				},
 			},
 		}
 		var subjects []*v1alpha1.Subject
 		for _, rule := range rules {
+			sourceupstream := c.getkube(*rule.Source)
+			if sourceupstream == nil {
+				continue
+			}
+
+			sa := c.getsvcaccount(sourceupstream)
+			if sa == nil {
+				continue
+			}
+
 			subjects = append(subjects, &v1alpha1.Subject{
 				Properties: map[string]string{
-					"source.principal": principalame(*rule.Source),
+					"source.principal": c.principalame(*sa),
 				},
 			})
 		}
@@ -177,8 +270,10 @@ func toIstio(p *v1.Policy) ([]*v1alpha1.ServiceRole, []*v1alpha1.ServiceRoleBind
 				Name:      name,
 				Namespace: ns,
 			},
+
 			Subjects: subjects,
 			RoleRef: &v1alpha1.RoleRef{
+				Kind: "ServiceRole",
 				Name: sr.Metadata.Name,
 			},
 		}
@@ -186,6 +281,59 @@ func toIstio(p *v1.Policy) ([]*v1alpha1.ServiceRole, []*v1alpha1.ServiceRoleBind
 		bindings = append(bindings, srb)
 	}
 	return roles, bindings
+}
+
+func (c *convertToIstio) getsvcaccount(k *glookubev1.UpstreamSpec) *core.ResourceRef {
+	// istio manages identity in the level of service accounts.
+	// so we hueristicly figure out the service account for this upstream.
+	// we may consider changing our API in the future to better support this usecase
+
+	svcname := k.ServiceName
+	svcnamespace := k.ServiceNamespace
+
+	// find the services and get the selectors, and
+	svc, err := c.kubeClient.CoreV1().Services(svcnamespace).Get(svcname, kubemeta.GetOptions{})
+	if err != nil {
+		return nil
+	}
+	// get the pods from the selector
+	// get the first pod and grab its service account
+	opts := kubemeta.ListOptions{
+		LabelSelector: labels.SelectorFromSet(svc.Spec.Selector).String(),
+		Limit:         1,
+	}
+	pods, err := c.kubeClient.CoreV1().Pods(svcnamespace).List(opts)
+	if err != nil {
+		return nil
+	}
+
+	if len(pods.Items) == 0 {
+		return nil
+	}
+	saname := pods.Items[0].Spec.ServiceAccountName
+	return &core.ResourceRef{
+		Name:      saname,
+		Namespace: svcnamespace,
+	}
+}
+
+func (c *convertToIstio) getkube(ref core.ResourceRef) *glookubev1.UpstreamSpec {
+	upstream, err := c.upstreams.List().Find(ref.Namespace, ref.Name)
+	if err != nil {
+		return nil
+	}
+	kubeupstream, ok := upstream.UpstreamSpec.UpstreamType.(*gloov1.UpstreamSpec_Kube)
+	if !ok {
+		return nil
+	}
+	return kubeupstream.Kube
+}
+
+func (c *convertToIstio) svcname(s core.ResourceRef) string {
+	return fmt.Sprintf("%s.%s.svc.cluster.local", s.Name, s.Namespace)
+}
+func (c *convertToIstio) principalame(s core.ResourceRef) string {
+	return fmt.Sprintf("cluster.local/ns/%s/sa/%s", s.Namespace, s.Name)
 }
 
 func (s *PolicySyncer) updateMetadata(meta *core.Metadata) {
@@ -200,13 +348,6 @@ func (s *PolicySyncer) updateMetadata(meta *core.Metadata) {
 	for k, v := range s.WriteSelector {
 		meta.Labels[k] = v
 	}
-}
-
-func svcname(s core.ResourceRef) string {
-	return fmt.Sprintf("%s.%s.svc.cluster.local", s.Name, s.Namespace)
-}
-func principalame(s core.ResourceRef) string {
-	return fmt.Sprintf("cluster.local/ns/%s/sa/%s", s.Namespace, s.Name)
 }
 
 func preserveServiceRoleBinding(original, desired *v1alpha1.ServiceRoleBinding) (bool, error) {
