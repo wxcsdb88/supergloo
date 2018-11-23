@@ -1,31 +1,53 @@
-package e2e_test
+package e2e
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gexec"
 	"github.com/solo-io/gloo/pkg/log"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
+	"github.com/solo-io/solo-kit/test/helpers"
+	testsetup "github.com/solo-io/solo-kit/test/setup"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/setup"
+	"os"
+	"os/exec"
 	"time"
 )
 
 var _ = Describe("istio routing E2e", func() {
+	var namespace string
+	BeforeEach(func() {
+		namespace = helpers.RandString(8)
+		err := testsetup.SetupKubeForTest(namespace)
+		Expect(err).NotTo(HaveOccurred())
+	})
+	AfterEach(func() {
+		testsetup.TeardownKube(namespace)
+	})
+
 	It("works", func() {
 		go setup.Main()
+
+		// start discovery
+		cmd := exec.Command(PathToUds, "--namespace", namespace)
+		cmd.Env = os.Environ()
+		_, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+		Expect(err).NotTo(HaveOccurred())
+
 		meshes, routingRules, err := run()
 		Expect(err).NotTo(HaveOccurred())
-		meta := core.Metadata{Name: "my-istio", Namespace: "default"}
+		meta := core.Metadata{Name: "my-istio", Namespace: namespace}
 		meshes.Delete(meta.Namespace, meta.Name, clients.DeleteOpts{})
 		m1, err := meshes.Write(&v1.Mesh{
 			Metadata: meta,
 			MeshType: &v1.Mesh_Istio{
 				Istio: &v1.Istio{
-					WatchNamespaces: []string{"default"},
+					WatchNamespaces: []string{namespace},
 				},
 			},
 			Encryption: &v1.Encryption{
@@ -35,7 +57,7 @@ var _ = Describe("istio routing E2e", func() {
 		}, clients.WriteOpts{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(m1).NotTo(BeNil())
-		rrMeta := core.Metadata{Name: "my-istio-rr", Namespace: "default"}
+		rrMeta := core.Metadata{Name: "my-istio-rr", Namespace: namespace}
 		routingRules.Delete(rrMeta.Namespace, rrMeta.Name, clients.DeleteOpts{})
 
 		ref := m1.Metadata.Ref()
