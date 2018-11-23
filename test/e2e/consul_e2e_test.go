@@ -46,8 +46,7 @@ The tests will install Consul and get it configured and validate all services up
 up any other configuration, then tear down and clean up all resources created.
 This will take about 80 seconds with mTLS, and 50 seconds without.
 */
-var _ = FDescribe("Consul Install and Encryption E2E", func() {
-
+var _ = Describe("Consul Install and Encryption E2E", func() {
 	var namespace = helpers.RandString(6)
 	const (
 		meshName   = "test-consul-mesh"
