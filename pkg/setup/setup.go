@@ -32,7 +32,10 @@ import (
 
 var defaultNamespaces = []string{"supergloo-system", "gloo-system", "default"}
 
-func Main() error {
+func Main(namespaces ... string) error {
+	if len(namespaces) == 0 {
+		namespaces = defaultNamespaces
+	}
 	// TODO: ilackarms: suport options
 	kubeCache := kube.NewKubeCache()
 	restConfig, err := kubeutils.GetConfig("", "")
@@ -52,6 +55,9 @@ func Main() error {
 	if err != nil {
 		return err
 	}
+	if err := destinationRuleClient.Register(); err != nil {
+		return err
+	}
 
 	virtualServiceClient, err := v1alpha3.NewVirtualServiceClient(&factory.KubeResourceClientFactory{
 		Crd:         v1alpha3.VirtualServiceCrd,
@@ -59,6 +65,9 @@ func Main() error {
 		SharedCache: kubeCache,
 	})
 	if err != nil {
+		return err
+	}
+	if err := virtualServiceClient.Register(); err != nil {
 		return err
 	}
 
@@ -137,7 +146,7 @@ func Main() error {
 	rpt := reporter.NewReporter("supergloo", meshClient.BaseClient(), routingRuleClient.BaseClient())
 	writeErrs := make(chan error)
 
-	istioRoutingSyncer := istio.NewMeshRoutingSyncer(defaultNamespaces,
+	istioRoutingSyncer := istio.NewMeshRoutingSyncer(namespaces,
 		nil,
 		v1alpha3.NewDestinationRuleReconciler(destinationRuleClient),
 		v1alpha3.NewVirtualServiceReconciler(virtualServiceClient),
@@ -191,13 +200,13 @@ func Main() error {
 		RefreshRate: time.Second * 1,
 	}
 
-	translatorEventLoopErrs, err := translatorEventLoop.Run(defaultNamespaces, watchOpts)
+	translatorEventLoopErrs, err := translatorEventLoop.Run(namespaces, watchOpts)
 	if err != nil {
 		return err
 	}
 	go errutils.AggregateErrs(watchOpts.Ctx, writeErrs, translatorEventLoopErrs, "translator_event_loop")
 
-	installEventLoopErrs, err := installEventLoop.Run(defaultNamespaces, watchOpts)
+	installEventLoopErrs, err := installEventLoop.Run(namespaces, watchOpts)
 	if err != nil {
 		return err
 	}
