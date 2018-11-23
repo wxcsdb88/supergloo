@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"go.uber.org/multierr"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
@@ -18,12 +19,34 @@ import (
 )
 
 type MeshRoutingSyncer struct {
+	// only read/write crds from these namespaces
 	// needed so we can clean up hanging crds
-	WriteNamespaces           []string
-	WriteSelector             map[string]string // for reconciling only our resources
-	DestinationRuleReconciler v1alpha3.DestinationRuleReconciler
-	VirtualServiceReconciler  v1alpha3.VirtualServiceReconciler
-	Reporter                  reporter.Reporter
+	writeNamespaces []string
+	// for reconciling only our resources
+	// override write selector to prevent conflicts between multiple routing syncers
+	// else leave nil
+	writeSelector             map[string]string
+	destinationRuleReconciler v1alpha3.DestinationRuleReconciler
+	virtualServiceReconciler  v1alpha3.VirtualServiceReconciler
+	// ilackarms: todo: implement reporter
+	reporter                  reporter.Reporter
+}
+
+func NewMeshRoutingSyncer(writeNamespaces []string,
+	writeSelector map[string]string, // for reconciling only our resources
+	destinationRuleReconciler v1alpha3.DestinationRuleReconciler,
+	virtualServiceReconciler v1alpha3.VirtualServiceReconciler,
+	reporter reporter.Reporter) *MeshRoutingSyncer {
+	if writeSelector == nil {
+		writeSelector = map[string]string{"reconciler.solo.io": "supergloo.istio.routing"}
+	}
+	return &MeshRoutingSyncer{
+		writeNamespaces:           writeNamespaces,
+		writeSelector:             writeSelector,
+		destinationRuleReconciler: destinationRuleReconciler,
+		virtualServiceReconciler:  virtualServiceReconciler,
+		reporter:                  reporter,
+	}
 }
 
 func sanitizeName(name string) string {
@@ -72,10 +95,10 @@ func (s *MeshRoutingSyncer) Sync(ctx context.Context, snap *v1.TranslatorSnapsho
 		return errors.Wrapf(err, "creating virtual services from snapshot")
 	}
 	for _, res := range destinationRules {
-		updateMetadataForWriting(&res.Metadata, s.WriteSelector)
+		updateMetadataForWriting(&res.Metadata, s.writeSelector)
 	}
 	for _, res := range virtualServices {
-		updateMetadataForWriting(&res.Metadata, s.WriteSelector)
+		updateMetadataForWriting(&res.Metadata, s.writeSelector)
 	}
 	return s.writeIstioCrds(ctx, destinationRules, virtualServices)
 }
@@ -491,23 +514,41 @@ func addHttpFeatures(rule *v1.RoutingRule, http *v1alpha3.HTTPRoute, upstreams g
 func (s *MeshRoutingSyncer) writeIstioCrds(ctx context.Context, destinationRules v1alpha3.DestinationRuleList, virtualServices v1alpha3.VirtualServiceList) error {
 	opts := clients.ListOpts{
 		Ctx:      ctx,
-		Selector: s.WriteSelector,
+		Selector: s.writeSelector,
 	}
 	contextutils.LoggerFrom(ctx).Infof("reconciling %v destination rules", len(destinationRules))
 	drByNamespace := make(v1alpha3.DestinationrulesByNamespace)
 	drByNamespace.Add(destinationRules...)
-	for _, ns := range s.WriteNamespaces {
-		if err := s.DestinationRuleReconciler.Reconcile(ns, drByNamespace[ns], preserveDestinationRule, opts); err != nil {
+	for _, ns := range s.writeNamespaces {
+		if err := s.destinationRuleReconciler.Reconcile(ns, drByNamespace[ns], preserveDestinationRule, opts); err != nil {
 			return errors.Wrapf(err, "reconciling destination rules")
+		}
+		delete(drByNamespace, ns)
+	}
+	if len(drByNamespace) != 0 {
+		var err error
+		for ns, destinationRules := range drByNamespace {
+			err = multierr.Append(err, errors.Errorf("internal error: "+
+				"%v destination rules were generated for namespace %v, but only "+
+				"%v are available namespaces for writing", len(destinationRules), ns, s.writeNamespaces))
 		}
 	}
 
 	contextutils.LoggerFrom(ctx).Infof("reconciling %v virtual services", len(virtualServices))
 	vsByNamespace := make(v1alpha3.VirtualservicesByNamespace)
 	vsByNamespace.Add(virtualServices...)
-	for _, ns := range s.WriteNamespaces {
-		if err := s.VirtualServiceReconciler.Reconcile(ns, vsByNamespace[ns], preserveVirtualService, opts); err != nil {
+	for _, ns := range s.writeNamespaces {
+		if err := s.virtualServiceReconciler.Reconcile(ns, vsByNamespace[ns], preserveVirtualService, opts); err != nil {
 			return errors.Wrapf(err, "reconciling virtual services")
+		}
+		delete(drByNamespace, ns)
+	}
+	if len(vsByNamespace) != 0 {
+		var err error
+		for ns, virtualServices := range vsByNamespace {
+			err = multierr.Append(err, errors.Errorf("internal error: "+
+				"%v virtual services were generated for namespace %v, but only "+
+				"%v are available namespaces for writing", len(virtualServices), ns, s.writeNamespaces))
 		}
 	}
 	return nil
