@@ -9,10 +9,10 @@ import (
 
 	"github.com/solo-io/supergloo/pkg/install"
 
-	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 
 	//"github.com/solo-io/solo-kit/pkg/api/v1/reporter"
 	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
@@ -134,16 +134,15 @@ func Main() error {
 
 	translatorEmitter := v1.NewTranslatorEmitter(meshClient, routingRuleClient, upstreamClient, secretClient)
 
-	rpt := reporter.NewReporter("supergloo", meshClient.BaseClient())
+	rpt := reporter.NewReporter("supergloo", meshClient.BaseClient(), routingRuleClient.BaseClient())
 	writeErrs := make(chan error)
 
-	istioRoutingSyncer := &istio.MeshRoutingSyncer{
-		WriteNamespaces:           defaultNamespaces,
-		DestinationRuleReconciler: v1alpha3.NewDestinationRuleReconciler(destinationRuleClient),
-		VirtualServiceReconciler:  v1alpha3.NewVirtualServiceReconciler(virtualServiceClient),
-		Reporter:                  rpt,
-		WriteSelector:             map[string]string{"reconciler.solo.io": "supergloo.istio.routing"},
-	}
+	istioRoutingSyncer := istio.NewMeshRoutingSyncer(defaultNamespaces,
+		nil,
+		v1alpha3.NewDestinationRuleReconciler(destinationRuleClient),
+		v1alpha3.NewVirtualServiceReconciler(virtualServiceClient),
+		rpt,
+	)
 
 	linkerd2PrometheusSyncer := linkerd2.NewPrometheusSyncer(kubeClient, prometheusClient)
 	istioPrometheusSyncer := istio.NewPrometheusSyncer(kubeClient, prometheusClient)
