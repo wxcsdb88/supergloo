@@ -17,8 +17,8 @@ var validRootArgs = []string{"enable", "disable", "toggle"} // for bash completi
 func Root(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:       "mtls",
-		Short:     `set mtls status`,
-		Long:      `set mtls status`,
+		Short:     `set mTLS status`,
+		Long:      `set mTLS status`,
 		ValidArgs: validRootArgs,
 		Args:      rootArgValidation,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -49,8 +49,8 @@ func rootArgValidation(c *cobra.Command, args []string) error {
 func Enable(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "enable",
-		Short: `enable mtls`,
-		Long:  `enable mtls`,
+		Short: `enable mTLS`,
+		Long:  `enable mTLS`,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := enableMtls(opts); err != nil {
 				return err
@@ -64,8 +64,8 @@ func Enable(opts *options.Options) *cobra.Command {
 func Disable(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "disable",
-		Short: `disable mtls`,
-		Long:  `disable mtls`,
+		Short: `disable mTLS`,
+		Long:  `disable mTLS`,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := disableMtls(opts); err != nil {
 				return err
@@ -79,8 +79,8 @@ func Disable(opts *options.Options) *cobra.Command {
 func Toggle(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "toggle",
-		Short: `toggle mtls`,
-		Long:  `toggle mtls`,
+		Short: `toggle mTLS`,
+		Long:  `toggle mTLS`,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := toggleMtls(opts); err != nil {
 				return err
@@ -96,7 +96,7 @@ func enableMtls(opts *options.Options) error {
 	if _, err := updateMtls("enable", opts); err != nil {
 		return err
 	}
-	fmt.Printf("Enabled mtls on mesh %v", opts.MeshTool.Mesh.Name)
+	fmt.Printf("Enabled mTLS on mesh %v", opts.MeshTool.Mesh.Name)
 
 	return nil
 }
@@ -105,7 +105,7 @@ func disableMtls(opts *options.Options) error {
 	if _, err := updateMtls("disable", opts); err != nil {
 		return err
 	}
-	fmt.Printf("Disabled mtls on mesh %v", opts.MeshTool.Mesh.Name)
+	fmt.Printf("Disabled mTLS on mesh %v", opts.MeshTool.Mesh.Name)
 	return nil
 }
 
