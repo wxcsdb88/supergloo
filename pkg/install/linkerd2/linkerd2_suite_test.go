@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestConsulInstall(t *testing.T) {
+func TestLinkerd2Install(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Linkerd2 Installer Suite")
 }

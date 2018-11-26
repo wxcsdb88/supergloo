@@ -29,6 +29,10 @@ func (c *IstioInstaller) GetDefaultNamespace() string {
 	return defaultNamespace
 }
 
+func (c *IstioInstaller) UseHardcodedNamespace() bool {
+	return false
+}
+
 func (c *IstioInstaller) GetCrbName() string {
 	return CrbName
 }

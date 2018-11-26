@@ -77,7 +77,7 @@ var _ = Describe("Linkerd2 Installer", func() {
 	})
 
 	AfterEach(func() {
-		util.TryCreateNamespace("supergloo-system")
+		util.TerminateNamespaceBlocking("supergloo-system")
 
 		// just in case
 		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})

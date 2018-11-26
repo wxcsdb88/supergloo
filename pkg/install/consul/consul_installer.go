@@ -21,6 +21,10 @@ func (c *ConsulInstaller) GetDefaultNamespace() string {
 	return defaultNamespace
 }
 
+func (c *ConsulInstaller) UseHardcodedNamespace() bool {
+	return false
+}
+
 func (c *ConsulInstaller) GetCrbName() string {
 	return CrbName
 }

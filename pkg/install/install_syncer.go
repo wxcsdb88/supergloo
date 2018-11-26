@@ -38,6 +38,7 @@ type InstallSyncer struct {
 
 type MeshInstaller interface {
 	GetDefaultNamespace() string
+	UseHardcodedNamespace() bool
 	GetCrbName() string
 	GetOverridesYaml(install *v1.Install) string
 	DoPreHelmInstall() error
@@ -67,7 +68,9 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 			CrdClient:      syncer.CrdCLient,
 		}
 	case *v1.Install_Linkerd2:
-		meshInstaller = &linkerd2.Linkerd2Installer{}
+		meshInstaller = &linkerd2.Linkerd2Installer{
+			Kube: syncer.Kube,
+		}
 	default:
 		return errors.Errorf("Unsupported mesh type %v", install.MeshType)
 	}
@@ -97,7 +100,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 func (syncer *InstallSyncer) installHelmRelease(ctx context.Context, install *v1.Install, installer MeshInstaller) (string, error) {
 	contextutils.LoggerFrom(ctx).Infof("setting up namespace")
 	// 1. Setup namespace
-	installNamespace, err := syncer.SetupInstallNamespace(install, installer.GetDefaultNamespace())
+	installNamespace, err := syncer.SetupInstallNamespace(install, installer)
 	if err != nil {
 		return "", err
 	}
@@ -131,8 +134,11 @@ func (syncer *InstallSyncer) installHelmRelease(ctx context.Context, install *v1
 	return releaseName, installer.DoPostHelmInstall(install, syncer.Kube, releaseName)
 }
 
-func (syncer *InstallSyncer) SetupInstallNamespace(install *v1.Install, defaultNamespace string) (string, error) {
-	installNamespace := getInstallNamespace(install, defaultNamespace)
+func (syncer *InstallSyncer) SetupInstallNamespace(install *v1.Install, installer MeshInstaller) (string, error) {
+	if installer.UseHardcodedNamespace() {
+		return installer.GetDefaultNamespace(), nil
+	}
+	installNamespace := getInstallNamespace(install, installer.GetDefaultNamespace())
 	err := syncer.createNamespaceIfNotExist(installNamespace) // extract to CRD
 	if err != nil {
 		return installNamespace, errors.Wrap(err, "Error setting up namespace")
@@ -283,17 +289,18 @@ func (syncer *InstallSyncer) uninstallHelmRelease(ctx context.Context, mesh *v1.
 	}
 	_, err = helmClient.DeleteRelease(releaseName, helmlib.DeletePurge(true))
 	helm.Teardown()
-	err = syncer.deleteInstallNamespace(getInstallNamespace(install, meshInstaller.GetDefaultNamespace()))
-	if err != nil {
-		return err
-	}
-	// TODO: this will break if there are more than one installs of a given mesh
+	// Install may be into ns that can't be deleted, don't propagate error if delete fails
+	syncer.tryDeleteInstallNamespace(getInstallNamespace(install, meshInstaller.GetDefaultNamespace()))
+	// TODO: this will break if there are more than one installs of a given mesh that depend on the CRB
 	// Create a CRB per install?
-	return syncer.deleteCrb(meshInstaller.GetCrbName())
+	if meshInstaller.GetCrbName() != "" {
+		return syncer.deleteCrb(meshInstaller.GetCrbName())
+	}
+	return nil
 }
 
-func (syncer *InstallSyncer) deleteInstallNamespace(namespaceName string) error {
-	return syncer.Kube.CoreV1().Namespaces().Delete(namespaceName, &kubemeta.DeleteOptions{})
+func (syncer *InstallSyncer) tryDeleteInstallNamespace(namespaceName string) {
+	syncer.Kube.CoreV1().Namespaces().Delete(namespaceName, &kubemeta.DeleteOptions{})
 }
 
 func (syncer *InstallSyncer) deleteCrb(crbName string) error {
