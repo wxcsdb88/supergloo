@@ -14,25 +14,30 @@ import (
 	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/setup"
+	"github.com/solo-io/supergloo/test/utils"
 	"os"
 	"os/exec"
 	"time"
 )
 
 var _ = Describe("istio routing E2e", func() {
-	var namespace string
+	var namespace, releaseName string
 	path := os.Getenv("HELM_CHART_PATH_ISTIO")
 	if path == "" {
 		Skip("Set environment variable HELM_CHART_PATH")
 	}
 	BeforeEach(func() {
-		exec.Command("helm", "delete", "my-istio-install", "--purge").Run()
-		namespace = helpers.RandString(8)
+		releaseName = "istio-release-test" + helpers.RandString(8)
+		namespace = "istio-routing-test" + helpers.RandString(8)
 		err := testsetup.SetupKubeForTest(namespace)
+		Expect(err).NotTo(HaveOccurred())
+		cfg, err := kubeutils.GetConfig("", "")
+		Expect(err).NotTo(HaveOccurred())
+		err = utils.DeployBookinfo(cfg, namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 	AfterEach(func() {
-		exec.Command("helm", "delete", "my-istio-install", "--purge").Run()
+		exec.Command("helm", "delete", releaseName, "--purge").Run()
 		testsetup.TeardownKube(namespace)
 	})
 
@@ -48,7 +53,14 @@ var _ = Describe("istio routing E2e", func() {
 		meshes, routingRules, installClient, err := run()
 		Expect(err).NotTo(HaveOccurred())
 
-		installName := setupInstall(installClient, namespace, path)
+		installClient.Register()
+		// wait for supergloo to register crds
+		Eventually(func() error {
+			_, err := installClient.List(namespace, clients.ListOpts{})
+			return err
+		}, time.Second*5).Should(Not(HaveOccurred()))
+
+		installName := setupInstall(installClient, namespace, releaseName, path)
 
 		var ref *core.ResourceRef
 		Eventually(func() (*core.ResourceRef, error) {
@@ -92,8 +104,8 @@ var _ = Describe("istio routing E2e", func() {
 	})
 })
 
-func setupInstall(installClient v1.InstallClient, namespace string, chartPath string) string {
-	installMeta := core.Metadata{Name: "my-istio-install", Namespace: namespace}
+func setupInstall(installClient v1.InstallClient, namespace, releaseName string, chartPath string) string {
+	installMeta := core.Metadata{Name: releaseName, Namespace: namespace}
 	installClient.Delete(installMeta.Namespace, installMeta.Name, clients.DeleteOpts{})
 
 	install1, err := installClient.Write(&v1.Install{
@@ -126,14 +138,14 @@ func setupRoutingRule(routingRules v1.RoutingRuleClient, namespace string, targe
 		Metadata:   rrMeta,
 		TargetMesh: targetMesh,
 		Destinations: []*core.ResourceRef{{
-			Name:      "default-reviews-9080",
+			Name:      namespace + "-reviews-9080",
 			Namespace: namespace,
 		}},
 		TrafficShifting: &v1.TrafficShifting{
 			Destinations: []*v1.WeightedDestination{
 				{
 					Upstream: &core.ResourceRef{
-						Name:      "default-reviews-v1-9080",
+						Name:      namespace + "-reviews-v1-9080",
 						Namespace: namespace,
 					},
 					Weight: 100,
@@ -188,6 +200,7 @@ func run() (v1.MeshClient, v1.RoutingRuleClient, v1.InstallClient, error) {
 	}
 	return meshClient, routingRuleClient, installClient, nil
 }
+
 func istioClients() (v1alpha3.DestinationRuleClient, v1alpha3.VirtualServiceClient, error) {
 	kubeCache := kube.NewKubeCache()
 	restConfig, err := kubeutils.GetConfig("", "")
