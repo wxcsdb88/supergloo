@@ -335,10 +335,7 @@ func HelmReleaseDoesntExist(releaseName string) bool {
 }
 
 func TryDeleteIstioCrds() {
-	crdClient, err := client.NewForConfig(GetKubeConfig())
-	if err != nil {
-		return
-	}
+	crdClient := GetCrdClient()
 	crdList, err := crdClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
 	if err != nil {
 		return
@@ -349,6 +346,20 @@ func TryDeleteIstioCrds() {
 			crdClient.CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
 		}
 	}
+}
+
+func IstioCrdsDontExist() bool {
+	crdClient := GetCrdClient()
+	crdList, err := crdClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
+	if err != nil {
+		return false
+	}
+	for _, crd := range crdList.Items {
+		if strings.Contains(crd.Name, "istio.io") {
+			return false
+		}
+	}
+	return true
 }
 
 func GetUpstreamNames(upstreamClient gloo.UpstreamClient) ([]string, error) {

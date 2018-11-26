@@ -19,10 +19,7 @@ import (
 )
 
 /*
-End to end tests for istio installs with and without mTLS enabled.
-Tests assume you already have a Kubernetes environment with Helm / Tiller set up, and with a "supergloo-system" namespace.
-The tests will install Istio and get it configured and validate all services up and running, then tear down and
-clean up all resources created. This will take about 45 seconds with mTLS, and 20 seconds without.
+Smoke test for installing and uninstalling istio.
 */
 var _ = Describe("Istio Installer", func() {
 
@@ -32,7 +29,7 @@ var _ = Describe("Istio Installer", func() {
 
 	path := os.Getenv("HELM_CHART_PATH")
 	if path == "" {
-		panic("Set environment variable HELM_CHART_PATH")
+		path = "https://s3.amazonaws.com/supergloo.solo.io/istio-1.0.3.tgz"
 	}
 
 	getSnapshot := func(install bool) *v1.InstallSnapshot {
@@ -52,9 +49,6 @@ var _ = Describe("Istio Installer", func() {
 						ChartLocator: &v1.HelmChartLocator{
 							Kind: &v1.HelmChartLocator_ChartPath{
 								ChartPath: &v1.HelmChartPath{
-									// TODO: This is the only chart I could find online, but it doesn't reliably install
-									// and several pods get stuck in a "Terminating" state preventing cleanup
-									// Path: "https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts/istio-1.1.0.tgz",
 									Path: path,
 								},
 							},
@@ -74,9 +68,8 @@ var _ = Describe("Istio Installer", func() {
 	var syncer install.InstallSyncer
 
 	BeforeEach(func() {
-		// This shouldn't be necessary, but helm will fail to install if there are CRDs already defined
-		// Rather than fail later, let's just try deleting them before the test
-		util.TryDeleteIstioCrds()
+		// Precondition check because if these exist, install will fail
+		Expect(util.IstioCrdsDontExist()).To(BeTrue())
 		util.TryCreateNamespace("supergloo-system")
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
@@ -87,8 +80,10 @@ var _ = Describe("Istio Installer", func() {
 	})
 
 	AfterEach(func() {
-		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		util.TerminateNamespaceBlocking("supergloo-system")
+
+		// just in case
+		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		util.UninstallHelmRelease(meshName)
 		util.TryDeleteIstioCrds()
 		util.TerminateNamespaceBlocking(installNamespace)
@@ -104,6 +99,15 @@ var _ = Describe("Istio Installer", func() {
 		snap = getSnapshot(false)
 		err = syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
+
+		// validate everything got cleaned up
 		util.WaitForTerminatedNamespace(installNamespace)
+		Expect(util.HelmReleaseDoesntExist(meshName)).To(BeTrue())
+		Expect(util.CrbDoesntExist(istio.CrbName)).To(BeTrue())
+		Expect(util.IstioCrdsDontExist()).To(BeTrue())
+
+		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+		Expect(mesh).To(BeNil())
+		Expect(err).ToNot(BeNil())
 	})
 })

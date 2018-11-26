@@ -72,10 +72,10 @@ var _ = Describe("Consul Installer", func() {
 	})
 
 	AfterEach(func() {
-		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		util.TerminateNamespaceBlocking("supergloo-system")
 
 		// just in case
+		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		util.UninstallHelmRelease(meshName)
 		util.DeleteWebhookConfigIfExists(consul.WebhookCfg)
 		util.DeleteCrb(consul.CrbName)
