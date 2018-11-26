@@ -33,7 +33,7 @@ SuperGloo, an open-source project to manage and orchestrate service meshes at sc
 
 **SuperGloo unifies management of ingress traffic (“north/south”) and mesh traffic (“east/west”).** Every service mesh relies on ingress controllers to manage traffic across clusters and from the internet. SuperGloo provides a fully-automated opinionated workflow for configuring your mesh to work with your ingress, offering a unified management experience for all traffic.
 
-**SuperGloo gives you the freedom to pair any service mesh with any ingress.** The mesh abstraction provided by SuperGloo allows users to choose their favorite mesh and ingress, as well as handling installation and configuration necessary to allow them work together. SuperGloo also supports running multiple ingress with multiple mesh in the same cluster.
+**SuperGloo gives you the freedom to pair any service mesh with any ingress.** The mesh abstraction provided by SuperGloo allows users to choose their favorite mesh and ingress. In addition, it handles the installation and configuration necessary to allow them work together. SuperGloo also supports running multiple ingress with multiple mesh in the same cluster.
 
 **SuperGloo makes it easy to explore different meshes and migrate between them.** The unified interface, as well as the automated installation, makes the transition from one mesh to another fast and painless.
 
