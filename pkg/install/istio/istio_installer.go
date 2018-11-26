@@ -50,13 +50,13 @@ func (c *IstioInstaller) GetOverridesYaml(install *v1.Install) string {
 }
 
 func getOverrides(encryption *v1.Encryption) string {
-	selfSigned := false
+	selfSigned := true
 	mtlsEnabled := false
 	if encryption != nil {
 		if encryption.TlsEnabled {
 			mtlsEnabled = true
 			if encryption.Secret != nil {
-				selfSigned = true
+				selfSigned = false
 			}
 		}
 	}
