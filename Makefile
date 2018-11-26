@@ -47,8 +47,8 @@ $(OUTPUT_DIR)/supergloo-linux-amd64: $(SOURCES)
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o $@ cmd/main.go
 
 
-.PHONY: supergloo
-supergloo: $(OUTPUT_DIR)/supergloo-linux-amd64
+supergloo: $(SOURCES)
+	go build -o $@ cmd/main.go
 
 $(OUTPUT_DIR)/Dockerfile.supergloo: cmd/Dockerfile
 	cp $< $@
