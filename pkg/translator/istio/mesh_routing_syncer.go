@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"github.com/solo-io/solo-kit/pkg/utils/nameutils"
 	"go.uber.org/multierr"
 	"strings"
 
@@ -59,7 +60,7 @@ func sanitizeName(name string) string {
 }
 
 func updateMetadataForWriting(meta *core.Metadata, writeSelector map[string]string) {
-	meta.Name = sanitizeName(meta.Name)
+	meta.Name = nameutils.SanitizeName(sanitizeName(meta.Name))
 	if meta.Annotations == nil {
 		meta.Annotations = make(map[string]string)
 	}

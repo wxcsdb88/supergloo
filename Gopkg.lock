@@ -828,7 +828,7 @@
   revision = "241bc627d5400a0794853220df4fdefeeb2af0e0"
 
 [[projects]]
-  digest = "1:5f1e0d9ceb593192911819c66ed3c253c97555089503c825fa44363d08675045"
+  digest = "1:c4d7eeb00ea11fad3a381160a5190c2a45aba9e944e6a13dff9c3aa52fcc084d"
   name = "github.com/solo-io/solo-kit"
   packages = [
     "pkg/api/v1/clients",
@@ -859,14 +859,15 @@
     "pkg/utils/fileutils",
     "pkg/utils/kubeutils",
     "pkg/utils/log",
+    "pkg/utils/nameutils",
     "pkg/utils/protoutils",
     "test/helpers",
     "test/setup",
     "test/tests/typed",
   ]
   pruneopts = "UT"
-  revision = "e22be14c889902a58be5b66641f7c22152c3a012"
-  version = "0.1.0"
+  revision = "4d2a1989eab4f4723120cf66c19522c18da5c0d4"
+  version = "0.1.1"
 
 [[projects]]
   digest = "1:645cabccbb4fa8aab25a956cbcbdf6a6845ca736b2c64e197ca7cbb9d210b939"
@@ -1649,6 +1650,7 @@
     "github.com/solo-io/solo-kit/pkg/utils/errutils",
     "github.com/solo-io/solo-kit/pkg/utils/kubeutils",
     "github.com/solo-io/solo-kit/pkg/utils/log",
+    "github.com/solo-io/solo-kit/pkg/utils/nameutils",
     "github.com/solo-io/solo-kit/pkg/utils/protoutils",
     "github.com/solo-io/solo-kit/test/helpers",
     "github.com/solo-io/solo-kit/test/setup",
@@ -1693,6 +1695,7 @@
     "k8s.io/helm/pkg/helm/environment",
     "k8s.io/helm/pkg/helm/portforwarder",
     "k8s.io/helm/pkg/kube",
+    "k8s.io/helm/pkg/proto/hapi/release",
     "k8s.io/helm/pkg/repo",
   ]
   solver-name = "gps-cdcl"
