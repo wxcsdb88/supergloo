@@ -27,9 +27,9 @@ func Cmd(opts *options.Options) *cobra.Command {
 	pflags.StringVarP(&iop.Filename, "filename", "f", "", "filename to create resources from")
 	pflags.StringVarP(&iop.MeshType, "meshtype", "m", "", "mesh to install: istio, consul, linkerd2")
 	pflags.StringVarP(&iop.Namespace, "namespace", "n", "", "namespace install mesh into")
-	pflags.BoolVar(&iop.Mtls, "mtls", false, "use MTLS")
-	pflags.StringVar(&iop.SecretRef.Name, "secret.name", "", "name of the MTLS secret")
-	pflags.StringVar(&iop.SecretRef.Namespace, "secret.namespace", "", "namespace of the MTLS secret")
+	pflags.BoolVar(&iop.Mtls, "mtls", false, "use mTLS")
+	pflags.StringVar(&iop.SecretRef.Name, "secret.name", "", "name of the mTLS secret")
+	pflags.StringVar(&iop.SecretRef.Namespace, "secret.namespace", "", "namespace of the mTLS secret")
 	return cmd
 }
 

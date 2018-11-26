@@ -15,7 +15,7 @@ import (
 func installationSummaryMessage(opts *options.Options) {
 	fmt.Printf("Installing %v in namespace %v.\n", opts.Install.MeshType, opts.Install.Namespace)
 	if opts.Install.Mtls {
-		fmt.Printf("MTLS active.\n")
+		fmt.Printf("mTLS active.\n")
 	}
 	return
 }
@@ -56,10 +56,10 @@ func qualifyFlags(opts *options.Options) error {
 		}
 		//if iop.Mtls {
 		//	if iop.SecretRef.Name == "" {
-		//		return fmt.Errorf("please specify a secret name to use MTLS")
+		//		return fmt.Errorf("please specify a secret name to use mTLS")
 		//	}
 		//	if iop.SecretRef.Namespace == "" {
-		//		return fmt.Errorf("please specify a secret namespace to use MTLS")
+		//		return fmt.Errorf("please specify a secret namespace to use mTLS")
 		//	}
 		//}
 		return nil
@@ -134,7 +134,7 @@ func chooseMtls() (bool, error) {
 	options := []string{"yes", "no"}
 
 	question := &survey.Select{
-		Message: "use MTLS?",
+		Message: "use mTLS?",
 		Options: options,
 	}
 
