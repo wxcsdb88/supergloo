@@ -15,23 +15,25 @@ import (
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
 	"github.com/solo-io/solo-kit/test/helpers"
 	testsetup "github.com/solo-io/solo-kit/test/setup"
+	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/setup"
 )
 
 var _ = Describe("istio routing E2e", func() {
 	var namespace string
-	path := os.Getenv("HELM_CHART_PATH")
+	path := os.Getenv("HELM_CHART_PATH_ISTIO")
 	if path == "" {
 		Skip("Set environment variable HELM_CHART_PATH")
 	}
 	BeforeEach(func() {
+		exec.Command("helm", "delete", "my-istio-install", "--purge").Run()
 		namespace = helpers.RandString(8)
 		err := testsetup.SetupKubeForTest(namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 	AfterEach(func() {
-		exec.Command("helm", "delete", "my-istio-install").Run()
+		exec.Command("helm", "delete", "my-istio-install", "--purge").Run()
 		testsetup.TeardownKube(namespace)
 	})
 
@@ -58,30 +60,36 @@ var _ = Describe("istio routing E2e", func() {
 			r := mesh.Metadata.Ref()
 			ref = &r
 			return ref, nil
-		}, time.Minute * 2).Should(Not(BeNil()))
+		}, time.Minute*2).Should(Not(BeNil()))
 
 		setupRoutingRule(routingRules, namespace, ref)
 
-		// ignored
-		if false {
-			meshMeta := core.Metadata{Name: "my-istio", Namespace: namespace}
-			meshes.Delete(meshMeta.Namespace, meshMeta.Name, clients.DeleteOpts{})
-			m1, err := meshes.Write(&v1.Mesh{
-				Metadata: meshMeta,
-				MeshType: &v1.Mesh_Istio{
-					Istio: &v1.Istio{
-						WatchNamespaces: []string{namespace},
-					},
-				},
-				Encryption: &v1.Encryption{
-					TlsEnabled: true,
-				},
-				//Encryption: &v1.Encryption{TlsEnabled: true},
-			}, clients.WriteOpts{})
-			Expect(err).NotTo(HaveOccurred())
-			Expect(m1).NotTo(BeNil())
-		}
+		drClient, vsClient, err := istioClients()
+		Expect(err).NotTo(HaveOccurred())
+		// we want to see that the appropriate istio crds have been written
 
+		var drList v1alpha3.DestinationRuleList
+		Eventually(func() v1alpha3.DestinationRuleList {
+			drs, err := drClient.List(namespace, clients.ListOpts{})
+			Expect(err).NotTo(HaveOccurred())
+			drList = drs
+			return drList
+		}, time.Minute*2).Should(HaveLen(1))
+		Expect(drList[0]).To(Equal(1))
+
+		var vsList v1alpha3.VirtualServiceList
+		Eventually(func() v1alpha3.VirtualServiceList {
+			vss, err := vsClient.List(namespace, clients.ListOpts{})
+			Expect(err).NotTo(HaveOccurred())
+			vsList = vss
+			return vsList
+		}, time.Minute*2).Should(HaveLen(1))
+		Expect(vsList[0]).To(Equal(1))
+
+		vss, err := vsClient.List(namespace, clients.ListOpts{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(vss).To(HaveLen(1))
+		Expect(vss[0]).To(Equal(1))
 	})
 })
 
@@ -120,14 +128,14 @@ func setupRoutingRule(routingRules v1.RoutingRuleClient, namespace string, targe
 		TargetMesh: targetMesh,
 		Destinations: []*core.ResourceRef{{
 			Name:      "default-reviews-9080",
-			Namespace: "gloo-system",
+			Namespace: namespace,
 		}},
 		TrafficShifting: &v1.TrafficShifting{
 			Destinations: []*v1.WeightedDestination{
 				{
 					Upstream: &core.ResourceRef{
 						Name:      "default-reviews-v1-9080",
-						Namespace: "gloo-system",
+						Namespace: namespace,
 					},
 					Weight: 100,
 				},
@@ -180,4 +188,36 @@ func run() (v1.MeshClient, v1.RoutingRuleClient, v1.InstallClient, error) {
 		return nil, nil, nil, err
 	}
 	return meshClient, routingRuleClient, installClient, nil
+}
+func istioClients() (v1alpha3.DestinationRuleClient, v1alpha3.VirtualServiceClient, error) {
+	kubeCache := kube.NewKubeCache()
+	restConfig, err := kubeutils.GetConfig("", "")
+	if err != nil {
+		return nil, nil, err
+	}
+	drClient, err := v1alpha3.NewDestinationRuleClient(&factory.KubeResourceClientFactory{
+		Crd:         v1alpha3.DestinationRuleCrd,
+		Cfg:         restConfig,
+		SharedCache: kubeCache,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := drClient.Register(); err != nil {
+		return nil, nil, err
+	}
+
+	vsClient, err := v1alpha3.NewVirtualServiceClient(&factory.KubeResourceClientFactory{
+		Crd:         v1alpha3.VirtualServiceCrd,
+		Cfg:         restConfig,
+		SharedCache: kubeCache,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := vsClient.Register(); err != nil {
+		return nil, nil, err
+	}
+
+	return drClient, vsClient, nil
 }
