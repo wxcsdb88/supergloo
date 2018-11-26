@@ -10,6 +10,7 @@ import (
 	"github.com/solo-io/solo-kit/pkg/errors"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/spf13/cobra"
+	"gopkg.in/AlecAivazis/survey.v1"
 )
 
 var supportedOutputFormats = []string{"wide", "yaml"}
@@ -19,7 +20,7 @@ func Cmd(opts *options.Options) *cobra.Command {
 		Use:   "get",
 		Short: `Display one or many supergloo resources`,
 		Long:  `Display one or many supergloo resources`,
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.RangeArgs(0, 2),
 		Run: func(c *cobra.Command, args []string) {
 			if err := get(args, opts); err != nil {
 				fmt.Println(err)
@@ -50,19 +51,26 @@ func get(args []string, opts *options.Options) error {
 func ensureParameters(infoClient info.SuperglooInfoClient, opts *options.Options, args []string) error {
 	gOpts := &opts.Get
 
-	// Argument count is validated by cobra.RangeArgs
-	// first arg is the resource type
-	gOpts.Type = args[0]
-	// second arg is the resource name (optional)
-	gOpts.Name = ""
-	if len(args) == 2 {
-		gOpts.Name = args[1]
-	}
-
 	// Get available resource types
 	resourceTypes, err := infoClient.ListResourceTypes()
 	if err != nil {
 		return err
+	}
+
+	// Argument count is validated by cobra.RangeArgs
+	if len(args) == 0 {
+		if err := selectResourceInteractive(resourceTypes, opts); err != nil {
+			return err
+		}
+	} else {
+
+		// first arg is the resource type
+		gOpts.Type = args[0]
+		// second arg is the resource name (optional)
+		gOpts.Name = ""
+		if len(args) == 2 {
+			gOpts.Name = args[1]
+		}
 	}
 
 	// Validate input resource type
@@ -86,4 +94,30 @@ func getResource(infoClient info.SuperglooInfoClient, gOpts options.Get) error {
 		return err
 	}
 	return nil
+}
+
+func selectResourceInteractive(resourceTypes []string, opts *options.Options) error {
+	chosenResourceType, err := chooseResourceType(resourceTypes)
+	if err != nil {
+		return err
+	}
+	opts.Get.Type = chosenResourceType
+	return nil
+}
+
+func chooseResourceType(resourceTypes []string) (string, error) {
+
+	question := &survey.Select{
+		Message: "Select a resource type",
+		Options: resourceTypes,
+	}
+
+	var choice string
+	if err := survey.AskOne(question, &choice, survey.Required); err != nil {
+		// this should not error
+		fmt.Println("error with input")
+		return "", err
+	}
+
+	return choice, nil
 }
