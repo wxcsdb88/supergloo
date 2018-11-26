@@ -72,7 +72,6 @@ var _ = Describe("Linkerd2 Installer", func() {
 		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
 			MeshClient: meshClient,
-			CrdCLient:  util.GetCrdClient(),
 		}
 	})
 
