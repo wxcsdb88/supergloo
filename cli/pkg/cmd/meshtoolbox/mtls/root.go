@@ -12,18 +12,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var validRootArgs = []string{"enable", "disable", "toggle"} // for bash completion
+
 func Root(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:       "mtls",
 		Short:     `set mtls status`,
 		Long:      `set mtls status`,
-		ValidArgs: []string{"enable", "disable", "toggle"}, // for bash completion
-		Args: func(c *cobra.Command, args []string) error {
-			//TODO(mitchdraft) implement error passing
-			// validArgs := []string{"enable", "disable", "toggle"},
+		ValidArgs: validRootArgs,
+		Args:      rootArgValidation,
+		RunE: func(c *cobra.Command, args []string) error {
+			// this function does nothing but it triggers validation
 			return nil
-		},
-		Run: func(c *cobra.Command, args []string) {
 		},
 	}
 	cmd.AddCommand(
@@ -34,17 +34,28 @@ func Root(opts *options.Options) *cobra.Command {
 	return cmd
 }
 
+func rootArgValidation(c *cobra.Command, args []string) error {
+	expectedArgCount := 1
+	if len(args) != expectedArgCount {
+		return fmt.Errorf("Too many args (%v given, %v expected)", len(args), expectedArgCount)
+	}
+	subCommandName := args[0]
+	if !common.Contains(validRootArgs, subCommandName) {
+		return fmt.Errorf("%v is not a valid argument", subCommandName)
+	}
+	return nil
+}
+
 func Enable(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "enable",
 		Short: `enable mtls`,
 		Long:  `enable mtls`,
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
 			if err := enableMtls(opts); err != nil {
-				fmt.Println(err)
-				return
-				// return err
+				return err
 			}
+			return nil
 		},
 	}
 	return cmd
@@ -55,12 +66,11 @@ func Disable(opts *options.Options) *cobra.Command {
 		Use:   "disable",
 		Short: `disable mtls`,
 		Long:  `disable mtls`,
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
 			if err := disableMtls(opts); err != nil {
-				fmt.Println(err)
-				return
-				// return err
+				return err
 			}
+			return nil
 		},
 	}
 	return cmd
@@ -71,12 +81,11 @@ func Toggle(opts *options.Options) *cobra.Command {
 		Use:   "toggle",
 		Short: `toggle mtls`,
 		Long:  `toggle mtls`,
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
 			if err := toggleMtls(opts); err != nil {
-				fmt.Println(err)
-				return
-				// return err
+				return err
 			}
+			return nil
 		},
 	}
 	return cmd
