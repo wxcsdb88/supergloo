@@ -23,6 +23,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	helmlib "k8s.io/helm/pkg/helm"
+
+	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
 )
 
 const releaseNameKey = "helm_release"
@@ -31,6 +33,7 @@ type InstallSyncer struct {
 	Kube           *kubernetes.Clientset
 	MeshClient     v1.MeshClient
 	SecurityClient *security.Clientset
+	CrdCLient      *crdClient.ApiextensionsClient
 }
 
 type MeshInstaller interface {
@@ -39,7 +42,6 @@ type MeshInstaller interface {
 	GetOverridesYaml(install *v1.Install) string
 	DoPreHelmInstall() error
 	DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error
-	DoPreHelmUninstall() error
 	DoPostHelmUninstall() error
 }
 
@@ -62,6 +64,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 	case *v1.Install_Istio:
 		meshInstaller = &istio.IstioInstaller{
 			SecurityClient: syncer.SecurityClient,
+			CrdClient:      syncer.CrdCLient,
 		}
 	case *v1.Install_Linkerd2:
 		meshInstaller = &linkerd2.Linkerd2Installer{}
@@ -74,11 +77,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 	mesh, meshErr := syncer.MeshClient.Read(install.Metadata.Namespace, install.Metadata.Name, clients.ReadOpts{Ctx: ctx})
 	switch {
 	case meshErr == nil && !installEnabled:
-		if err := meshInstaller.DoPreHelmUninstall(); err != nil {
-			return err
-		}
-		releaseName := mesh.Metadata.Annotations[releaseNameKey]
-		if err := uninstallHelmRelease(ctx, releaseName); err != nil {
+		if err := syncer.uninstallHelmRelease(ctx, mesh, install, meshInstaller); err != nil {
 			return err
 		}
 		if err := meshInstaller.DoPostHelmUninstall(); err != nil {
@@ -276,12 +275,27 @@ func getMeshObject(install *v1.Install, releaseName string) (*v1.Mesh, error) {
 	return mesh, err
 }
 
-func uninstallHelmRelease(ctx context.Context, releaseName string) error {
+func (syncer *InstallSyncer) uninstallHelmRelease(ctx context.Context, mesh *v1.Mesh, install *v1.Install, meshInstaller MeshInstaller) error {
+	releaseName := mesh.Metadata.Annotations[releaseNameKey]
 	helmClient, err := helm.GetHelmClient(ctx)
 	if err != nil {
 		return err
 	}
 	_, err = helmClient.DeleteRelease(releaseName, helmlib.DeletePurge(true))
 	helm.Teardown()
-	return err
+	err = syncer.deleteInstallNamespace(getInstallNamespace(install, meshInstaller.GetDefaultNamespace()))
+	if err != nil {
+		return err
+	}
+	// TODO: this will break if there are more than one installs of a given mesh
+	// Create a CRB per install?
+	return syncer.deleteCrb(meshInstaller.GetCrbName())
+}
+
+func (syncer *InstallSyncer) deleteInstallNamespace(namespaceName string) error {
+	return syncer.Kube.CoreV1().Namespaces().Delete(namespaceName, &kubemeta.DeleteOptions{})
+}
+
+func (syncer *InstallSyncer) deleteCrb(crbName string) error {
+	return syncer.Kube.RbacV1().ClusterRoleBindings().Delete(crbName, &kubemeta.DeleteOptions{})
 }

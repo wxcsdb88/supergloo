@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/gogo/protobuf/types"
+
 	"github.com/solo-io/supergloo/pkg/install/istio"
 	kubecore "k8s.io/api/core/v1"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,32 +45,39 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		path = "https://s3.amazonaws.com/supergloo.solo.io/istio-1.0.3.tgz"
 	}
 
-	getSnapshot := func(mtls bool, secret *core.ResourceRef) *v1.InstallSnapshot {
+	getInstall := func(mtls bool, install bool, secret *core.ResourceRef) *v1.Install {
+		return &v1.Install{
+			Metadata: core.Metadata{
+				Namespace: superglooNamespace,
+				Name:      meshName,
+			},
+			MeshType: &v1.Install_Istio{
+				Istio: &v1.Istio{
+					InstallationNamespace: installNamespace,
+				},
+			},
+			ChartLocator: &v1.HelmChartLocator{
+				Kind: &v1.HelmChartLocator_ChartPath{
+					ChartPath: &v1.HelmChartPath{
+						Path: path,
+					},
+				},
+			},
+			Encryption: &v1.Encryption{
+				TlsEnabled: mtls,
+				Secret:     secret,
+			},
+			Enabled: &types.BoolValue{
+				Value: install,
+			},
+		}
+	}
+
+	getSnapshot := func(mtls bool, install bool, secret *core.ResourceRef) *v1.InstallSnapshot {
 		return &v1.InstallSnapshot{
 			Installs: v1.InstallsByNamespace{
 				installNamespace: v1.InstallList{
-					&v1.Install{
-						Metadata: core.Metadata{
-							Namespace: superglooNamespace,
-							Name:      meshName,
-						},
-						MeshType: &v1.Install_Istio{
-							Istio: &v1.Istio{
-								InstallationNamespace: installNamespace,
-							},
-						},
-						ChartLocator: &v1.HelmChartLocator{
-							Kind: &v1.HelmChartLocator_ChartPath{
-								ChartPath: &v1.HelmChartPath{
-									Path: path,
-								},
-							},
-						},
-						Encryption: &v1.Encryption{
-							TlsEnabled: mtls,
-							Secret:     secret,
-						},
-					},
+					getInstall(mtls, install, secret),
 				},
 			},
 		}
@@ -109,14 +118,11 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		installSyncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
 			MeshClient: meshClient,
+			CrdCLient:  util.GetCrdClient(),
 		}
 	})
 
 	AfterEach(func() {
-		util.UninstallHelmRelease(meshName)
-		util.TryDeleteIstioCrds()
-		util.TerminateNamespaceBlocking(installNamespace)
-		util.DeleteCrb(istio.CrbName)
 		if meshClient != nil {
 			meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		}
@@ -127,52 +133,66 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		util.TerminateNamespaceBlocking("supergloo-system")
 		// delete gloo system to remove gloo resources like upstreams
 		util.TerminateNamespaceBlocking("gloo-system")
+
+		util.UninstallHelmRelease(meshName)
+		util.TryDeleteIstioCrds()
+		util.TerminateNamespaceBlocking(installNamespace)
+		util.DeleteCrb(istio.CrbName)
 	})
 
-	It("Can install istio with mtls enabled and custom root cert", func() {
-		secret, ref := util.CreateTestSecret(superglooNamespace, secretName)
-		snap := getSnapshot(true, ref)
-		err := installSyncer.Sync(context.TODO(), snap)
-		Expect(err).NotTo(HaveOccurred())
+	Describe("smoke install + uninstall istio", func() {
+		FIt("install and uninstall", func() {
+			snap := getSnapshot(false, true, nil)
+			err := installSyncer.Sync(context.TODO(), snap)
+			Expect(err).NotTo(HaveOccurred())
+			util.WaitForAvailablePods(installNamespace)
 
-		util.WaitForAvailablePods(installNamespace)
-		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
-		Expect(err).NotTo(HaveOccurred())
+			mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+			Expect(err).NotTo(HaveOccurred())
+			meshSyncer := istioSync.EncryptionSyncer{}
+			syncSnapshot := getTranslatorSnapshot(mesh, nil)
+			err = meshSyncer.Sync(context.TODO(), syncSnapshot)
+			Expect(err).NotTo(HaveOccurred())
 
-		meshSyncer := istioSync.EncryptionSyncer{
-			Kube:           util.GetKubeClient(),
-			SecretClient:   secretClient,
-			IstioNamespace: installNamespace,
-		}
-		syncSnapshot := getTranslatorSnapshot(mesh, secret)
-		err = meshSyncer.Sync(context.TODO(), syncSnapshot)
-		Expect(err).NotTo(HaveOccurred())
-
-		util.CheckCertMatchesIstio(installNamespace)
-		// TODO: add more checking:
-		// - istio.default has actually been deleted and not regenerating
-		// - new certs are signed correctly
+			snap = getSnapshot(false, false, nil)
+			err = installSyncer.Sync(context.TODO(), snap)
+			Expect(err).NotTo(HaveOccurred())
+			util.WaitForTerminatedNamespace(installNamespace)
+		})
 	})
 
-	It("Can install istio without mtls enabled", func() {
-		snap := getSnapshot(false, nil)
-		err := installSyncer.Sync(context.TODO(), snap)
-		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods(installNamespace)
+	Describe("istio + encryption", func() {
+		It("Can install istio with mtls enabled and custom root cert", func() {
+			secret, ref := util.CreateTestSecret(superglooNamespace, secretName)
+			snap := getSnapshot(true, true, ref)
+			err := installSyncer.Sync(context.TODO(), snap)
+			Expect(err).NotTo(HaveOccurred())
 
-		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
-		Expect(err).NotTo(HaveOccurred())
-		meshSyncer := istioSync.EncryptionSyncer{}
-		syncSnapshot := getTranslatorSnapshot(mesh, nil)
-		err = meshSyncer.Sync(context.TODO(), syncSnapshot)
-		Expect(err).NotTo(HaveOccurred())
+			util.WaitForAvailablePods(installNamespace)
+			mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+			Expect(err).NotTo(HaveOccurred())
+
+			meshSyncer := istioSync.EncryptionSyncer{
+				Kube:           util.GetKubeClient(),
+				SecretClient:   secretClient,
+				IstioNamespace: installNamespace,
+			}
+			syncSnapshot := getTranslatorSnapshot(mesh, secret)
+			err = meshSyncer.Sync(context.TODO(), syncSnapshot)
+			Expect(err).NotTo(HaveOccurred())
+
+			util.CheckCertMatchesIstio(installNamespace)
+			// TODO: add more checking:
+			// - istio.default has actually been deleted and not regenerating
+			// - new certs are signed correctly
+		})
 	})
 
 	Describe("istio + policy", func() {
-
 		var (
 			bookinfons string
 		)
+
 		BeforeEach(func() {
 			// TODO: change this to something random once we fix discovery
 			// to work with labeled namespaces
@@ -215,7 +235,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 			cmd := exec.Command(PathToUds, "-udsonly")
 			_, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
-			snap := getSnapshot(true, nil)
+			snap := getSnapshot(true, true, nil)
 			err = installSyncer.Sync(context.TODO(), snap)
 			Expect(err).NotTo(HaveOccurred())
 			util.WaitForAvailablePodsWithTimeout(installNamespace, "300s")

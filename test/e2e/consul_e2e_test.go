@@ -3,14 +3,14 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/gogo/protobuf/types"
-	"github.com/solo-io/solo-kit/test/helpers"
-	"github.com/solo-io/solo-kit/test/setup"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/gogo/protobuf/types"
+	"github.com/solo-io/solo-kit/test/helpers"
+	"github.com/solo-io/solo-kit/test/setup"
 
 	istiosecret "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
 
@@ -46,7 +46,7 @@ The tests will install Consul and get it configured and validate all services up
 up any other configuration, then tear down and clean up all resources created.
 This will take about 80 seconds with mTLS, and 50 seconds without.
 */
-var _ = FDescribe("Consul Install and Encryption E2E", func() {
+var _ = Describe("Consul Install and Encryption E2E", func() {
 
 	var namespace = helpers.RandString(6)
 	const (
@@ -183,7 +183,6 @@ var _ = FDescribe("Consul Install and Encryption E2E", func() {
 
 		util.CheckCertMatchesConsul(tunnel.Local, util.TestRoot)
 
-		log.Printf("now delete")
 		snap = createInstallSnapshot(true, ref, false)
 		err = installSyncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())

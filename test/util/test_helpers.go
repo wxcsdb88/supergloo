@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"k8s.io/helm/pkg/proto/hapi/release"
+
 	"github.com/solo-io/supergloo/pkg/install/helm"
 
 	"github.com/hashicorp/consul/api"
@@ -39,6 +41,7 @@ import (
 
 var kubeConfig *rest.Config
 var kubeClient *kubernetes.Clientset
+var crdClient *client.ApiextensionsClient
 
 var testKey = "-----BEGIN PRIVATE KEY-----\nMIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDBoI1sMdiOTvBBdjWlS\nZ8qwNuK9xV4yKuboLZ4Sx/OBfy1eKZocxTKvnjLrHUe139uhZANiAAQMTIR56O8U\nTIqf6uUHM4i9mZYLj152up7elS06Gi6lk7IeUQDHxP0NnOnbhC7rmtOV6myLNApL\nQ92kZKg7qa8q7OY/4w1QfC4ch7zZKxjNkSIiuAx7V/lzF6FYDcqT3js=\n-----END PRIVATE KEY-----"
 var TestRoot = "-----BEGIN CERTIFICATE-----\nMIIB7jCCAXUCCQC2t6Lqc2xnXDAKBggqhkjOPQQDAjBhMQswCQYDVQQGEwJVUzEW\nMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQwwCgYD\nVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMTgxMzQz\nMDJaFw0xOTExMTgxMzQzMDJaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1NYXNz\nYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEYMBYG\nA1UEAwwPd3d3LmV4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEDEyE\neejvFEyKn+rlBzOIvZmWC49edrqe3pUtOhoupZOyHlEAx8T9DZzp24Qu65rTleps\nizQKS0PdpGSoO6mvKuzmP+MNUHwuHIe82SsYzZEiIrgMe1f5cxehWA3Kk947MAoG\nCCqGSM49BAMCA2cAMGQCMCytVFc8sBdbM7DaBCz0N2ptdb0T7LFFfxDTzn4gjiDq\nVCd/3dct21TUWsthKXF2VgIwXEMI5EQiJ5kjR/y1KNBC9b4wfDiKRvG33jYe9gn6\ntzXUS00SoqG9D27/7aK71/xv\n-----END CERTIFICATE-----"
@@ -63,6 +66,17 @@ func GetKubeClient() *kubernetes.Clientset {
 	client, err := kubernetes.NewForConfig(cfg)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	kubeClient = client
+	return client
+}
+
+func GetCrdClient() *client.ApiextensionsClient {
+	if crdClient != nil {
+		return crdClient
+	}
+	cfg := GetKubeConfig()
+	client, err := client.NewForConfig(cfg)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	crdClient = client
 	return client
 }
 
@@ -103,6 +117,11 @@ func TerminateNamespaceBlocking(namespace string) {
 	}
 	client.CoreV1().Pods(namespace).DeleteCollection(deleteOptions, kubemeta.ListOptions{})
 	client.CoreV1().Namespaces().Delete(namespace, deleteOptions)
+	WaitForTerminatedNamespace(namespace)
+}
+
+func WaitForTerminatedNamespace(namespace string) {
+	client := GetKubeClient()
 	EventuallyWithOffset(1, func() error {
 		_, err := client.CoreV1().Namespaces().Get(namespace, kubemeta.GetOptions{})
 		return err
@@ -183,6 +202,12 @@ func DeleteCrb(crbName string) {
 	client.RbacV1().ClusterRoleBindings().Delete(crbName, &kubemeta.DeleteOptions{})
 }
 
+func CrbDoesntExist(crbName string) bool {
+	client := GetKubeClient()
+	_, err := client.RbacV1().ClusterRoleBindings().Get(crbName, kubemeta.GetOptions{})
+	return apierrors.IsNotFound(err)
+}
+
 func DeleteWebhookConfigIfExists(webhookName string) {
 	client := GetKubeClient()
 	hooks, err := client.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().List(kubemeta.ListOptions{})
@@ -192,7 +217,12 @@ func DeleteWebhookConfigIfExists(webhookName string) {
 			client.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().Delete(hook.Name, &kubemeta.DeleteOptions{})
 		}
 	}
+}
 
+func WebhookConfigNotFound(webhookName string) bool {
+	client := GetKubeClient()
+	_, err := client.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().Get(webhookName, kubemeta.GetOptions{})
+	return apierrors.IsNotFound(err)
 }
 
 func GetConsulServerPodName(namespace string) string {
@@ -269,6 +299,39 @@ func UninstallHelmRelease(releaseName string) error {
 	_, err = helmClient.DeleteRelease(releaseName, helmlib.DeletePurge(true))
 	helm.Teardown()
 	return err
+}
+
+func HelmReleaseDoesntExist(releaseName string) bool {
+	helmClient, err := helm.GetHelmClient(context.TODO())
+	if err != nil {
+		return false
+	}
+	statuses := []release.Status_Code{
+		release.Status_UNKNOWN,
+		release.Status_DEPLOYED,
+		release.Status_DELETED,
+		release.Status_SUPERSEDED,
+		release.Status_FAILED,
+		release.Status_DELETING,
+		release.Status_PENDING_INSTALL,
+		release.Status_PENDING_UPGRADE,
+		release.Status_PENDING_ROLLBACK,
+	}
+	// equivalent to "--all" option
+	list, err := helmClient.ListReleases(helmlib.ReleaseListStatuses(statuses))
+	if err != nil {
+		return false
+	}
+	// No releases == successfully deleted
+	if list == nil {
+		return true
+	}
+	for _, item := range list.Releases {
+		if item.Name == releaseName {
+			return false
+		}
+	}
+	return true
 }
 
 func TryDeleteIstioCrds() {

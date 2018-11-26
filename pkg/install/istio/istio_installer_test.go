@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/gogo/protobuf/types"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/install"
@@ -33,7 +35,7 @@ var _ = Describe("Istio Installer", func() {
 		panic("Set environment variable HELM_CHART_PATH")
 	}
 
-	getSnapshot := func(mtls bool) *v1.InstallSnapshot {
+	getSnapshot := func(install bool) *v1.InstallSnapshot {
 		return &v1.InstallSnapshot{
 			Installs: v1.InstallsByNamespace{
 				superglooNamespace: v1.InstallList{
@@ -57,8 +59,8 @@ var _ = Describe("Istio Installer", func() {
 								},
 							},
 						},
-						Encryption: &v1.Encryption{
-							TlsEnabled: mtls,
+						Enabled: &types.BoolValue{
+							Value: install,
 						},
 					},
 				},
@@ -75,32 +77,33 @@ var _ = Describe("Istio Installer", func() {
 		// This shouldn't be necessary, but helm will fail to install if there are CRDs already defined
 		// Rather than fail later, let's just try deleting them before the test
 		util.TryDeleteIstioCrds()
+		util.TryCreateNamespace("supergloo-system")
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
 			MeshClient: meshClient,
+			CrdCLient:  util.GetCrdClient(),
 		}
 	})
 
 	AfterEach(func() {
+		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
+		util.TerminateNamespaceBlocking("supergloo-system")
 		util.UninstallHelmRelease(meshName)
 		util.TryDeleteIstioCrds()
 		util.TerminateNamespaceBlocking(installNamespace)
 		util.DeleteCrb(istio.CrbName)
-		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 	})
 
-	It("Can install istio with mtls enabled", func() {
+	It("Can install and uninstall istio", func() {
 		snap := getSnapshot(true)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
 		util.WaitForAvailablePods(installNamespace)
-	})
 
-	It("Can install istio without mtls enabled", func() {
-		snap := getSnapshot(false)
-		err := syncer.Sync(context.TODO(), snap)
+		snap = getSnapshot(false)
+		err = syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods(installNamespace)
+		util.WaitForTerminatedNamespace(installNamespace)
 	})
 })

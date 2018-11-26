@@ -71,19 +71,25 @@ var _ = Describe("Linkerd2 Installer", func() {
 		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
 			MeshClient: meshClient,
+			CrdCLient:  util.GetCrdClient(),
 		}
 	})
 
 	AfterEach(func() {
-		util.TerminateNamespaceBlocking("linkerd") //hard-coded in chart
 		util.UninstallHelmRelease(meshName)
 		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
+		util.TerminateNamespaceBlocking("linkerd") //hard-coded in chart
 	})
 
-	It("Can install linkerd2", func() {
+	It("Can install and uninstall linkerd2", func() {
 		snap := getSnapshot(true)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods("linkerd") //hard-coded in chart
+		util.WaitForAvailablePods("linkerd")
+
+		snap = getSnapshot(false)
+		err = syncer.Sync(context.TODO(), snap)
+		Expect(err).NotTo(HaveOccurred())
+		util.WaitForTerminatedNamespace("linkerd")
 	})
 })

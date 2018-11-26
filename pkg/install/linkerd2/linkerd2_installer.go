@@ -28,10 +28,6 @@ func (c *Linkerd2Installer) DoPreHelmInstall() error {
 	return nil
 }
 
-func (c *Linkerd2Installer) DoPreHelmUninstall() error {
-	return nil
-}
-
 func (c *Linkerd2Installer) DoPostHelmUninstall() error {
 	return nil
 }

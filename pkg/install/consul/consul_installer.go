@@ -45,10 +45,6 @@ func getOverrides(encryption *v1.Encryption) string {
 	return strings.Replace(overridesYaml, "@@MTLS_ENABLED@@", strBool, -1)
 }
 
-func (c *ConsulInstaller) DoPreHelmUninstall() error {
-	return nil
-}
-
 func (c *ConsulInstaller) DoPostHelmUninstall() error {
 	return nil
 }
