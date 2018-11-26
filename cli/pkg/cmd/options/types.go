@@ -42,6 +42,8 @@ type IngressTool struct {
 
 type Get struct {
 	Output string
+	Type   string
+	Name   string
 }
 
 type RoutingRule struct {

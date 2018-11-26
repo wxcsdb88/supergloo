@@ -2,11 +2,15 @@ package info
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/ghodss/yaml"
 	"github.com/solo-io/solo-kit/pkg/errors"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
+	"github.com/solo-io/supergloo/cli/pkg/cmd/get/printers"
+	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/cli/pkg/common"
 	sgConstants "github.com/solo-io/supergloo/pkg/constants"
 
@@ -19,7 +23,7 @@ import (
 
 type SuperglooInfoClient interface {
 	ListResourceTypes() ([]string, error)
-	ListResources(resourceType, resourceName string) (*ResourceInfo, error)
+	ListResources(gOpts options.Get) error
 }
 
 type KubernetesInfoClient struct {
@@ -77,42 +81,73 @@ func (client *KubernetesInfoClient) ListResourceTypes() ([]string, error) {
 	return superglooCRDs, nil
 }
 
-func (client *KubernetesInfoClient) ListResources(resourceType, resourceName string) (*ResourceInfo, error) {
+func (client *KubernetesInfoClient) ListResources(gOpts options.Get) error {
+	resourceType := gOpts.Type
+	resourceName := gOpts.Name
+	outputFormat := gOpts.Output
 	// TODO(marco): make code more generic. Ideally we don't want to enumerate the different options, but I could not
 	// find an interface that all of the generated clients implement
 	switch resourceType {
 	case "meshes":
 		if resourceName == "" {
-			meshList, err := (*client.meshClient).List(sgConstants.SuperglooNamespace, clients.ListOpts{})
+			res, err := (*client.meshClient).List(sgConstants.SuperglooNamespace, clients.ListOpts{})
 			if err != nil {
-				return nil, err
+				return err
 			}
-			return FromMeshList(&meshList), nil
+			if outputFormat == "yaml" {
+				return toYaml(res)
+			}
+			ri, err := FromMeshList(&res), nil
+			if err != nil {
+				return err
+			}
+			return toTable(*ri, gOpts)
 		} else {
-			mesh, err := (*client.meshClient).Read(sgConstants.SuperglooNamespace, resourceName, clients.ReadOpts{})
+			res, err := (*client.meshClient).Read(sgConstants.SuperglooNamespace, resourceName, clients.ReadOpts{})
 			if err != nil {
-				return nil, err
+				return err
 			}
-			return FromMesh(mesh), nil
+			if outputFormat == "yaml" {
+				return toYaml(res)
+			}
+			ri, err := FromMesh(res), nil
+			if err != nil {
+				return err
+			}
+			return toTable(*ri, gOpts)
 		}
 	case "routingrules":
 		if resourceName == "" {
 			// TODO: replace with supergloo namespace
-			rrList, err := (*client.routingRulesClient).List("default", clients.ListOpts{})
+			res, err := (*client.routingRulesClient).List("default", clients.ListOpts{})
 			if err != nil {
-				return nil, err
+				return err
 			}
-			return FromRoutingRuleList(&rrList), nil
+			if outputFormat == "yaml" {
+				return toYaml(res)
+			}
+			ri, err := FromRoutingRuleList(&res), nil
+			if err != nil {
+				return err
+			}
+			return toTable(*ri, gOpts)
 		} else {
-			rr, err := (*client.routingRulesClient).Read("default", resourceName, clients.ReadOpts{})
+			res, err := (*client.routingRulesClient).Read("default", resourceName, clients.ReadOpts{})
 			if err != nil {
-				return nil, err
+				return err
 			}
-			return FromRoutingRule(rr), nil
+			if outputFormat == "yaml" {
+				return toYaml(res)
+			}
+			ri, err := FromRoutingRule(res), nil
+			if err != nil {
+				return err
+			}
+			return toTable(*ri, gOpts)
 		}
 	default:
 		// Should not happen since we validate the resource
-		return nil, errors.Errorf(common.UnknownResourceTypeMsg, resourceType)
+		return errors.Errorf(common.UnknownResourceTypeMsg, resourceType)
 	}
 }
 
@@ -124,4 +159,27 @@ func getCrdClient(config *rest.Config) (*k8sApiExt.CustomResourceDefinitionInter
 	}
 	crdClient := apiExtClient.CustomResourceDefinitions()
 	return &crdClient, nil
+}
+
+func toYaml(data interface{}) error {
+	yml, err := yaml.Marshal(data)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(yml))
+	return nil
+}
+
+func toTable(resourceInfo ResourceInfo, gOpts options.Get) error {
+	// Write the resource information to stdout
+	writer := printers.NewTableWriter(os.Stdout)
+	if err := writer.WriteLine(resourceInfo.Headers(gOpts)); err != nil {
+		return err
+	}
+	for _, line := range resourceInfo.Resources(gOpts) {
+		if err := writer.WriteLine(line); err != nil {
+			return err
+		}
+	}
+	return writer.Flush()
 }
