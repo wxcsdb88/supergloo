@@ -70,10 +70,13 @@ func getOverrides(encryption *v1.Encryption) string {
 	return strings.Replace(overridesWithMtlsFlag, "@@SELF_SIGNED@@", selfSignedString, -1)
 }
 
-var overridesYaml = `
-global.mtls.enabled: @@MTLS_ENABLED@@
-security.selfSigned: @@SELF_SIGNED@@
-global.crds: false
+var overridesYaml = `#overrides
+global:
+  mtls:
+    enabled: @@MTLS_ENABLED@@
+  crds: false
+security:
+  selfSigned: @@SELF_SIGNED@@
 `
 
 func (c *IstioInstaller) DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error {
