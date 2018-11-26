@@ -1,6 +1,8 @@
 package e2e_test
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/solo-io/gloo/pkg/log"
@@ -11,10 +13,9 @@ import (
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/setup"
-	"time"
 )
 
-var _ = Describe("istio routing E2e", func() {
+var _ = PDescribe("istio routing E2e", func() {
 	It("works", func() {
 		go setup.Main()
 		meshes, routingRules, err := run()

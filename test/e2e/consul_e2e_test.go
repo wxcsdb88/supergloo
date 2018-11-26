@@ -189,20 +189,6 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 		util.WaitForDeletedPods(namespace)
 	})
 
-	It("Can install consul without mtls enabled", func() {
-		snap := createInstallSnapshot(false, nil, true)
-		err := installSyncer.Sync(context.TODO(), snap)
-		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods(namespace)
-
-		mesh, err := meshClient.Read(namespace, meshName, clients.ReadOpts{})
-		Expect(err).NotTo(HaveOccurred())
-		meshSyncer := consulSync.ConsulSyncer{}
-		syncSnapshot := getTranslatorSnapshot(mesh, nil)
-		err = meshSyncer.Sync(context.TODO(), syncSnapshot)
-		Expect(err).NotTo(HaveOccurred())
-	})
-
 	Describe("consul + policy", func() {
 
 		var (
