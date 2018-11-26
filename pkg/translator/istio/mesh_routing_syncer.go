@@ -15,7 +15,6 @@ import (
 	gloov1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 	"github.com/solo-io/supergloo/pkg/api/v1"
-	"github.com/solo-io/supergloo/pkg/defaults"
 )
 
 type MeshRoutingSyncer struct {
@@ -29,7 +28,7 @@ type MeshRoutingSyncer struct {
 	destinationRuleReconciler v1alpha3.DestinationRuleReconciler
 	virtualServiceReconciler  v1alpha3.VirtualServiceReconciler
 	// ilackarms: todo: implement reporter
-	reporter                  reporter.Reporter
+	reporter reporter.Reporter
 }
 
 func NewMeshRoutingSyncer(writeNamespaces []string,
@@ -253,10 +252,10 @@ func validateRule(rule *v1.RoutingRule, meshes v1.MeshList) error {
 	}
 	// we can only write our crds to a namespace istio watches
 	// just pick the first one for now
-	// if empty, it defaults to supergloo-system & default
+	// if empty, all namespaces are valid
 	validNamespaces := istioMesh.WatchNamespaces
 	if len(validNamespaces) == 0 {
-		validNamespaces = []string{defaults.Namespace, "default"}
+		return nil
 	}
 	var found bool
 	for _, ns := range validNamespaces {
