@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/pkg/errors"
+	"github.com/solo-io/supergloo/cli/pkg/cmd/config"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/create"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/get"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/ingresstoolbox"
@@ -34,6 +35,7 @@ func App(version string) *cobra.Command {
 
 		get.Cmd(&opts),
 		create.Cmd(&opts),
+		config.Cmd(&opts),
 		meshtoolbox.FaultInjection(&opts),
 		meshtoolbox.LoadBalancing(&opts),
 		meshtoolbox.Retries(&opts),

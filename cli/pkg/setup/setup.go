@@ -51,7 +51,7 @@ func InitCache(opts *options.Options) error {
 		return err
 	}
 	//   2. get client resources for each namespace
-	// 2.a secrets, prime the map
+	// 2.a secrets, meshes, prime the mesh-by-installation-ns map
 	opts.Cache.NsResources = make(map[string]*options.NsResource)
 	for _, ns := range namespaces {
 		secretList, err := (*secretClient).List(ns, clients.ListOpts{})
@@ -62,16 +62,25 @@ func InitCache(opts *options.Options) error {
 		for _, m := range secretList {
 			secrets = append(secrets, m.Metadata.Name)
 		}
+		meshList, err := (*meshClient).List(ns, clients.ListOpts{})
+		if err != nil {
+			return err
+		}
+		var meshes = []string{}
+		for _, m := range meshList {
+			meshes = append(meshes, m.Metadata.Name)
+		}
 
 		// prime meshes
-		var meshes = []string{}
+		var meshesByInstallNs = []options.ResourceRef{}
 		opts.Cache.NsResources[ns] = &options.NsResource{
-			Meshes:  meshes,
-			Secrets: secrets,
+			MeshesByInstallNs: meshesByInstallNs,
+			Meshes:            meshes,
+			Secrets:           secrets,
 		}
 	}
-	// 2.b meshes
-	// meshes are categorized by their installation namespace, which may be different than the mesh CRD's namespace
+	// 2.c meshes by installation namespace
+	// meshes are also categorized by their installation namespace, which may be different than the mesh CRD's namespace
 	for _, ns := range namespaces {
 		meshList, err := (*meshClient).List(ns, clients.ListOpts{})
 		if err != nil {
@@ -88,7 +97,12 @@ func InitCache(opts *options.Options) error {
 			case *superglooV1.Mesh_Istio:
 				iNs = spec.Istio.InstallationNamespace
 			}
-			opts.Cache.NsResources[iNs].Meshes = append(opts.Cache.NsResources[iNs].Meshes, m.Metadata.Name)
+			opts.Cache.NsResources[iNs].MeshesByInstallNs = append(
+				opts.Cache.NsResources[iNs].MeshesByInstallNs,
+				options.ResourceRef{
+					Name:      m.Metadata.Name,
+					Namespace: m.Metadata.Namespace,
+				})
 		}
 
 	}
