@@ -68,9 +68,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 			CrdClient:      syncer.CrdCLient,
 		}
 	case *v1.Install_Linkerd2:
-		meshInstaller = &linkerd2.Linkerd2Installer{
-			Kube: syncer.Kube,
-		}
+		meshInstaller = &linkerd2.Linkerd2Installer{}
 	default:
 		return errors.Errorf("Unsupported mesh type %v", install.MeshType)
 	}
