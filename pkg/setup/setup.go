@@ -24,6 +24,8 @@ import (
 	"github.com/solo-io/supergloo/pkg/translator/istio"
 	"github.com/solo-io/supergloo/pkg/translator/linkerd2"
 	"k8s.io/client-go/kubernetes"
+
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
 )
 
 var defaultNamespaces = []string{"supergloo-system", "gloo-system", "default"}
@@ -36,6 +38,11 @@ func Main() error {
 		return err
 	}
 	kubeClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return err
+	}
+
+	apiExtsClient, err := apiexts.NewForConfig(restConfig)
 	if err != nil {
 		return err
 	}
@@ -172,9 +179,9 @@ func Main() error {
 	}
 
 	installSyncer := &install.InstallSyncer{
-		Kube:       kubeClient,
-		MeshClient: meshClient,
-		// TODO: set a security client when we resolve minishift issues
+		Kube:          kubeClient,
+		MeshClient:    meshClient,
+		ApiExtsClient: apiExtsClient,
 	}
 	installSyncers := v1.InstallSyncers{
 		installSyncer,

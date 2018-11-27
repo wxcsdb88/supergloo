@@ -21,6 +21,10 @@ func (c *ConsulInstaller) GetDefaultNamespace() string {
 	return defaultNamespace
 }
 
+func (c *ConsulInstaller) UseHardcodedNamespace() bool {
+	return false
+}
+
 func (c *ConsulInstaller) GetCrbName() string {
 	return CrbName
 }
@@ -43,10 +47,6 @@ func getOverrides(encryption *v1.Encryption) string {
 		strBool = strconv.FormatBool(encryption.TlsEnabled)
 	}
 	return strings.Replace(overridesYaml, "@@MTLS_ENABLED@@", strBool, -1)
-}
-
-func (c *ConsulInstaller) DoPreHelmUninstall() error {
-	return nil
 }
 
 func (c *ConsulInstaller) DoPostHelmUninstall() error {

@@ -4,11 +4,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"k8s.io/client-go/kubernetes"
 
 	security "github.com/openshift/client-go/security/clientset/versioned"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
 )
 
 const (
@@ -18,10 +22,15 @@ const (
 
 type IstioInstaller struct {
 	SecurityClient *security.Clientset
+	ApiExtsClient  *apiexts.ApiextensionsClient
 }
 
 func (c *IstioInstaller) GetDefaultNamespace() string {
 	return defaultNamespace
+}
+
+func (c *IstioInstaller) UseHardcodedNamespace() bool {
+	return false
 }
 
 func (c *IstioInstaller) GetCrbName() string {
@@ -91,10 +100,30 @@ func (c *IstioInstaller) AddSccToUsers(users ...string) error {
 	return err
 }
 
-func (c *IstioInstaller) DoPreHelmUninstall() error {
+func (c *IstioInstaller) DoPostHelmUninstall() error {
+	// TODO: this will break if there are more than one installs using these CRDs
+	if err := c.deleteIstioCrds(); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (c *IstioInstaller) DoPostHelmUninstall() error {
+func (c *IstioInstaller) deleteIstioCrds() error {
+	if c.ApiExtsClient == nil {
+		return errors.Errorf("Crd client not provided")
+	}
+	crdList, err := c.ApiExtsClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Error getting crds")
+	}
+	for _, crd := range crdList.Items {
+		//TODO: use labels
+		if strings.Contains(crd.Name, "istio.io") {
+			err = c.ApiExtsClient.CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
+			if err != nil {
+				return errors.Wrap(err, "Error deleting crd")
+			}
+		}
+	}
 	return nil
 }
