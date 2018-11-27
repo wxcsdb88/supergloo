@@ -4,15 +4,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
-
-	"github.com/solo-io/supergloo/pkg/api/v1"
-	"k8s.io/client-go/kubernetes"
-
 	security "github.com/openshift/client-go/security/clientset/versioned"
+	"github.com/solo-io/solo-kit/pkg/errors"
+	"github.com/solo-io/supergloo/pkg/api/v1"
+	"github.com/solo-io/supergloo/pkg/install/shared"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -21,8 +20,21 @@ const (
 )
 
 type IstioInstaller struct {
-	SecurityClient *security.Clientset
-	ApiExtsClient  *apiexts.ApiextensionsClient
+	apiExts        apiexts.Interface
+	securityClient *security.Clientset
+	crds           []*v1beta1.CustomResourceDefinition
+}
+
+func NewIstioInstaller(ApiExts apiexts.Interface, SecurityClient *security.Clientset) (*IstioInstaller, error) {
+	crds, err := shared.CrdsFromManifest(IstioCrdYaml)
+	if err != nil {
+		return nil, err
+	}
+	return &IstioInstaller{
+		apiExts:        ApiExts,
+		securityClient: SecurityClient,
+		crds:           crds,
+	}, nil
 }
 
 func (c *IstioInstaller) GetDefaultNamespace() string {
@@ -42,13 +54,13 @@ func (c *IstioInstaller) GetOverridesYaml(install *v1.Install) string {
 }
 
 func getOverrides(encryption *v1.Encryption) string {
-	selfSigned := false
+	selfSigned := true
 	mtlsEnabled := false
 	if encryption != nil {
 		if encryption.TlsEnabled {
 			mtlsEnabled = true
 			if encryption.Secret != nil {
-				selfSigned = true
+				selfSigned = false
 			}
 		}
 	}
@@ -58,9 +70,13 @@ func getOverrides(encryption *v1.Encryption) string {
 	return strings.Replace(overridesWithMtlsFlag, "@@SELF_SIGNED@@", selfSignedString, -1)
 }
 
-var overridesYaml = `
-global.mtls.enabled: @@MTLS_ENABLED@@
-security.selfSigned: @@SELF_SIGNED@@
+var overridesYaml = `#overrides
+global:
+  mtls:
+    enabled: @@MTLS_ENABLED@@
+  crds: false
+security:
+  selfSigned: @@SELF_SIGNED@@
 `
 
 func (c *IstioInstaller) DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error {
@@ -68,7 +84,11 @@ func (c *IstioInstaller) DoPostHelmInstall(install *v1.Install, kube *kubernetes
 }
 
 func (c *IstioInstaller) DoPreHelmInstall() error {
-	if c.SecurityClient == nil {
+	// create crds if they don't exist. CreateCrds does not error on err type IsAlreadyExists
+	if err := shared.CreateCrds(c.apiExts, c.crds...); err != nil {
+		return errors.Wrapf(err, "creating istio crds")
+	}
+	if c.securityClient == nil {
 		return nil
 	}
 	return c.AddSccToUsers(
@@ -90,13 +110,13 @@ func (c *IstioInstaller) DoPreHelmInstall() error {
 //       to run "oc adm policy add-scc-to-user anyuid -z %s -n istio-system" for each of the user accounts above
 //       maybe the issue is not specifying the namespace?
 func (c *IstioInstaller) AddSccToUsers(users ...string) error {
-	anyuid, err := c.SecurityClient.SecurityV1().SecurityContextConstraints().Get("anyuid", kubemeta.GetOptions{})
+	anyuid, err := c.securityClient.SecurityV1().SecurityContextConstraints().Get("anyuid", kubemeta.GetOptions{})
 	if err != nil {
 		return err
 	}
 	newUsers := append(anyuid.Users, users...)
 	anyuid.Users = newUsers
-	_, err = c.SecurityClient.SecurityV1().SecurityContextConstraints().Update(anyuid)
+	_, err = c.securityClient.SecurityV1().SecurityContextConstraints().Update(anyuid)
 	return err
 }
 
@@ -109,19 +129,19 @@ func (c *IstioInstaller) DoPostHelmUninstall() error {
 }
 
 func (c *IstioInstaller) deleteIstioCrds() error {
-	if c.ApiExtsClient == nil {
+	if c.apiExts == nil {
 		return errors.Errorf("Crd client not provided")
 	}
-	crdList, err := c.ApiExtsClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
+	crdList, err := c.apiExts.ApiextensionsV1beta1().CustomResourceDefinitions().List(kubemeta.ListOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Error getting crds")
+		return errors.Wrapf(err, "Error getting crds")
 	}
 	for _, crd := range crdList.Items {
 		//TODO: use labels
 		if strings.Contains(crd.Name, "istio.io") {
-			err = c.ApiExtsClient.CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
+			err = c.apiExts.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
 			if err != nil {
-				return errors.Wrap(err, "Error deleting crd")
+				return errors.Wrapf(err, "Error deleting crd")
 			}
 		}
 	}
