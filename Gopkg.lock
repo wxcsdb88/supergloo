@@ -812,14 +812,6 @@
   revision = "86672fcb3f950f35f2e675df2240550f2a50762f"
 
 [[projects]]
-  digest = "1:f7f7da71a6c6474b75fd41b6c3eab9785938355434b56186a20a20f623d7476f"
-  name = "github.com/solo-io/gloo"
-  packages = ["pkg/log"]
-  pruneopts = "UT"
-  revision = "e96b8261627ae550413094e59cf914a6ed0657c6"
-  version = "v1"
-
-[[projects]]
   digest = "1:d2631be1cb671b8a86338ecb2c194c3ad5be9b346e0b1a169beff38c8cdb1601"
   name = "github.com/solo-io/go-checkpoint"
   packages = ["."]
@@ -836,7 +828,7 @@
   revision = "241bc627d5400a0794853220df4fdefeeb2af0e0"
 
 [[projects]]
-  digest = "1:5f1e0d9ceb593192911819c66ed3c253c97555089503c825fa44363d08675045"
+  digest = "1:f3a2bc22534e655f219f5066982fa8dfbbf66cdf8ff2fec0a7975b9777aa2028"
   name = "github.com/solo-io/solo-kit"
   packages = [
     "pkg/api/v1/clients",
@@ -867,14 +859,16 @@
     "pkg/utils/fileutils",
     "pkg/utils/kubeutils",
     "pkg/utils/log",
+    "pkg/utils/nameutils",
     "pkg/utils/protoutils",
+    "pkg/utils/stringutils",
     "test/helpers",
     "test/setup",
     "test/tests/typed",
   ]
   pruneopts = "UT"
-  revision = "e22be14c889902a58be5b66641f7c22152c3a012"
-  version = "0.1.0"
+  revision = "72a27ce2507817bfe4c6633bec8cab34c48eb6ac"
+  version = "0.1.2"
 
 [[projects]]
   digest = "1:645cabccbb4fa8aab25a956cbcbdf6a6845ca736b2c64e197ca7cbb9d210b939"
@@ -1217,17 +1211,14 @@
   revision = "fd83cbc87e7632ccd8bbab63d2b673d4e0c631cc"
 
 [[projects]]
-  digest = "1:6a267f294ca417c9ed9291a464853269ccd207f579fa738dc9411664bbeb651b"
+  digest = "1:68802413f6b2d016bc2a49fb2a66be5507bbfbae627f8b81badd30bac6c4aa26"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
-    "pkg/apis/apiextensions/install",
     "pkg/apis/apiextensions/v1beta1",
     "pkg/client/clientset/clientset",
     "pkg/client/clientset/clientset/scheme",
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
-    "pkg/client/clientset/internalclientset/scheme",
-    "pkg/client/clientset/internalclientset/typed/apiextensions/internalversion",
     "pkg/features",
   ]
   pruneopts = "UT"
@@ -1639,7 +1630,6 @@
     "github.com/onsi/gomega/gexec",
     "github.com/openshift/client-go/security/clientset/versioned",
     "github.com/pkg/errors",
-    "github.com/solo-io/gloo/pkg/log",
     "github.com/solo-io/go-checkpoint",
     "github.com/solo-io/solo-kit/pkg/api/v1/clients",
     "github.com/solo-io/solo-kit/pkg/api/v1/clients/factory",
@@ -1658,7 +1648,9 @@
     "github.com/solo-io/solo-kit/pkg/utils/errutils",
     "github.com/solo-io/solo-kit/pkg/utils/kubeutils",
     "github.com/solo-io/solo-kit/pkg/utils/log",
+    "github.com/solo-io/solo-kit/pkg/utils/nameutils",
     "github.com/solo-io/solo-kit/pkg/utils/protoutils",
+    "github.com/solo-io/solo-kit/pkg/utils/stringutils",
     "github.com/solo-io/solo-kit/test/helpers",
     "github.com/solo-io/solo-kit/test/setup",
     "github.com/solo-io/solo-kit/test/tests/typed",
@@ -1676,7 +1668,6 @@
     "google.golang.org/grpc/codes",
     "google.golang.org/grpc/status",
     "gopkg.in/AlecAivazis/survey.v1",
-    "gopkg.in/yaml.v2",
     "k8s.io/api/admissionregistration/v1beta1",
     "k8s.io/api/apps/v1beta2",
     "k8s.io/api/autoscaling/v1",
@@ -1687,7 +1678,6 @@
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
-    "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
@@ -1703,6 +1693,7 @@
     "k8s.io/helm/pkg/helm/environment",
     "k8s.io/helm/pkg/helm/portforwarder",
     "k8s.io/helm/pkg/kube",
+    "k8s.io/helm/pkg/proto/hapi/release",
     "k8s.io/helm/pkg/repo",
   ]
   solver-name = "gps-cdcl"
