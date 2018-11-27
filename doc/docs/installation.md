@@ -26,7 +26,7 @@ Alternatively, you can download the CLI directly via the [SuperGloo releases pag
 Next, add SupetGloo to your path with:
 
 ```
-export PATH=$PATH:$HOME/.linkerd2/bin
+export PATH=$PATH:$HOME/.supergloo/bin
 ```
 
 Verify the CLI is installed and running correctly with:
