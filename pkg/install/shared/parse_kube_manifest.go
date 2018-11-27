@@ -80,6 +80,8 @@ func convertYamlToResource(objectYaml string) (KubeObjectList, error) {
 		obj = &core.ConfigMap{TypeMeta: typeMeta}
 	case "Service":
 		obj = &core.Service{TypeMeta: typeMeta}
+	case "Pod":
+		obj = &core.Pod{TypeMeta: typeMeta}
 	case "Deployment":
 		if typeMeta.APIVersion == "extensions/v1beta1" {
 			obj = &extensionsv1beta1.Deployment{TypeMeta: typeMeta}
