@@ -60,6 +60,9 @@ func (k *kubeInstaller) Create(obj runtime.Object) error {
 	case *core.Service:
 		_, err := kube.CoreV1().Services(namespace).Create(obj)
 		return err
+	case *core.Pod:
+		_, err := kube.CoreV1().Pods(namespace).Create(obj)
+		return err
 	case *rbac.ClusterRole:
 		_, err := kube.RbacV1().ClusterRoles().Create(obj)
 		return err
@@ -135,6 +138,15 @@ func (k *kubeInstaller) Update(obj runtime.Object) error {
 		return err
 	case *core.Service:
 		client := kube.CoreV1().Services(namespace)
+		obj2, err := client.Get(obj.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		obj.ResourceVersion = obj2.ResourceVersion
+		_, err = client.Update(obj)
+		return err
+	case *core.Pod:
+		client := kube.CoreV1().Pods(namespace)
 		obj2, err := client.Get(obj.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -238,6 +250,8 @@ func (k *kubeInstaller) Delete(obj runtime.Object) error {
 		return kube.CoreV1().ServiceAccounts(namespace).Delete(obj.Name, nil)
 	case *core.Service:
 		return kube.CoreV1().Services(namespace).Delete(obj.Name, nil)
+	case *core.Pod:
+		return kube.CoreV1().Pods(namespace).Delete(obj.Name, nil)
 	case *rbac.ClusterRole:
 		return kube.RbacV1().ClusterRoles().Delete(obj.Name, nil)
 	case *rbac.ClusterRoleBinding:
