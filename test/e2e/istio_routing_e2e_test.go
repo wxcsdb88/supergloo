@@ -119,25 +119,44 @@ var _ = Describe("istio routing E2e", func() {
 		Expect(testVirtualService.Http).To(HaveLen(1))
 
 		// reviews v1
-		resp, err := testsetup.Curl(testsetup.CurlOpts{
-			Method:  "GET",
-			Path:    "/reviews/1",
-			Service: "reviews",
-			Port:    9080,
-		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(resp).To(ContainSubstring(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!"},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare."}]}`))
+		Eventually(func() string {
+			resp, err := testsetup.Curl(testsetup.CurlOpts{
+				Method:  "GET",
+				Path:    "/reviews/1",
+				Service: "reviews",
+				Port:    9080,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			return resp
+		}, time.Second*10).Should(ContainSubstring(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!"},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare."}]}`))
 
 		setupV2RoutingRule(routingRules, namespace, ref)
+
 		// reviews v2
-		resp, err = testsetup.Curl(testsetup.CurlOpts{
-			Method:  "GET",
-			Path:    "/reviews/1",
-			Service: "reviews",
-			Port:    9080,
-		})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(resp).To(ContainSubstring(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "black"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "black"}}]}`))
+		Eventually(func() string {
+			resp, err := testsetup.Curl(testsetup.CurlOpts{
+				Method:  "GET",
+				Path:    "/reviews/1",
+				Service: "reviews",
+				Port:    9080,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			return resp
+		}, time.Second*10).Should(ContainSubstring(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "black"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "black"}}]}`))
+
+		setupFaultRoutingRule(routingRules, namespace, ref)
+
+		Eventually(func() string {
+			resp, err := testsetup.Curl(testsetup.CurlOpts{
+				Method:  "GET",
+				Path:    "/reviews/1",
+				Service: "reviews",
+				Port:    9080,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			return resp
+		}, time.Second*20).Should(Not(ContainSubstring(`HTTP/1.1 566 Unknown`)))
+
 	})
 })
 
@@ -169,7 +188,7 @@ func setupInstall(installClient v1.InstallClient, namespace, releaseName string,
 }
 
 func setupV1RoutingRule(routingRules v1.RoutingRuleClient, namespace string, targetMesh *core.ResourceRef) {
-	rrMeta := core.Metadata{Name: "reviews-fault-and-trafficshifting", Namespace: namespace}
+	rrMeta := core.Metadata{Name: "reviews-trafficshifting", Namespace: namespace}
 	routingRules.Delete(rrMeta.Namespace, rrMeta.Name, clients.DeleteOpts{})
 	rr1, err := routingRules.Write(&v1.RoutingRule{
 		Metadata:   rrMeta,
@@ -195,7 +214,7 @@ func setupV1RoutingRule(routingRules v1.RoutingRuleClient, namespace string, tar
 }
 
 func setupV2RoutingRule(routingRules v1.RoutingRuleClient, namespace string, targetMesh *core.ResourceRef) {
-	rrMeta := core.Metadata{Name: "reviews-fault-and-trafficshifting", Namespace: namespace}
+	rrMeta := core.Metadata{Name: "reviews-trafficshifting", Namespace: namespace}
 	routingRules.Delete(rrMeta.Namespace, rrMeta.Name, clients.DeleteOpts{})
 	rr1, err := routingRules.Write(&v1.RoutingRule{
 		Metadata:   rrMeta,
@@ -213,6 +232,29 @@ func setupV2RoutingRule(routingRules v1.RoutingRuleClient, namespace string, tar
 					},
 					Weight: 100,
 				},
+			},
+		},
+	}, clients.WriteOpts{})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(rr1).NotTo(BeNil())
+}
+
+func setupFaultRoutingRule(routingRules v1.RoutingRuleClient, namespace string, targetMesh *core.ResourceRef) {
+	rrMeta := core.Metadata{Name: "reviews-fault", Namespace: namespace}
+	routingRules.Delete(rrMeta.Namespace, rrMeta.Name, clients.DeleteOpts{})
+	rr1, err := routingRules.Write(&v1.RoutingRule{
+		Metadata:   rrMeta,
+		TargetMesh: targetMesh,
+		Destinations: []*core.ResourceRef{{
+			Name:      namespace + "-reviews-9080",
+			Namespace: namespace,
+		}},
+		FaultInjection: &v1alpha3.HTTPFaultInjection{
+			Abort: &v1alpha3.HTTPFaultInjection_Abort{
+				ErrorType: &v1alpha3.HTTPFaultInjection_Abort_HttpStatus{
+					HttpStatus: 566,
+				},
+				Percent: 100,
 			},
 		},
 	}, clients.WriteOpts{})
