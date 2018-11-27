@@ -38,7 +38,7 @@ func uninstall(opts *options.Options) {
 		return
 	}
 
-	err = qualifyFlags(opts, installClient)
+	err = validateArgs(opts, installClient)
 	if err != nil {
 		fmt.Println(err)
 		return
