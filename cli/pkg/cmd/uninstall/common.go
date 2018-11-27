@@ -2,6 +2,7 @@ package uninstall
 
 import (
 	"fmt"
+	"github.com/gogo/protobuf/types"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/pkg/api/v1"
@@ -69,7 +70,7 @@ func dynamicArgParse(opts *options.Options, installClient *v1.InstallClient) ([]
 
 
 
-func qualifyFlags(opts *options.Options, installClient *v1.InstallClient) error {
+func validateArgs(opts *options.Options, installClient *v1.InstallClient) error {
 	var meshesToDelete []string
 	var err error
 
@@ -88,11 +89,7 @@ func qualifyFlags(opts *options.Options, installClient *v1.InstallClient) error 
 		}
 	}
 
-
-	fmt.Println(meshesToDelete)
-
-
-	return nil
+	return uninstallMeshes(meshesToDelete, installClient)
 }
 
 
@@ -101,10 +98,27 @@ func fmtNameList(names string) []string {
 	return strings.Split(cleanNames, ",")
 }
 
-func uninstallMeshes(list []string) error {
-	return nil
+func uninstallMeshes(meshList []string, installClient *v1.InstallClient) error {
+	installList, err := (*installClient).List(constants.SuperglooNamespace, clients.ListOpts{})
+	for i, val := range meshList {
+		installCrd, err := installList.Find(constants.SuperglooNamespace, val)
+		if err != nil {
+			return fmt.Errorf("unable to fetch CRD for (%s) \n finished work: (%s) \n remaining work :", val, meshList[0: i+1], meshList[i:len(meshList)])
+		}
+
+		err = updateMeshInstall(installCrd, installClient)
+		if err != nil {
+			return fmt.Errorf("unable to update CRD for (%s) \n finished work: (%s) \n remaining work :", val, meshList[0: i+1], meshList[i:len(meshList)])
+		}
+
+		fmt.Printf("Successfully uninstalled mesh: (%s)", val)
+
+	}
+	return err
 }
 
-func uninstallMesh(crd *v1.Install) error  {
-	return nil
+func updateMeshInstall(installCrd *v1.Install, installClient *v1.InstallClient) error  {
+	installCrd.Enabled = &types.BoolValue{Value:false}
+	_, err := (*installClient).Write(installCrd, clients.WriteOpts{OverwriteExisting:true})
+	return err
 }
