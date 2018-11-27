@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"github.com/mitchellh/hashstructure"
 	"github.com/solo-io/solo-kit/pkg/utils/nameutils"
 	"github.com/solo-io/solo-kit/pkg/utils/stringutils"
 	"go.uber.org/multierr"
@@ -127,7 +128,7 @@ func subsetName(labels map[string]string) string {
 	keys, values := stringutils.KeysAndValues(labels)
 	name := ""
 	for i := range keys {
-		name += keys[i]+"-"+values[i]+"-"
+		name += keys[i] + "-" + values[i] + "-"
 	}
 	name = strings.TrimSuffix(name, "-")
 	return sanitizeName(name)
@@ -204,10 +205,12 @@ func destinationRulesForUpstreams(rules v1.RoutingRuleList, meshes v1.MeshList, 
 
 // virtualservices
 func virtualServicesForRules(rules v1.RoutingRuleList, meshes v1.MeshList, upstreams gloov1.UpstreamList) (v1alpha3.VirtualServiceList, error) {
-	// 1 virtualservice per host
-	// 1 mesh per rule
+	// separate config changes for each mesh
 	meshesByRule := make(map[*v1.RoutingRule]v1.MeshList)
 	for _, rule := range rules {
+		if err := validateRule(rule, meshes); err != nil {
+			return nil, err
+		}
 		mesh, err := meshes.Find(rule.TargetMesh.Strings())
 		if err != nil {
 			// should never happen, error is already caught
@@ -216,27 +219,41 @@ func virtualServicesForRules(rules v1.RoutingRuleList, meshes v1.MeshList, upstr
 		meshesByRule[rule] = append(meshesByRule[rule], mesh)
 	}
 
-	// multiple hosts per rule
-	rulesByMeshByHost := make(map[string]map[*v1.Mesh]v1.RoutingRuleList)
-	for rule, meshList := range meshesByRule {
-		if err := validateRule(rule, meshes); err != nil {
-			return nil, err
-		}
+	// 1 virtualservice per unique host
+	var hosts []string
+	for _, rule := range rules {
 		destUpstreams, err := upstreamsForRule(rule, upstreams)
 		if err != nil {
 			return nil, err
 		}
+		addUniqueHosts:
 		for _, us := range destUpstreams {
 			host, err := getHostForUpstream(us)
 			if err != nil {
 				return nil, errors.Wrapf(err, "getting host for upstream")
 			}
-			rulesByMesh := make(map[*v1.Mesh]v1.RoutingRuleList)
+			for _, added := range hosts {
+				if host == added {
+					continue addUniqueHosts
+				}
+			}
+			hosts = append(hosts, host)
+		}
+	}
+
+	// for each host
+	// for each mesh
+	// create one virtualservice for that host-mesh's set of rules
+	rulesByMeshByHost := make(map[string]map[*v1.Mesh]v1.RoutingRuleList)
+	for rule, meshList := range meshesByRule {
+		for _, host := range hosts {
+			if rulesByMeshByHost[host] == nil {
+				rulesByMeshByHost[host] = make(map[*v1.Mesh]v1.RoutingRuleList)
+			}
 			// copy the rule for each mesh
 			for _, mesh := range meshList {
-				rulesByMesh[mesh] = append(rulesByMesh[mesh], rule)
+				rulesByMeshByHost[host][mesh] = append(rulesByMeshByHost[host][mesh], rule)
 			}
-			rulesByMeshByHost[host] = rulesByMesh
 		}
 	}
 
@@ -294,7 +311,111 @@ func upstreamsForRule(rule *v1.RoutingRule, upstreams gloov1.UpstreamList) (gloo
 	return destinationUpstreams, nil
 }
 
+func mergeRulesByMatch(rules v1.RoutingRuleList) (v1.RoutingRuleList, error) {
+	rulesByUniqueMatch := make(map[uint64]v1.RoutingRuleList)
+	for _, rule := range rules {
+		type uniqueMatch struct {
+			Sources         []*core.ResourceRef
+			Destinations    []*core.ResourceRef
+			RequestMatchers []*gloov1.Matcher
+		}
+		hash, _ := hashstructure.Hash(uniqueMatch{
+			Sources:         rule.Sources,
+			Destinations:    rule.Destinations,
+			RequestMatchers: rule.RequestMatchers,
+		}, nil)
+		rulesByUniqueMatch[hash] = append(rulesByUniqueMatch[hash], rule)
+	}
+	var mergedRules v1.RoutingRuleList
+	for _, rulesForMatch := range rulesByUniqueMatch {
+		mergedRule := &v1.RoutingRule{
+			Sources:         rulesForMatch[0].Sources,
+			Destinations:    rulesForMatch[0].Destinations,
+			RequestMatchers: rulesForMatch[0].RequestMatchers,
+		}
+		for _, rule := range rulesForMatch {
+			if rule.TrafficShifting != nil {
+				if mergedRule.TrafficShifting != nil {
+					return nil, errors.Errorf("TrafficShifting redefined in for match %v", rule.Metadata.Ref())
+				}
+				mergedRule.TrafficShifting = rule.TrafficShifting
+			}
+			if rule.FaultInjection != nil {
+				if mergedRule.FaultInjection != nil {
+					return nil, errors.Errorf("FaultInjection redefined in for match %v", rule.Metadata.Ref())
+				}
+				mergedRule.FaultInjection = rule.FaultInjection
+			}
+			if rule.Timeout != nil {
+				if mergedRule.Timeout != nil {
+					return nil, errors.Errorf("Timeout redefined in for match %v", rule.Metadata.Ref())
+				}
+				mergedRule.Timeout = rule.Timeout
+			}
+			if rule.Retries != nil {
+				if mergedRule.Retries != nil {
+					return nil, errors.Errorf("Retries redefined in for match %v", rule.Metadata.Ref())
+				}
+				mergedRule.Retries = rule.Retries
+			}
+			if rule.CorsPolicy != nil {
+				if mergedRule.CorsPolicy != nil {
+					return nil, errors.Errorf("CorsPolicy redefined in for match %v", rule.Metadata.Ref())
+				}
+				mergedRule.CorsPolicy = rule.CorsPolicy
+			}
+			if rule.Mirror != nil {
+				if mergedRule.Mirror != nil {
+					return nil, errors.Errorf("Mirror redefined in for match %v", rule.Metadata.Ref())
+				}
+				mergedRule.Mirror = rule.Mirror
+			}
+			if rule.HeaderManipulaition != nil {
+				if mergedRule.HeaderManipulaition != nil {
+					return nil, errors.Errorf("HeaderManipulaition redefined in for match %v", rule.Metadata.Ref())
+				}
+				mergedRule.HeaderManipulaition = rule.HeaderManipulaition
+			}
+		}
+		mergedRules = append(mergedRules, mergedRule)
+	}
+	return mergedRules.Sort(), nil
+}
+
+//func mergeIstioRulesByMatch(rules []*v1alpha3.HTTPRoute) ([]*v1alpha3.HTTPRoute, error) {
+//	rulesByUniqueMatch := make(map[uint64][]*v1alpha3.HTTPRoute)
+//	for _, rule := range rules {
+//		hash, _ := hashstructure.Hash(rule.Match, nil)
+//		rulesByUniqueMatch[hash] = append(rulesByUniqueMatch[hash], rule)
+//	}
+//	var mergedRules []*v1alpha3.HTTPRoute
+//	for _, rulesForMatch := range rulesByUniqueMatch {
+//		mergedRule := &v1alpha3.HTTPRoute{
+//			Match: rulesForMatch[0].Match,
+//		}
+//		for _, rule := range rulesForMatch {
+//			if rule.Fault != nil {
+//				if mergedRule.Fault != nil {
+//					return nil, errors.Errorf("Fault redefined in for match %v", rule.Match)
+//				}
+//				mergedRule.Fault = rule.Fault
+//			}
+//			if rule.Fault != nil {
+//				if mergedRule.Fault != nil {
+//					return nil, errors.Errorf("Fault redefined in for match %v", rule.Match)
+//				}
+//				mergedRule.Fault = rule.Fault
+//			}
+//		}
+//	}
+//}
+
 func virtualServiceForHost(host string, rules v1.RoutingRuleList, mesh *v1.Mesh, upstreams gloov1.UpstreamList) (*v1alpha3.VirtualService, error) {
+	rules, err := mergeRulesByMatch(rules)
+	if err != nil {
+		return nil, errors.Wrapf(err, "route rules incompatible")
+	}
+
 	var istioRules []*v1alpha3.HTTPRoute
 	for _, rule := range rules {
 		// each rule gets its own HTTPRoute
