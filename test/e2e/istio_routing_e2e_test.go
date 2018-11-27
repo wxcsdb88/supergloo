@@ -72,36 +72,50 @@ var _ = Describe("istio routing E2e", func() {
 			r := mesh.Metadata.Ref()
 			ref = &r
 			return ref, nil
-		}, time.Minute*2).Should(Not(BeNil()))
+		}, time.Second*2).Should(Not(BeNil()))
 
-		setupRoutingRule(routingRules, namespace, ref)
+		cfg, err := kubeutils.GetConfig("", "")
+		Expect(err).NotTo(HaveOccurred())
+		err = utils.DeployBookinfo(cfg, namespace)
+		Expect(err).NotTo(HaveOccurred())
+		err = utils.DeployTestRunner(cfg, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+
+		setupV1RoutingRule(routingRules, namespace, ref)
 
 		drClient, vsClient, err := istioClients()
 		Expect(err).NotTo(HaveOccurred())
 		// we want to see that the appropriate istio crds have been written
 
-		var drList v1alpha3.DestinationRuleList
-		Eventually(func() v1alpha3.DestinationRuleList {
+		// get the destination rule for
+		var reviewsDestinationRule *v1alpha3.DestinationRule
+		Eventually(func() *v1alpha3.DestinationRule {
 			drs, err := drClient.List(namespace, clients.ListOpts{})
 			Expect(err).NotTo(HaveOccurred())
-			drList = drs
-			return drList
-		}, time.Minute*2).Should(HaveLen(1))
-		Expect(drList[0]).To(Equal(1))
+			for _, dr := range drs {
+				if dr.Host == "reviews."+namespace+".svc.cluster.local" {
+					reviewsDestinationRule = dr
+					return reviewsDestinationRule
+				}
+			}
+			return nil
+		}, time.Second*2).Should(Not(BeNil()))
 
-		var vsList v1alpha3.VirtualServiceList
-		Eventually(func() v1alpha3.VirtualServiceList {
-			vss, err := vsClient.List(namespace, clients.ListOpts{})
-			Expect(err).NotTo(HaveOccurred())
-			vsList = vss
-			return vsList
-		}, time.Minute*2).Should(HaveLen(1))
-		Expect(vsList[0]).To(Equal(1))
+		Expect(reviewsDestinationRule.Subsets).To(Equal([]*v1alpha3.Subset{
+			{Labels: map[string]string{"app":"reviews"}, Name: "app-reviews"},
+			{Labels: map[string]string{"app":"reviews", "version": "v1"}, Name: "app-reviews-version-v1"},
+			{Labels: map[string]string{"app":"reviews", "version": "v2"}, Name: "app-reviews-version-v2"},
+		}))
 
-		vss, err := vsClient.List(namespace, clients.ListOpts{})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(vss).To(HaveLen(1))
-		Expect(vss[0]).To(Equal(1))
+		var testVirtualService *v1alpha3.VirtualService
+		Eventually(func() (*v1alpha3.VirtualService, error) {
+			vs, err := vsClient.Read(namespace, "name-reviews-default-svc-cluster-local",clients.ReadOpts{})
+			testVirtualService = vs
+			return vs, err
+		}, time.Second*2).Should(Not(BeNil()))
+
+		Expect(testVirtualService).To(Equal(1))
 	})
 })
 
@@ -132,8 +146,8 @@ func setupInstall(installClient v1.InstallClient, namespace, releaseName string,
 	return install1.Metadata.Name
 }
 
-func setupRoutingRule(routingRules v1.RoutingRuleClient, namespace string, targetMesh *core.ResourceRef) {
-	rrMeta := core.Metadata{Name: "my-istio-rr", Namespace: namespace}
+func setupV1RoutingRule(routingRules v1.RoutingRuleClient, namespace string, targetMesh *core.ResourceRef) {
+	rrMeta := core.Metadata{Name: "reviews-fault-and-trafficshifting", Namespace: namespace}
 	routingRules.Delete(rrMeta.Namespace, rrMeta.Name, clients.DeleteOpts{})
 	rr1, err := routingRules.Write(&v1.RoutingRule{
 		Metadata:   rrMeta,
