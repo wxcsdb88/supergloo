@@ -37,7 +37,7 @@ func staticArgParse(opts *options.Options, installClient *v1.InstallClient) ([]s
 		}
 
 	} else {
-		meshesToDelete = installList.Names()
+		meshesToDelete = activeMeshInstalls(installList)
 	}
 
 	return meshesToDelete, nil
@@ -57,12 +57,12 @@ func dynamicArgParse(opts *options.Options, installClient *v1.InstallClient) ([]
 	}
 
 	if !deleteAll {
-		meshesToDelete, err = selectMeshByName(installList.Names())
+		meshesToDelete, err = selectMeshByName(activeMeshInstalls(installList))
 		if err != nil {
 			return meshesToDelete, fmt.Errorf("unable to select list of mesh names")
 		}
 	} else {
-		meshesToDelete = installList.Names()
+		meshesToDelete = activeMeshInstalls(installList)
 	}
 
 	return meshesToDelete, nil
@@ -73,6 +73,15 @@ func dynamicArgParse(opts *options.Options, installClient *v1.InstallClient) ([]
 func validateArgs(opts *options.Options, installClient *v1.InstallClient) error {
 	var meshesToDelete []string
 	var err error
+
+	installList, err := (*installClient).List(constants.SuperglooNamespace, clients.ListOpts{})
+	if err != nil {
+		return fmt.Errorf("unable to retrieve list of install CRDs")
+	}
+
+	if len(activeMeshInstalls(installList)) < 1 {
+		return fmt.Errorf("no meshes currently installed")
+	}
 
 	top := opts.Top
 
@@ -121,4 +130,17 @@ func updateMeshInstall(installCrd *v1.Install, installClient *v1.InstallClient) 
 	installCrd.Enabled = &types.BoolValue{Value:false}
 	_, err := (*installClient).Write(installCrd, clients.WriteOpts{OverwriteExisting:true})
 	return err
+}
+
+func activeMeshInstalls(installList v1.InstallList) ([]string) {
+	activeMeshList := make([]string, 0)
+
+	for _,val := range installList {
+		if val.Enabled == nil || val.Enabled != nil && val.Enabled.Value {
+			activeMeshList = append(activeMeshList, val.Metadata.Name)
+		}
+	}
+
+	return activeMeshList
+
 }

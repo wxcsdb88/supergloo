@@ -1,6 +1,8 @@
 package uninstall
 
-import "gopkg.in/AlecAivazis/survey.v1"
+import (
+	"gopkg.in/AlecAivazis/survey.v1"
+)
 
 func selectMeshByName(names []string) ([]string, error) {
 	meshNames := []string{}
