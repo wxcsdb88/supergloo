@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/solo-io/solo-kit/pkg/utils/nameutils"
+	"github.com/solo-io/solo-kit/pkg/utils/stringutils"
 	"go.uber.org/multierr"
 	"strings"
 
@@ -51,7 +52,7 @@ func NewMeshRoutingSyncer(writeNamespaces []string,
 
 func sanitizeName(name string) string {
 	name = strings.Replace(name, ".", "-", -1)
-	name = strings.Replace(name, "map[", "", -1)
+	name = strings.Replace(name, "[", "", -1)
 	name = strings.Replace(name, "]", "", -1)
 	name = strings.Replace(name, ":", "-", -1)
 	name = strings.Replace(name, " ", "-", -1)
@@ -123,7 +124,13 @@ func getIstioMeshForRule(rule *v1.RoutingRule, meshes v1.MeshList) (*v1.Istio, e
 }
 
 func subsetName(labels map[string]string) string {
-	return sanitizeName(fmt.Sprintf("%+v", labels))
+	keys, values := stringutils.KeysAndValues(labels)
+	name := ""
+	for i := range keys {
+		name += keys[i]+"-"+values[i]+"-"
+	}
+	name = strings.TrimSuffix(name, "-")
+	return sanitizeName(name)
 }
 
 // destinationrules

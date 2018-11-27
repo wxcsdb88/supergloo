@@ -99,6 +99,7 @@ var _ = Describe("istio routing E2e", func() {
 			{Labels: map[string]string{"app": "reviews"}, Name: "app-reviews"},
 			{Labels: map[string]string{"app": "reviews", "version": "v1"}, Name: "app-reviews-version-v1"},
 			{Labels: map[string]string{"app": "reviews", "version": "v2"}, Name: "app-reviews-version-v2"},
+			{Labels: map[string]string{"app": "reviews", "version": "v3"}, Name: "app-reviews-version-v3"},
 		}))
 
 		var testVirtualService *v1alpha3.VirtualService
@@ -116,16 +117,17 @@ var _ = Describe("istio routing E2e", func() {
 			return nil
 		}, time.Second*2).Should(Not(BeNil()))
 		Expect(testVirtualService.Gateways).To(Equal([]string{"mesh"}))
-		Expect(testVirtualService.Http).To(BeNil())
+		Expect(testVirtualService.Http).To(HaveLen(1))
 
 		// reviews v1
 		resp, err := testsetup.Curl(testsetup.CurlOpts{
 			Method:  "GET",
 			Path:    "/reviews/1",
 			Service: "reviews",
+			Port:    9080,
 		})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(resp).To(Equal(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!"},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare."}]}`))
+		Expect(resp).To(ContainSubstring(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!"},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare."}]}`))
 
 		setupV2RoutingRule(routingRules, namespace, ref)
 		// reviews v2
@@ -133,9 +135,10 @@ var _ = Describe("istio routing E2e", func() {
 			Method:  "GET",
 			Path:    "/reviews/1",
 			Service: "reviews",
+			Port:    9080,
 		})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(resp).To(Equal(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "black"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "black"}}]}`))
+		Expect(resp).To(ContainSubstring(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "black"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "black"}}]}`))
 	})
 })
 
