@@ -70,7 +70,7 @@ var _ = Describe("RoutingSyncer", func() {
 					{
 						Metadata: core.Metadata{
 							Name:      "default-reviews-9080-version-v2",
-							Namespace: "gloo-system",
+							Namespace: namespace,
 						},
 						UpstreamSpec: &gloov1.UpstreamSpec{
 							UpstreamType: &gloov1.UpstreamSpec_Kube{
@@ -78,7 +78,7 @@ var _ = Describe("RoutingSyncer", func() {
 									ServiceName:      "reviews",
 									ServiceNamespace: "default",
 									ServicePort:      9080,
-									Selector:         map[string]string{"app": "reviews", "version": "v1"},
+									Selector:         map[string]string{"app": "reviews", "version": "v2"},
 								},
 							},
 						},
@@ -86,21 +86,72 @@ var _ = Describe("RoutingSyncer", func() {
 				},
 			},
 			Routingrules: map[string]v1.RoutingRuleList{
-				"": {{
-					Metadata:   core.Metadata{Name: "name", Namespace: namespace},
-					TargetMesh: &core.ResourceRef{Name: "name", Namespace: namespace},
-					FaultInjection: &v1alpha3.HTTPFaultInjection{
-						Abort: &v1alpha3.HTTPFaultInjection_Abort{
-							ErrorType: &v1alpha3.HTTPFaultInjection_Abort_HttpStatus{
-								HttpStatus: 566,
+				"": {
+					{
+						Metadata:   core.Metadata{Name: "fault", Namespace: namespace},
+						TargetMesh: &core.ResourceRef{Name: "name", Namespace: namespace},
+						FaultInjection: &v1alpha3.HTTPFaultInjection{
+							Abort: &v1alpha3.HTTPFaultInjection_Abort{
+								ErrorType: &v1alpha3.HTTPFaultInjection_Abort_HttpStatus{
+									HttpStatus: 566,
+								},
+								Percent: 100,
 							},
-							Percent: 100,
 						},
 					},
-					TrafficShifting: &v1.TrafficShifting{}, // run this test and assert on the created crds
-				}},
+					{
+						Metadata:   core.Metadata{Name: "trafficshifting", Namespace: namespace},
+						TargetMesh: &core.ResourceRef{Name: "name", Namespace: namespace},
+						TrafficShifting: &v1.TrafficShifting{
+							Destinations: []*v1.WeightedDestination{
+								{
+									Upstream: &core.ResourceRef{
+										Name:      "default-reviews-9080-version-v2",
+										Namespace: namespace,
+									},
+									Weight: 100,
+								},
+							},
+						},
+					},
+				},
 			},
 		})
+		Expect(err).NotTo(HaveOccurred())
+
+		dr, err := drClient.List(namespace, clients.ListOpts{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(dr).To(HaveLen(1))
+		Expect(dr[0]).To(Equal(&v1alpha3.DestinationRule{
+			Metadata: core.Metadata{
+				Name:            "name-reviews-default-svc-cluster-local",
+				Namespace:       "test",
+				ResourceVersion: "2",
+				Labels: map[string]string{
+					"reconciler.solo.io": "supergloo.istio.routing",
+				},
+				Annotations: map[string]string{
+					"created_by": "supergloo",
+				},
+			},
+			Host: "reviews.default.svc.cluster.local",
+			TrafficPolicy: &v1alpha3.TrafficPolicy{
+				Tls: &v1alpha3.TLSSettings{
+					Mode: v1alpha3.TLSSettings_ISTIO_MUTUAL,
+				},
+			},
+			Subsets: []*v1alpha3.Subset{
+				{
+					Name:   "app-reviews",
+					Labels: map[string]string{"app": "reviews"},
+				},
+				{
+					Name:   "app-reviews-version-v2",
+					Labels: map[string]string{"app": "reviews", "version": "v2"},
+				},
+			},
+		}))
+
 		Expect(err).NotTo(HaveOccurred())
 		vs, err := vsClient.List(namespace, clients.ListOpts{})
 		Expect(err).NotTo(HaveOccurred())
@@ -129,7 +180,11 @@ var _ = Describe("RoutingSyncer", func() {
 						},
 					},
 					Route: []*v1alpha3.DestinationWeight{
-						{Destination: &v1alpha3.Destination{Host: "reviews.default.svc.cluster.local"}},
+						{Destination: &v1alpha3.Destination{
+							Host:   "reviews.default.svc.cluster.local",
+							Subset: "app-reviews-version-v2",
+							Port:   &v1alpha3.PortSelector{Port: &v1alpha3.PortSelector_Number{Number: 9080}},
+						}},
 					},
 					Fault: &v1alpha3.HTTPFaultInjection{Abort: &v1alpha3.HTTPFaultInjection_Abort{
 						Percent:   100,
@@ -137,37 +192,6 @@ var _ = Describe("RoutingSyncer", func() {
 				},
 			},
 		}))
-		dr, err := drClient.List(namespace, clients.ListOpts{})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(dr).To(HaveLen(1))
-		Expect(dr[0]).To(Equal(&v1alpha3.DestinationRule{
-			Metadata: core.Metadata{
-				Name:            "name-reviews-default-svc-cluster-local",
-				Namespace:       "test",
-				ResourceVersion: "2",
-				Labels: map[string]string{
-					"reconciler.solo.io": "supergloo.istio.routing",
-				},
-				Annotations: map[string]string{
-					"created_by": "supergloo",
-				},
-			},
-			Host: "reviews.default.svc.cluster.local",
-			TrafficPolicy: &v1alpha3.TrafficPolicy{
-				Tls: &v1alpha3.TLSSettings{
-					Mode: v1alpha3.TLSSettings_ISTIO_MUTUAL,
-				},
-			},
-			Subsets: []*v1alpha3.Subset{
-				{
-					Name:   "app-reviews",
-					Labels: map[string]string{"app": "reviews"},
-				},
-				{
-					Name:   "app-reviews-version-v1",
-					Labels: map[string]string{"app": "reviews", "version": "v1"},
-				},
-			},
-		}))
+
 	})
 })
