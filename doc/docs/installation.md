@@ -36,7 +36,7 @@ supergloo --version
 ```
 
 
-## Install supergloo onto the cluster
+## Install SuperGloo onto the cluster
 
 ```
 supergloo init
