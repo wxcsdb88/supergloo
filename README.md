@@ -195,7 +195,7 @@ For users, this will provide the ability to migrate between service mesh provide
 
 ## Vision
 
-At Solo, we believe that companies at any stage of service mesh adoption can benefit from the ability to use multiple meshes simultaneously. At the early stages of adoption, users will benefit from the ability to experiment with multiple technologies. At a later stage, groups within the same organization may favor different options, making multi-mesh a lasting reality. Whether multi-mesh is a transition-phase or the end-game, keeping your options open without compromising on ease-of-use, functionality or flexibility will give early adopters a competitive edge.
+At Solo, we believe that companies at any stage of service mesh adoption can benefit from the ability to use multiple meshes simultaneously. At the early stages of adoption, users will benefit from the ability to experiment with multiple technologies. In addition, groups within the same organization may favor different options, making multi-mesh a lasting reality. Whether multi-mesh is a transition-phase or the end-game, keeping your options open without compromising on ease-of-use, functionality or flexibility will give early adopters a competitive edge.
 
 Our vision is to enable multi-mesh: the ability to connect meshes of any type together, across namespaces, across clusters, and across clouds. All with flat-networking and policy applied at the super-mesh level, rather than repeated at each individual level, without the effort of synchronizing configs across meshes. The abstraction we seek to provide will allow developers to build a single product that runs on any mesh, or across meshes.
 
