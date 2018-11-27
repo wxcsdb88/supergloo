@@ -75,7 +75,7 @@ var _ = Describe("Istio Installer", func() {
 		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
 			MeshClient: meshClient,
-			CrdCLient:  util.GetCrdClient(),
+			ApiExtsClient:  util.GetApiExtsClient(),
 		}
 	})
 
@@ -90,11 +90,11 @@ var _ = Describe("Istio Installer", func() {
 		util.DeleteCrb(istio.CrbName)
 	})
 
-	It("Can install and uninstall istio", func() {
+	FIt("Can install and uninstall istio", func() {
 		snap := getSnapshot(true)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods(installNamespace)
+		Expect(util.WaitForAvailablePods(installNamespace)).To(BeEquivalentTo(9))
 
 		snap = getSnapshot(false)
 		err = syncer.Sync(context.TODO(), snap)

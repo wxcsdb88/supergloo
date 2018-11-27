@@ -25,7 +25,7 @@ import (
 	"github.com/solo-io/supergloo/pkg/translator/linkerd2"
 	"k8s.io/client-go/kubernetes"
 
-	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
 )
 
 var defaultNamespaces = []string{"supergloo-system", "gloo-system", "default"}
@@ -42,7 +42,7 @@ func Main() error {
 		return err
 	}
 
-	kubeCrdClient, err := crdClient.NewForConfig(restConfig)
+	apiExtsClient, err := apiexts.NewForConfig(restConfig)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func Main() error {
 	installSyncer := &install.InstallSyncer{
 		Kube:       kubeClient,
 		MeshClient: meshClient,
-		CrdCLient:  kubeCrdClient,
+		ApiExtsClient:  apiExtsClient,
 	}
 	installSyncers := v1.InstallSyncers{
 		installSyncer,

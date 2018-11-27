@@ -41,7 +41,7 @@ import (
 
 var kubeConfig *rest.Config
 var kubeClient *kubernetes.Clientset
-var crdClient *client.ApiextensionsClient
+var apiExtsClient *client.ApiextensionsClient
 
 var testKey = "-----BEGIN PRIVATE KEY-----\nMIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDBoI1sMdiOTvBBdjWlS\nZ8qwNuK9xV4yKuboLZ4Sx/OBfy1eKZocxTKvnjLrHUe139uhZANiAAQMTIR56O8U\nTIqf6uUHM4i9mZYLj152up7elS06Gi6lk7IeUQDHxP0NnOnbhC7rmtOV6myLNApL\nQ92kZKg7qa8q7OY/4w1QfC4ch7zZKxjNkSIiuAx7V/lzF6FYDcqT3js=\n-----END PRIVATE KEY-----"
 var TestRoot = "-----BEGIN CERTIFICATE-----\nMIIB7jCCAXUCCQC2t6Lqc2xnXDAKBggqhkjOPQQDAjBhMQswCQYDVQQGEwJVUzEW\nMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQwwCgYD\nVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMTgxMzQz\nMDJaFw0xOTExMTgxMzQzMDJaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1NYXNz\nYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEYMBYG\nA1UEAwwPd3d3LmV4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEDEyE\neejvFEyKn+rlBzOIvZmWC49edrqe3pUtOhoupZOyHlEAx8T9DZzp24Qu65rTleps\nizQKS0PdpGSoO6mvKuzmP+MNUHwuHIe82SsYzZEiIrgMe1f5cxehWA3Kk947MAoG\nCCqGSM49BAMCA2cAMGQCMCytVFc8sBdbM7DaBCz0N2ptdb0T7LFFfxDTzn4gjiDq\nVCd/3dct21TUWsthKXF2VgIwXEMI5EQiJ5kjR/y1KNBC9b4wfDiKRvG33jYe9gn6\ntzXUS00SoqG9D27/7aK71/xv\n-----END CERTIFICATE-----"
@@ -69,14 +69,14 @@ func GetKubeClient() *kubernetes.Clientset {
 	return client
 }
 
-func GetCrdClient() *client.ApiextensionsClient {
-	if crdClient != nil {
-		return crdClient
+func GetApiExtsClient() *client.ApiextensionsClient {
+	if apiExtsClient != nil {
+		return apiExtsClient
 	}
 	cfg := GetKubeConfig()
 	client, err := client.NewForConfig(cfg)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	crdClient = client
+	apiExtsClient = client
 	return client
 }
 
@@ -128,19 +128,21 @@ func WaitForTerminatedNamespace(namespace string) {
 	}, "120s", "1s").ShouldNot(BeNil()) // will be non-nil when NS is gone
 }
 
-func WaitForAvailablePodsWithTimeout(namespace string, timeout string) {
+func WaitForAvailablePodsWithTimeout(namespace string, timeout string) int {
 	// use helper function so that stack offset is consistent
-	waitForAvailablePodsWithTimeout(namespace, timeout)
+	return waitForAvailablePodsWithTimeout(namespace, timeout)
 }
 
-func waitForAvailablePodsWithTimeout(namespace, timeout string) {
+func waitForAvailablePodsWithTimeout(namespace, timeout string) int {
 	client := GetKubeClient()
+	var podNum int
 
 	EventuallyWithOffset(2, func() (bool, error) {
 		podList, err := client.CoreV1().Pods(namespace).List(kubemeta.ListOptions{})
 		if err != nil {
 			return false, err
 		}
+		podNum = len(podList.Items)
 		done := true
 		for _, pod := range podList.Items {
 			for _, condition := range pod.Status.Conditions {
@@ -154,6 +156,7 @@ func waitForAvailablePodsWithTimeout(namespace, timeout string) {
 		}
 		return done, nil
 	}, timeout, "1s").Should(BeTrue())
+	return podNum
 }
 
 func WaitForDeletedPodsWithTimeout(namespace string, timeout string) {
@@ -165,8 +168,8 @@ func WaitForDeletedPodsWithTimeout(namespace string, timeout string) {
 	}, timeout, "1s").Should(BeTrue())
 }
 
-func WaitForAvailablePods(namespace string) {
-	waitForAvailablePodsWithTimeout(namespace, "120s")
+func WaitForAvailablePods(namespace string) int {
+	return waitForAvailablePodsWithTimeout(namespace, "120s")
 }
 
 func WaitForDeletedPods(namespace string) {
@@ -335,7 +338,7 @@ func HelmReleaseDoesntExist(releaseName string) bool {
 }
 
 func TryDeleteIstioCrds() {
-	crdClient := GetCrdClient()
+	crdClient := GetApiExtsClient()
 	crdList, err := crdClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
 	if err != nil {
 		return
@@ -349,7 +352,7 @@ func TryDeleteIstioCrds() {
 }
 
 func IstioCrdsDontExist() bool {
-	crdClient := GetCrdClient()
+	crdClient := GetApiExtsClient()
 	crdList, err := crdClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
 	if err != nil {
 		return false

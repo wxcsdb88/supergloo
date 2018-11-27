@@ -24,7 +24,7 @@ import (
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	helmlib "k8s.io/helm/pkg/helm"
 
-	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
 )
 
 const releaseNameKey = "helm_release"
@@ -33,11 +33,12 @@ type InstallSyncer struct {
 	Kube           *kubernetes.Clientset
 	MeshClient     v1.MeshClient
 	SecurityClient *security.Clientset
-	CrdCLient      *crdClient.ApiextensionsClient
+	ApiExtsClient      *apiexts.ApiextensionsClient
 }
 
 type MeshInstaller interface {
 	GetDefaultNamespace() string
+	// TODO: remove when #71 is fixed
 	UseHardcodedNamespace() bool
 	GetCrbName() string
 	GetOverridesYaml(install *v1.Install) string
@@ -65,7 +66,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 	case *v1.Install_Istio:
 		meshInstaller = &istio.IstioInstaller{
 			SecurityClient: syncer.SecurityClient,
-			CrdClient:      syncer.CrdCLient,
+			ApiExtsClient:      syncer.ApiExtsClient,
 		}
 	case *v1.Install_Linkerd2:
 		meshInstaller = &linkerd2.Linkerd2Installer{}
