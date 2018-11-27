@@ -179,9 +179,9 @@ func Main() error {
 	}
 
 	installSyncer := &install.InstallSyncer{
-		Kube:       kubeClient,
-		MeshClient: meshClient,
-		ApiExtsClient:  apiExtsClient,
+		Kube:          kubeClient,
+		MeshClient:    meshClient,
+		ApiExtsClient: apiExtsClient,
 	}
 	installSyncers := v1.InstallSyncers{
 		installSyncer,

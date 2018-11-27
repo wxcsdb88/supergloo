@@ -88,7 +88,7 @@ var _ = Describe("Linkerd2 Installer", func() {
 		snap := getSnapshot(true)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods("linkerd")
+		Expect(util.WaitForAvailablePods("linkerd")).To(BeEquivalentTo(4))
 
 		snap = getSnapshot(false)
 		err = syncer.Sync(context.TODO(), snap)
@@ -97,7 +97,6 @@ var _ = Describe("Linkerd2 Installer", func() {
 		// Validate everything cleaned up
 		util.WaitForTerminatedNamespace("linkerd")
 		Expect(util.HelmReleaseDoesntExist(meshName)).To(BeTrue())
-
 		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
 		Expect(mesh).To(BeNil())
 		Expect(err).ToNot(BeNil())

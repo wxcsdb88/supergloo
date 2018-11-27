@@ -22,7 +22,7 @@ const (
 
 type IstioInstaller struct {
 	SecurityClient *security.Clientset
-	ApiExtsClient      *apiexts.ApiextensionsClient
+	ApiExtsClient  *apiexts.ApiextensionsClient
 }
 
 func (c *IstioInstaller) GetDefaultNamespace() string {

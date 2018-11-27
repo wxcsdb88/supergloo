@@ -73,9 +73,9 @@ var _ = Describe("Istio Installer", func() {
 		util.TryCreateNamespace("supergloo-system")
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
-			Kube:       util.GetKubeClient(),
-			MeshClient: meshClient,
-			ApiExtsClient:  util.GetApiExtsClient(),
+			Kube:          util.GetKubeClient(),
+			MeshClient:    meshClient,
+			ApiExtsClient: util.GetApiExtsClient(),
 		}
 	})
 
@@ -90,7 +90,7 @@ var _ = Describe("Istio Installer", func() {
 		util.DeleteCrb(istio.CrbName)
 	})
 
-	FIt("Can install and uninstall istio", func() {
+	It("Can install and uninstall istio", func() {
 		snap := getSnapshot(true)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())

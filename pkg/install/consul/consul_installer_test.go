@@ -86,7 +86,7 @@ var _ = Describe("Consul Installer", func() {
 		snap := getSnapshot(true)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
-		util.WaitForAvailablePods(installNamespace)
+		Expect(util.WaitForAvailablePods(installNamespace)).To(BeEquivalentTo(2))
 
 		snap = getSnapshot(false)
 		err = syncer.Sync(context.TODO(), snap)

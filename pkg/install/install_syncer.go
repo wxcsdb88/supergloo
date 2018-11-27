@@ -33,7 +33,7 @@ type InstallSyncer struct {
 	Kube           *kubernetes.Clientset
 	MeshClient     v1.MeshClient
 	SecurityClient *security.Clientset
-	ApiExtsClient      *apiexts.ApiextensionsClient
+	ApiExtsClient  *apiexts.ApiextensionsClient
 }
 
 type MeshInstaller interface {
@@ -66,7 +66,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 	case *v1.Install_Istio:
 		meshInstaller = &istio.IstioInstaller{
 			SecurityClient: syncer.SecurityClient,
-			ApiExtsClient:      syncer.ApiExtsClient,
+			ApiExtsClient:  syncer.ApiExtsClient,
 		}
 	case *v1.Install_Linkerd2:
 		meshInstaller = &linkerd2.Linkerd2Installer{}
