@@ -28,13 +28,9 @@ var _ = Describe("istio routing E2e", func() {
 		Skip("Set environment variable HELM_CHART_PATH")
 	}
 	BeforeEach(func() {
-		releaseName = "istio-release-test" + helpers.RandString(8)
-		namespace = "istio-routing-test" + helpers.RandString(8)
+		releaseName = "istio-release-test-" + helpers.RandString(8)
+		namespace = "istio-routing-test-" + helpers.RandString(8)
 		err := testsetup.SetupKubeForTest(namespace)
-		Expect(err).NotTo(HaveOccurred())
-		cfg, err := kubeutils.GetConfig("", "")
-		Expect(err).NotTo(HaveOccurred())
-		err = utils.DeployBookinfo(cfg, namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 	AfterEach(func() {
@@ -72,7 +68,7 @@ var _ = Describe("istio routing E2e", func() {
 			r := mesh.Metadata.Ref()
 			ref = &r
 			return ref, nil
-		}, time.Second*2).Should(Not(BeNil()))
+		}, time.Second*120).Should(Not(BeNil()))
 
 		cfg, err := kubeutils.GetConfig("", "")
 		Expect(err).NotTo(HaveOccurred())
@@ -80,7 +76,6 @@ var _ = Describe("istio routing E2e", func() {
 		Expect(err).NotTo(HaveOccurred())
 		err = utils.DeployTestRunner(cfg, namespace)
 		Expect(err).NotTo(HaveOccurred())
-
 
 		setupV1RoutingRule(routingRules, namespace, ref)
 
@@ -90,32 +85,38 @@ var _ = Describe("istio routing E2e", func() {
 
 		// get the destination rule for
 		var reviewsDestinationRule *v1alpha3.DestinationRule
-		Eventually(func() *v1alpha3.DestinationRule {
+		Eventually(func() []*v1alpha3.Subset {
 			drs, err := drClient.List(namespace, clients.ListOpts{})
 			Expect(err).NotTo(HaveOccurred())
 			for _, dr := range drs {
 				if dr.Host == "reviews."+namespace+".svc.cluster.local" {
 					reviewsDestinationRule = dr
-					return reviewsDestinationRule
+					return reviewsDestinationRule.Subsets
+				}
+			}
+			return nil
+		}, time.Second*45).Should(Equal([]*v1alpha3.Subset{
+			{Labels: map[string]string{"app": "reviews"}, Name: "app-reviews"},
+			{Labels: map[string]string{"app": "reviews", "version": "v1"}, Name: "app-reviews-version-v1"},
+			{Labels: map[string]string{"app": "reviews", "version": "v2"}, Name: "app-reviews-version-v2"},
+		}))
+
+		var testVirtualService *v1alpha3.VirtualService
+		Eventually(func() *v1alpha3.VirtualService {
+			vss, err := vsClient.List(namespace, clients.ListOpts{})
+			Expect(err).NotTo(HaveOccurred())
+			for _, vs := range vss {
+				for _, host := range vs.Hosts {
+					if host == "reviews."+namespace+".svc.cluster.local" {
+						testVirtualService = vs
+						return testVirtualService
+					}
 				}
 			}
 			return nil
 		}, time.Second*2).Should(Not(BeNil()))
-
-		Expect(reviewsDestinationRule.Subsets).To(Equal([]*v1alpha3.Subset{
-			{Labels: map[string]string{"app":"reviews"}, Name: "app-reviews"},
-			{Labels: map[string]string{"app":"reviews", "version": "v1"}, Name: "app-reviews-version-v1"},
-			{Labels: map[string]string{"app":"reviews", "version": "v2"}, Name: "app-reviews-version-v2"},
-		}))
-
-		var testVirtualService *v1alpha3.VirtualService
-		Eventually(func() (*v1alpha3.VirtualService, error) {
-			vs, err := vsClient.Read(namespace, "name-reviews-default-svc-cluster-local",clients.ReadOpts{})
-			testVirtualService = vs
-			return vs, err
-		}, time.Second*2).Should(Not(BeNil()))
-
-		Expect(testVirtualService).To(Equal(1))
+		Expect(testVirtualService.Gateways).To(Equal([]string{"mesh"}))
+		Expect(testVirtualService.Http).To(BeNil())
 
 		// reviews v1
 		resp, err := testsetup.Curl(testsetup.CurlOpts{
