@@ -8,6 +8,7 @@ import (
 type Options struct {
 	Top         Top
 	Install     Install
+	Uninstall   Uninstall
 	MeshTool    MeshTool
 	IngressTool IngressTool
 	Get         Get
@@ -28,6 +29,12 @@ type Install struct {
 	SecretRef           core.ResourceRef
 	WatchNamespaces     []string
 	ConsulServerAddress string
+}
+
+type Uninstall struct {
+	All       bool
+	MeshNames string
+	MeshType  string
 }
 
 type MeshTool struct {
