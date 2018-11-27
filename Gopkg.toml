@@ -30,7 +30,8 @@
 
 [[constraint]]
   name = "github.com/solo-io/solo-kit"
-  version = "0.1.1"
+#  version = "0.1.1"
+  revision = "c832f56dc3a702295562e540a3fae9aaf6219d50"
 
 [[override]]
   branch = "master"

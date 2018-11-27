@@ -115,6 +115,25 @@ var _ = Describe("istio routing E2e", func() {
 		}, time.Second*2).Should(Not(BeNil()))
 
 		Expect(testVirtualService).To(Equal(1))
+
+		// reviews v1
+		resp, err := testsetup.Curl(testsetup.CurlOpts{
+			Method:  "GET",
+			Path:    "/reviews/1",
+			Service: "reviews",
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resp).To(Equal(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!"},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare."}]}`))
+
+		setupV2RoutingRule(routingRules, namespace, ref)
+		// reviews v2
+		resp, err = testsetup.Curl(testsetup.CurlOpts{
+			Method:  "GET",
+			Path:    "/reviews/1",
+			Service: "reviews",
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(resp).To(Equal(`{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "black"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "black"}}]}`))
 	})
 })
 
@@ -160,6 +179,32 @@ func setupV1RoutingRule(routingRules v1.RoutingRuleClient, namespace string, tar
 				{
 					Upstream: &core.ResourceRef{
 						Name:      namespace + "-reviews-v1-9080",
+						Namespace: namespace,
+					},
+					Weight: 100,
+				},
+			},
+		},
+	}, clients.WriteOpts{})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(rr1).NotTo(BeNil())
+}
+
+func setupV2RoutingRule(routingRules v1.RoutingRuleClient, namespace string, targetMesh *core.ResourceRef) {
+	rrMeta := core.Metadata{Name: "reviews-fault-and-trafficshifting", Namespace: namespace}
+	routingRules.Delete(rrMeta.Namespace, rrMeta.Name, clients.DeleteOpts{})
+	rr1, err := routingRules.Write(&v1.RoutingRule{
+		Metadata:   rrMeta,
+		TargetMesh: targetMesh,
+		Destinations: []*core.ResourceRef{{
+			Name:      namespace + "-reviews-9080",
+			Namespace: namespace,
+		}},
+		TrafficShifting: &v1.TrafficShifting{
+			Destinations: []*v1.WeightedDestination{
+				{
+					Upstream: &core.ResourceRef{
+						Name:      namespace + "-reviews-v2-9080",
 						Namespace: namespace,
 					},
 					Weight: 100,
