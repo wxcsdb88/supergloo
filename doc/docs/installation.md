@@ -4,12 +4,11 @@ In this guide, we’ll walk you through how to install SuperGloo onto your Kuber
 
 ## Dependencies
 
-First, you’ll need a Kubernetes cluster running 1.9 or later, and a functioning [kubectl]() command (tested with client version 1.12) on your local machine. 
+First, you’ll need a Kubernetes cluster running 1.9 or later, and a functioning [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command (tested with client version 1.12) on your local machine. 
 
 To run Kubernetes on your local machine, we suggest [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/) — running version 0.24.1 or later. (tested with 0.28.2-0.30.0)
 
-You also need to install the [Helm client]() (tested with 2.11).
-
+You also need to install the [Helm client](https://docs.helm.sh/using_helm/#install-helm) (tested with 2.11).
 
 ## Install the CLI
 
