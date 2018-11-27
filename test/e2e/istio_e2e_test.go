@@ -107,9 +107,9 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 
 		secretClient = util.GetSecretClient()
 		installSyncer = install.InstallSyncer{
-			Kube:          util.GetKubeClient(),
-			MeshClient:    meshClient,
-			ApiExtsClient: util.GetApiExtsClient(),
+			Kube:       util.GetKubeClient(),
+			MeshClient: meshClient,
+			ApiExts:    util.GetApiExtsClient(),
 		}
 	})
 
