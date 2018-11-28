@@ -29,6 +29,9 @@ type Install struct {
 	SecretRef           core.ResourceRef
 	WatchNamespaces     []string
 	ConsulServerAddress string
+
+	// Interactive only (not passable via flags)
+	UseCustomSecret bool
 }
 
 type Uninstall struct {
@@ -38,7 +41,7 @@ type Uninstall struct {
 }
 
 type MeshTool struct {
-	Mesh      ResourceRef
+	Mesh      core.ResourceRef
 	ServiceId string
 	AddPolicy AddPolicy
 }
@@ -49,8 +52,8 @@ type AddPolicy struct {
 	// source_namespace,source_name,destination_namespace,destination_name (repeated)
 	// PolicyCsv string
 
-	Source      ResourceRef
-	Destination ResourceRef
+	Source      core.ResourceRef
+	Destination core.ResourceRef
 }
 
 type IngressTool struct {
@@ -105,13 +108,8 @@ type Config struct {
 }
 
 type ConfigCa struct {
-	Mesh   ResourceRef
-	Secret ResourceRef
-}
-
-type ResourceRef struct {
-	Name      string
-	Namespace string
+	Mesh   core.ResourceRef
+	Secret core.ResourceRef
 }
 
 // OptionsCache holds resources that multiple commands need
@@ -136,5 +134,5 @@ type NsResource struct {
 	// keyed by mesh installation namespace
 	// purpose of this list: allows user to select a mesh by the namespace in which they installed the mesh
 	// needs to be a resource ref so we can point back to the resource
-	MeshesByInstallNs []ResourceRef
+	MeshesByInstallNs []core.ResourceRef
 }

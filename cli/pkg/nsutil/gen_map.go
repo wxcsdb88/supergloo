@@ -3,6 +3,7 @@ package nsutil
 import (
 	"fmt"
 
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 )
 
@@ -15,7 +16,7 @@ import (
 type ResSelect struct {
 	displayName      string
 	displayNamespace string
-	resourceRef      options.ResourceRef
+	resourceRef      core.ResourceRef
 }
 
 type ResMap map[string]ResSelect
@@ -34,7 +35,7 @@ func generateMeshSelectOptions(nsrMap options.NsResourceMap) ([]string, ResMap) 
 			meshMap[selectMenuString] = ResSelect{
 				displayName:      meshRef.Name,
 				displayNamespace: installNs,
-				resourceRef: options.ResourceRef{
+				resourceRef: core.ResourceRef{
 					Name:      meshRef.Name,
 					Namespace: meshRef.Namespace,
 				},
@@ -67,7 +68,7 @@ func generateCommonResourceSelectOptions(typeName string, nsrMap options.NsResou
 			resMap[selectMenuString] = ResSelect{
 				displayName:      res,
 				displayNamespace: namespace,
-				resourceRef: options.ResourceRef{
+				resourceRef: core.ResourceRef{
 					Name:      res,
 					Namespace: namespace,
 				},
