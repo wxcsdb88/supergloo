@@ -3,11 +3,12 @@ package istio
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/mitchellh/hashstructure"
 	"github.com/solo-io/solo-kit/pkg/utils/nameutils"
 	"github.com/solo-io/solo-kit/pkg/utils/stringutils"
 	"go.uber.org/multierr"
-	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
@@ -226,7 +227,7 @@ func virtualServicesForRules(rules v1.RoutingRuleList, meshes v1.MeshList, upstr
 		if err != nil {
 			return nil, err
 		}
-		addUniqueHosts:
+	addUniqueHosts:
 		for _, us := range destUpstreams {
 			host, err := getHostForUpstream(us)
 			if err != nil {

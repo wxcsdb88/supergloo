@@ -2,9 +2,10 @@ package setup
 
 import (
 	"context"
+	"time"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/reporter"
 	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
-	"time"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
@@ -29,7 +30,7 @@ import (
 
 var defaultNamespaces = []string{"supergloo-system", "gloo-system", "default"}
 
-func Main(namespaces ... string) error {
+func Main(namespaces ...string) error {
 	if len(namespaces) == 0 {
 		namespaces = defaultNamespaces
 	}

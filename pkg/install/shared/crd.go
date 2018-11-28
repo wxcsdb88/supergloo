@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
 func CrdsFromManifest(crdManifestYaml string) ([]*v1beta1.CustomResourceDefinition, error) {
 	var crds []*v1beta1.CustomResourceDefinition
 	crdRuntimeObjects, err := ParseKubeManifest(crdManifestYaml)
@@ -25,7 +24,7 @@ func CrdsFromManifest(crdManifestYaml string) ([]*v1beta1.CustomResourceDefiniti
 	return crds, nil
 }
 
-func CreateCrds(apiExts apiexts.Interface, crds ... *v1beta1.CustomResourceDefinition) error {
+func CreateCrds(apiExts apiexts.Interface, crds ...*v1beta1.CustomResourceDefinition) error {
 	for _, crd := range crds {
 		if _, err := apiExts.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd); err != nil && !apierrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create crd: %v", crd)
