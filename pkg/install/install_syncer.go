@@ -45,7 +45,6 @@ type MeshInstaller interface {
 	GetOverridesYaml(install *v1.Install) string
 	DoPreHelmInstall() error
 	DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error
-	DoPostHelmUninstall() error
 }
 
 func (syncer *InstallSyncer) Sync(ctx context.Context, snap *v1.InstallSnapshot) error {
@@ -82,9 +81,6 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 	switch {
 	case meshErr == nil && !installEnabled:
 		if err := syncer.uninstallHelmRelease(ctx, mesh, install, meshInstaller); err != nil {
-			return err
-		}
-		if err := meshInstaller.DoPostHelmUninstall(); err != nil {
 			return err
 		}
 		return syncer.MeshClient.Delete(mesh.Metadata.Namespace, mesh.Metadata.Name, clients.DeleteOpts{Ctx: ctx})
