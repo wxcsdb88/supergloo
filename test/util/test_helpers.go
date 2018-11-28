@@ -41,6 +41,7 @@ import (
 var kubeConfig *rest.Config
 var kubeClient *kubernetes.Clientset
 var apiExtsClient apiexts.Interface
+var upstreamClient gloo.UpstreamClient
 
 var testKey = "-----BEGIN PRIVATE KEY-----\nMIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDBoI1sMdiOTvBBdjWlS\nZ8qwNuK9xV4yKuboLZ4Sx/OBfy1eKZocxTKvnjLrHUe139uhZANiAAQMTIR56O8U\nTIqf6uUHM4i9mZYLj152up7elS06Gi6lk7IeUQDHxP0NnOnbhC7rmtOV6myLNApL\nQ92kZKg7qa8q7OY/4w1QfC4ch7zZKxjNkSIiuAx7V/lzF6FYDcqT3js=\n-----END PRIVATE KEY-----"
 var TestRoot = "-----BEGIN CERTIFICATE-----\nMIIB7jCCAXUCCQC2t6Lqc2xnXDAKBggqhkjOPQQDAjBhMQswCQYDVQQGEwJVUzEW\nMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQwwCgYD\nVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMTgxMzQz\nMDJaFw0xOTExMTgxMzQzMDJaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1NYXNz\nYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEYMBYG\nA1UEAwwPd3d3LmV4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEDEyE\neejvFEyKn+rlBzOIvZmWC49edrqe3pUtOhoupZOyHlEAx8T9DZzp24Qu65rTleps\nizQKS0PdpGSoO6mvKuzmP+MNUHwuHIe82SsYzZEiIrgMe1f5cxehWA3Kk947MAoG\nCCqGSM49BAMCA2cAMGQCMCytVFc8sBdbM7DaBCz0N2ptdb0T7LFFfxDTzn4gjiDq\nVCd/3dct21TUWsthKXF2VgIwXEMI5EQiJ5kjR/y1KNBC9b4wfDiKRvG33jYe9gn6\ntzXUS00SoqG9D27/7aK71/xv\n-----END CERTIFICATE-----"
@@ -192,14 +193,18 @@ func GetMeshClient(kubeCache *kube.KubeCache) v1.MeshClient {
 }
 
 func GetUpstreamClient(kubeCache *kube.KubeCache) gloo.UpstreamClient {
-	upstreamClient, err := gloo.NewUpstreamClient(&factory.KubeResourceClientFactory{
+	if upstreamClient != nil {
+		return upstreamClient
+	}
+	client, err := gloo.NewUpstreamClient(&factory.KubeResourceClientFactory{
 		Crd:         gloo.UpstreamCrd,
 		Cfg:         GetKubeConfig(),
 		SharedCache: kubeCache,
 	})
 	ExpectWithOffset(1, err).Should(BeNil())
-	err = upstreamClient.Register()
+	err = client.Register()
 	ExpectWithOffset(1, err).Should(BeNil())
+	upstreamClient = client
 	return upstreamClient
 }
 
