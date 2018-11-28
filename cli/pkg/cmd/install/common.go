@@ -128,20 +128,3 @@ func chooseMeshType() (string, error) {
 
 	return choice, nil
 }
-
-func chooseSecretNamespace(opts *options.Options) (string, error) {
-
-	question := &survey.Select{
-		Message: "Select a secret namespace",
-		Options: opts.Cache.Namespaces,
-	}
-
-	var choice string
-	if err := survey.AskOne(question, &choice, survey.Required); err != nil {
-		// this should not error
-		fmt.Println("error with input")
-		return "", err
-	}
-
-	return choice, nil
-}
