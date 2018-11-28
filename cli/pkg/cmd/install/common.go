@@ -54,14 +54,14 @@ func qualifyFlags(opts *options.Options) error {
 		if iop.MeshType == "" {
 			return fmt.Errorf("please provide a mesh type")
 		}
-		//if iop.Mtls {
-		//	if iop.SecretRef.Name == "" {
-		//		return fmt.Errorf("please specify a secret name to use mTLS")
-		//	}
-		//	if iop.SecretRef.Namespace == "" {
-		//		return fmt.Errorf("please specify a secret namespace to use mTLS")
-		//	}
-		//}
+		if iop.Mtls {
+			if iop.SecretRef.Name == "" {
+				return fmt.Errorf("please specify a secret name to use mTLS")
+			}
+			if iop.SecretRef.Namespace == "" {
+				return fmt.Errorf("please specify a secret namespace to use mTLS")
+			}
+		}
 		return nil
 	}
 
@@ -95,19 +95,19 @@ func qualifyFlags(opts *options.Options) error {
 		return fmt.Errorf("input error")
 	}
 
-	//if iop.Mtls {
-	//	chosenSecretNamespace, err := chooseSecretNamespace(opts)
-	//	if err != nil {
-	//		return fmt.Errorf("input error")
-	//	}
-	//	iop.SecretRef.Namespace = chosenSecretNamespace
-	//
-	//	chosenSecretName, err := chooseSecretName()
-	//	if err != nil {
-	//		return fmt.Errorf("input error")
-	//	}
-	//	iop.SecretRef.Name = chosenSecretName
-	//}
+	if iop.Mtls {
+		chosenSecretNamespace, err := chooseSecretNamespace(opts)
+		if err != nil {
+			return fmt.Errorf("input error")
+		}
+		iop.SecretRef.Namespace = chosenSecretNamespace
+
+		chosenSecretName, err := chooseSecretName()
+		if err != nil {
+			return fmt.Errorf("input error")
+		}
+		iop.SecretRef.Name = chosenSecretName
+	}
 
 	return nil
 }
