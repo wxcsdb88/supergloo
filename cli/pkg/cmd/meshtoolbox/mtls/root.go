@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
-	// "github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/cli/pkg/common"
 	"github.com/solo-io/supergloo/cli/pkg/nsutil"
@@ -20,7 +19,14 @@ import (
 // cons: may confuse users when shown in help msg, might not add a lot of value
 const DEV_MTLS = false
 
-var validRootArgs = []string{"enable", "disable", "toggle"} // for bash completion
+// strings that users will pass to trigger commands
+const (
+	ENABLE_MTLS  = "enable"
+	DISABLE_MTLS = "disable"
+	TOGGLE_MTLS  = "toggle"
+)
+
+var validRootArgs = []string{ENABLE_MTLS, DISABLE_MTLS, TOGGLE_MTLS} // for bash completion
 
 func Root(opts *options.Options) *cobra.Command {
 	if !DEV_MTLS {
@@ -69,7 +75,7 @@ func rootArgValidation(c *cobra.Command, args []string) error {
 
 func Enable(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "enable",
+		Use:   ENABLE_MTLS,
 		Short: `enable mTLS`,
 		Long:  `enable mTLS`,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -84,7 +90,7 @@ func Enable(opts *options.Options) *cobra.Command {
 
 func Disable(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "disable",
+		Use:   DISABLE_MTLS,
 		Short: `disable mTLS`,
 		Long:  `disable mTLS`,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -99,7 +105,7 @@ func Disable(opts *options.Options) *cobra.Command {
 
 func Toggle(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "toggle",
+		Use:   TOGGLE_MTLS,
 		Short: `toggle mTLS`,
 		Long:  `toggle mTLS`,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -114,7 +120,7 @@ func Toggle(opts *options.Options) *cobra.Command {
 
 func enableMtls(opts *options.Options) error {
 
-	if _, err := updateMtls("enable", opts); err != nil {
+	if _, err := updateMtls(ENABLE_MTLS, opts); err != nil {
 		return err
 	}
 	fmt.Printf("Enabled mTLS on mesh %v", opts.MeshTool.Mesh.Name)
@@ -123,7 +129,7 @@ func enableMtls(opts *options.Options) error {
 }
 
 func disableMtls(opts *options.Options) error {
-	if _, err := updateMtls("disable", opts); err != nil {
+	if _, err := updateMtls(DISABLE_MTLS, opts); err != nil {
 		return err
 	}
 	fmt.Printf("Disabled mTLS on mesh %v", opts.MeshTool.Mesh.Name)
@@ -131,7 +137,7 @@ func disableMtls(opts *options.Options) error {
 }
 
 func toggleMtls(opts *options.Options) error {
-	mesh, err := updateMtls("toggle", opts)
+	mesh, err := updateMtls(TOGGLE_MTLS, opts)
 	if err != nil {
 		return err
 	}
@@ -174,7 +180,7 @@ func updateMtls(operation string, opts *options.Options) (*superglooV1.Mesh, err
 
 	// 3. mutate the mesh structure
 	switch operation {
-	case "enable":
+	case ENABLE_MTLS:
 		if mesh.Encryption == nil {
 			mesh.Encryption = &superglooV1.Encryption{
 				TlsEnabled: true,
@@ -183,7 +189,7 @@ func updateMtls(operation string, opts *options.Options) (*superglooV1.Mesh, err
 			mesh.Encryption.TlsEnabled = true
 
 		}
-	case "disable":
+	case DISABLE_MTLS:
 		if mesh.Encryption == nil {
 			mesh.Encryption = &superglooV1.Encryption{
 				TlsEnabled: false,
@@ -192,7 +198,7 @@ func updateMtls(operation string, opts *options.Options) (*superglooV1.Mesh, err
 			mesh.Encryption.TlsEnabled = false
 
 		}
-	case "toggle":
+	case TOGGLE_MTLS:
 		// if encryption has not been specified, "toggle" will enable it
 		if mesh.Encryption == nil {
 			mesh.Encryption = &superglooV1.Encryption{
