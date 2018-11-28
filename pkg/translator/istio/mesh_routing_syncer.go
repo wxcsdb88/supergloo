@@ -3,11 +3,12 @@ package istio
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/mitchellh/hashstructure"
 	"github.com/solo-io/solo-kit/pkg/utils/nameutils"
 	"github.com/solo-io/solo-kit/pkg/utils/stringutils"
 	"go.uber.org/multierr"
-	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
@@ -226,7 +227,7 @@ func virtualServicesForRules(rules v1.RoutingRuleList, meshes v1.MeshList, upstr
 		if err != nil {
 			return nil, err
 		}
-		addUniqueHosts:
+	addUniqueHosts:
 		for _, us := range destUpstreams {
 			host, err := getHostForUpstream(us)
 			if err != nil {
@@ -381,34 +382,6 @@ func mergeRulesByMatch(rules v1.RoutingRuleList) (v1.RoutingRuleList, error) {
 	}
 	return mergedRules.Sort(), nil
 }
-
-//func mergeIstioRulesByMatch(rules []*v1alpha3.HTTPRoute) ([]*v1alpha3.HTTPRoute, error) {
-//	rulesByUniqueMatch := make(map[uint64][]*v1alpha3.HTTPRoute)
-//	for _, rule := range rules {
-//		hash, _ := hashstructure.Hash(rule.Match, nil)
-//		rulesByUniqueMatch[hash] = append(rulesByUniqueMatch[hash], rule)
-//	}
-//	var mergedRules []*v1alpha3.HTTPRoute
-//	for _, rulesForMatch := range rulesByUniqueMatch {
-//		mergedRule := &v1alpha3.HTTPRoute{
-//			Match: rulesForMatch[0].Match,
-//		}
-//		for _, rule := range rulesForMatch {
-//			if rule.Fault != nil {
-//				if mergedRule.Fault != nil {
-//					return nil, errors.Errorf("Fault redefined in for match %v", rule.Match)
-//				}
-//				mergedRule.Fault = rule.Fault
-//			}
-//			if rule.Fault != nil {
-//				if mergedRule.Fault != nil {
-//					return nil, errors.Errorf("Fault redefined in for match %v", rule.Match)
-//				}
-//				mergedRule.Fault = rule.Fault
-//			}
-//		}
-//	}
-//}
 
 func virtualServiceForHost(host string, rules v1.RoutingRuleList, mesh *v1.Mesh, upstreams gloov1.UpstreamList) (*v1alpha3.VirtualService, error) {
 	rules, err := mergeRulesByMatch(rules)
