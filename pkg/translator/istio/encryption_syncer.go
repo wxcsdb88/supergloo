@@ -33,10 +33,10 @@ func (s *EncryptionSyncer) syncMesh(ctx context.Context, mesh *v1.Mesh, snap *v1
 	}
 	secretList := snap.Istiocerts.List()
 	secretSyncer := secret.SecretSyncer{
-		IstioNamespace: s.IstioNamespace,
-		Kube:           s.Kube,
-		SecretClient:   s.SecretClient,
-		Preinstall:     false,
+		Kube:         s.Kube,
+		SecretClient: s.SecretClient,
+		SecretList:   secretList,
+		Preinstall:   false,
 	}
-	return secretSyncer.SyncSecret(ctx, mesh.Encryption, secretList)
+	return secretSyncer.SyncSecret(ctx, mesh.GetIstio().InstallationNamespace, mesh.Encryption)
 }

@@ -146,7 +146,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 	})
 
 	Describe("istio + encryption", func() {
-		It("Can install istio with mtls enabled and custom root cert", func() {
+		FIt("Can install istio with mtls enabled and custom root cert", func() {
 			secret, ref := util.CreateTestSecret(superglooNamespace, secretName)
 			snap := getSnapshot(true, true, ref, secret)
 			err := installSyncer.Sync(context.TODO(), snap)
@@ -217,7 +217,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 			cmd := exec.Command(PathToUds, "-discover", bookinfons)
 			_, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
-			snap := getSnapshot(true, true, nil)
+			snap := getSnapshot(true, true, nil, nil)
 			err = installSyncer.Sync(context.TODO(), snap)
 			Expect(err).NotTo(HaveOccurred())
 			util.WaitForAvailablePodsWithTimeout(installNamespace, "300s")
