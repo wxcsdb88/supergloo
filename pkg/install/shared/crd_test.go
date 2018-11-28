@@ -60,7 +60,7 @@ var _ = Describe("Crd", func() {
 				if testCrd.Name == actual.Name {
 					found = true
 					// set by apiserver
-					testCrd.Spec.Names.ListKind = testCrd.Spec.Names.Kind+"List"
+					testCrd.Spec.Names.ListKind = testCrd.Spec.Names.Kind + "List"
 					Expect(testCrd.Spec).To(Equal(actual.Spec))
 					break
 				}
