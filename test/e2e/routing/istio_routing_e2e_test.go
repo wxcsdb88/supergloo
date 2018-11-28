@@ -1,6 +1,8 @@
-package e2e
+package routing
 
 import (
+	"github.com/solo-io/supergloo/pkg/install/istio"
+	"github.com/solo-io/supergloo/test/util"
 	"os"
 	"os/exec"
 	"time"
@@ -25,26 +27,32 @@ var _ = Describe("istio routing E2e", func() {
 	var namespace, releaseName string
 	path := os.Getenv("HELM_CHART_PATH_ISTIO")
 	if path == "" {
-		Skip("Set environment variable HELM_CHART_PATH")
+		path = "https://s3.amazonaws.com/supergloo.solo.io/istio-1.0.3.tgz"
 	}
+
 	BeforeEach(func() {
 		releaseName = "istio-release-test-" + helpers.RandString(8)
 		namespace = "istio-routing-test-" + helpers.RandString(8)
 		err := testsetup.SetupKubeForTest(namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
+
 	AfterEach(func() {
-		exec.Command("helm", "delete", releaseName, "--purge").Run()
-		testsetup.TeardownKube(namespace)
+		gexec.TerminateAndWait(2 * time.Second)
+
+		util.UninstallHelmRelease(releaseName)
+		util.TryDeleteIstioCrds()
+		util.TerminateNamespaceBlocking(namespace)
+		util.DeleteCrb(istio.CrbName)
 	})
 
-	It("works", func() {
+	FIt("works", func() {
 		go setup.Main(namespace)
 
 		// start discovery
 		cmd := exec.Command(PathToUds, "--namespace", namespace)
 		cmd.Env = os.Environ()
-		_, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+		_, err := gexec.Start(cmd, os.Stdout, os.Stderr)
 		Expect(err).NotTo(HaveOccurred())
 
 		meshes, routingRules, installClient, err := run()
