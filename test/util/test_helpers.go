@@ -47,9 +47,56 @@ var apiExtsClient apiexts.Interface
 var upstreamClient gloo.UpstreamClient
 var secretClient istiov1.IstioCacertsSecretClient
 
-var testKey = "-----BEGIN PRIVATE KEY-----\nMIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDBoI1sMdiOTvBBdjWlS\nZ8qwNuK9xV4yKuboLZ4Sx/OBfy1eKZocxTKvnjLrHUe139uhZANiAAQMTIR56O8U\nTIqf6uUHM4i9mZYLj152up7elS06Gi6lk7IeUQDHxP0NnOnbhC7rmtOV6myLNApL\nQ92kZKg7qa8q7OY/4w1QfC4ch7zZKxjNkSIiuAx7V/lzF6FYDcqT3js=\n-----END PRIVATE KEY-----"
-var TestRoot = "-----BEGIN CERTIFICATE-----\nMIIB7jCCAXUCCQC2t6Lqc2xnXDAKBggqhkjOPQQDAjBhMQswCQYDVQQGEwJVUzEW\nMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQwwCgYD\nVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMTgxMzQz\nMDJaFw0xOTExMTgxMzQzMDJaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1NYXNz\nYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEYMBYG\nA1UEAwwPd3d3LmV4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEDEyE\neejvFEyKn+rlBzOIvZmWC49edrqe3pUtOhoupZOyHlEAx8T9DZzp24Qu65rTleps\nizQKS0PdpGSoO6mvKuzmP+MNUHwuHIe82SsYzZEiIrgMe1f5cxehWA3Kk947MAoG\nCCqGSM49BAMCA2cAMGQCMCytVFc8sBdbM7DaBCz0N2ptdb0T7LFFfxDTzn4gjiDq\nVCd/3dct21TUWsthKXF2VgIwXEMI5EQiJ5kjR/y1KNBC9b4wfDiKRvG33jYe9gn6\ntzXUS00SoqG9D27/7aK71/xv\n-----END CERTIFICATE-----"
+var testEcKey = "-----BEGIN PRIVATE KEY-----\nMIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDBoI1sMdiOTvBBdjWlS\nZ8qwNuK9xV4yKuboLZ4Sx/OBfy1eKZocxTKvnjLrHUe139uhZANiAAQMTIR56O8U\nTIqf6uUHM4i9mZYLj152up7elS06Gi6lk7IeUQDHxP0NnOnbhC7rmtOV6myLNApL\nQ92kZKg7qa8q7OY/4w1QfC4ch7zZKxjNkSIiuAx7V/lzF6FYDcqT3js=\n-----END PRIVATE KEY-----"
+var TestEcRoot = "-----BEGIN CERTIFICATE-----\nMIIB7jCCAXUCCQC2t6Lqc2xnXDAKBggqhkjOPQQDAjBhMQswCQYDVQQGEwJVUzEW\nMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQwwCgYD\nVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMTgxMzQz\nMDJaFw0xOTExMTgxMzQzMDJaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1NYXNz\nYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEYMBYG\nA1UEAwwPd3d3LmV4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEDEyE\neejvFEyKn+rlBzOIvZmWC49edrqe3pUtOhoupZOyHlEAx8T9DZzp24Qu65rTleps\nizQKS0PdpGSoO6mvKuzmP+MNUHwuHIe82SsYzZEiIrgMe1f5cxehWA3Kk947MAoG\nCCqGSM49BAMCA2cAMGQCMCytVFc8sBdbM7DaBCz0N2ptdb0T7LFFfxDTzn4gjiDq\nVCd/3dct21TUWsthKXF2VgIwXEMI5EQiJ5kjR/y1KNBC9b4wfDiKRvG33jYe9gn6\ntzXUS00SoqG9D27/7aK71/xv\n-----END CERTIFICATE-----"
 var testCertChain = ""
+
+var testRsaKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEA4s289Pn0up+4kVkSQc2DkEAFepdjLTK7+3rSWx35njd5OMRy
+2eHKTjn/goT3T3BJV3OurqO+VYKSL+IcuRudn0F+TQSYbA/ZM6OKE49Yf0XqLzI7
+oYjnCp5CSLvKJP82jMyj+9I2uyjRdrxahBI3qy/OI/xv055IggxYhrwXW8PUQ6/I
+diVkc8zD8gkKoDFB5/nQWlW7awHy3gUp6zDK/T5PCH4nvmEH06IOczUbwTHcCfgb
+op5Rfym24lLpot6a5muo4bp2xobgesLo64i7F/JFt7bMnLId46caGjMZVdL1OkKn
+cySvng3IqXj6ndd95W24F4btRS8dLsS9L7YGXQIDAQABAoIBAQCeuKyMJIEIOc7I
+qTUFp/Vyddtft6JId0Dm9UVRTuDpwJitCY32vPT/WcdeZ/9LMKGi+eo9fYot/Xqg
+1/SR9qmQUh05eQXSWiT+5mwy1BZyu1LwRI9GtLA71hU9IW6OBaz/TBdWm/6BbEdq
+eNY/pyAeRQ5WUMtRpWvI1yr835TZOhj6fYX0RYnV/ySuSkvAcNCCAQENrYPTmvUr
+pTBgULJGZ7sgFY9ijjI/w2imSjZNvhVK3UORYb6toY24757UU6w0vOQvNlXAGBnP
+8dxwEPfvL+hORE+XW/O6QrzAGtaiHoWUQam/P8rMJgU2OVZdYyRMSgxvWBSbJb/a
+zWr+frcBAoGBAOOUtDGaQFnPtGbululiQifTPAPCPDNSCVq8lnpOu4dtyGEhzoBg
+5tJlD3EztQhL+V2WPW8nAjp6jUjBeUY9gatZAc6jdbhcSm8xHzfsGLKW/Zfu5aZP
+EVNZhyyo3cQQOc3GgSfnju9KPrMzOezdMtJt6oKFfo5oNdyOm5wOSN4ZAoGBAP8g
+MDvMyEAd0NuTmAeM/YUOQhdaFWpDOGZwUogbRMzUwImFP3EcNQNi7mAbib1/6cCf
+p3s8wJJa7OwVKmsQxlw8wz6DPpk6J++Rd4EeQ2Ej/M8EW/14HmKNCSjcalPQtemu
+Njv6oVmOnQT2AkEciEK2WX+krDpRgb4Coy4xOWrlAoGBANMX2rBryKbFrysOwbJG
+7uAr4e4Gm3pq7LxaUyWto+pxnTzjc7zGpTOgg9tXv+KrPeld8ywHvdxqUmSa+Rd6
+86zxCWkXW5kfGffbU362ow38Wcs0z5UcoBB06Zo2JEW5WzSQnLpb4cv5TQFBUchw
+QLTJOY3Jr2L+LH+hU5tD8Lj5AoGAddIttFA8Yq/iVqVw3nvUUPBmwVYO8cYdc+GH
+m+fL/DR8voXU6K24Jdo4cBYHpIZAM38H37gMzwpCxDx6HHvgv5QoLuR5slXTP6YU
+ZILPZzsxc4F14jbpAWZUxpQUXqTSfhrAXS6/+RYNmc7q95rvqq9/4ZzxFPWzT0b0
+iU6eT6kCgYEAoNr45Y7bzfUNYQ1jdoWQVqezqHu1vzRz5bGu1gKLGKGBNWRmCAHk
+rFpoGjGzrgzQMPxrIO9RcVJnmYazYVc1nGqgsnrSxc00avGSTvZfHST255PyNxdt
+bWnSl6bL7KyPezquNhnRQgnMhXlQLdYb95NpgQq37JMXJZ37ISL6TNY=
+-----END RSA PRIVATE KEY-----`
+
+var testRsaCert = `-----BEGIN CERTIFICATE-----
+MIIC5jCCAc6gAwIBAgIRAIDngVC9z3HRR4DdOvnKO38wDQYJKoZIhvcNAQELBQAw
+HDEaMBgGA1UEChMRazhzLmNsdXN0ZXIubG9jYWwwHhcNMTcxMTE1MDAzMzUyWhcN
+MjcxMTEzMDAzMzUyWjAcMRowGAYDVQQKExFrOHMuY2x1c3Rlci5sb2NhbDCCASIw
+DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOLNvPT59LqfuJFZEkHNg5BABXqX
+Yy0yu/t60lsd+Z43eTjEctnhyk45/4KE909wSVdzrq6jvlWCki/iHLkbnZ9Bfk0E
+mGwP2TOjihOPWH9F6i8yO6GI5wqeQki7yiT/NozMo/vSNrso0Xa8WoQSN6svziP8
+b9OeSIIMWIa8F1vD1EOvyHYlZHPMw/IJCqAxQef50FpVu2sB8t4FKeswyv0+Twh+
+J75hB9OiDnM1G8Ex3An4G6KeUX8ptuJS6aLemuZrqOG6dsaG4HrC6OuIuxfyRbe2
+zJyyHeOnGhozGVXS9TpCp3Mkr54NyKl4+p3XfeVtuBeG7UUvHS7EvS+2Bl0CAwEA
+AaMjMCEwDgYDVR0PAQH/BAQDAgIEMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcN
+AQELBQADggEBAEe3XmOAod4CoLkOWNFP6RbtSO3jDO6bzV0qOioS8Yj55eQ78hR9
+R14TG5+QCHXz4W3FQMsgEg1OQodmw6lhupkvQn1ZP/zf3a/kfTuK0VOIzqeKe4TI
+IgsccmELXGdxojN23311/tAcq3d8pSTKusH7KNwAQWmerkxB6wzSHTiJWICFJzs4
+RWeVWm0l72yZcYFaZ/LBkn+gRyV88r51BR+IR7sMDB7k6hsdMWdxvNESr1h9JU+Q
+NbOwbkIREzozcpaJ2eSiksLkPIxh8/zaULUpPbVMOeOIybUK4iW+K2FyibCc5r9d
+vbw9mUuRBuYCROUaNv2/TAkauxVPCYPq7Ow=
+-----END CERTIFICATE-----`
 
 func GetKubeConfig() *rest.Config {
 	if kubeConfig != nil {
@@ -265,17 +312,42 @@ func CreateConsulTunnel(namespace string, port int) (*helmkube.Tunnel, error) {
 	return t, t.ForwardPort()
 }
 
-func CreateTestSecret(namespace string, name string) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
+func CreateTestEcSecret(namespace string, name string) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
 	secret := &istiosecret.IstioCacertsSecret{
 		Metadata: core.Metadata{
 			Namespace: namespace,
 			Name:      name,
 		},
-		CaCert:    TestRoot,
-		CaKey:     testKey,
-		RootCert:  TestRoot,
+		CaCert:    TestEcRoot,
+		CaKey:     testEcKey,
+		RootCert:  TestEcRoot,
 		CertChain: testCertChain,
 	}
+	GetSecretClient().Delete(namespace, name, clients.DeleteOpts{})
+	_, err := GetSecretClient().Write(secret, clients.WriteOpts{})
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	ref := &core.ResourceRef{
+		Namespace: namespace,
+		Name:      name,
+	}
+	return secret, ref
+}
+
+func CreateTestRsaSecret(namespace string, name string) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
+	secret := &istiosecret.IstioCacertsSecret{
+		Metadata: core.Metadata{
+			Namespace: namespace,
+			Name:      name,
+		},
+		CaCert:    testRsaCert,
+		CaKey:     testRsaKey,
+		RootCert:  testRsaCert,
+		CertChain: testCertChain,
+	}
+	return createSecret(namespace, name, secret)
+}
+
+func createSecret(namespace string, name string, secret *istiosecret.IstioCacertsSecret) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
 	GetSecretClient().Delete(namespace, name, clients.DeleteOpts{})
 	_, err := GetSecretClient().Write(secret, clients.WriteOpts{})
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
@@ -303,9 +375,9 @@ func CheckCertMatchesConsul(consulTunnelPort int, rootCert string) {
 func CheckCertMatchesIstio(installNamespace string) {
 	actual, err := GetSecretClient().Read(installNamespace, secret.CustomRootCertificateSecretName, clients.ReadOpts{})
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	ExpectWithOffset(1, actual.RootCert).Should(BeEquivalentTo(TestRoot))
-	ExpectWithOffset(1, actual.CaCert).Should(BeEquivalentTo(TestRoot))
-	ExpectWithOffset(1, actual.CaKey).Should(BeEquivalentTo(testKey))
+	ExpectWithOffset(1, actual.RootCert).Should(BeEquivalentTo(testRsaCert))
+	ExpectWithOffset(1, actual.CaCert).Should(BeEquivalentTo(testRsaCert))
+	ExpectWithOffset(1, actual.CaKey).Should(BeEquivalentTo(testRsaKey))
 	ExpectWithOffset(1, actual.CertChain).Should(BeEquivalentTo(testCertChain))
 }
 
