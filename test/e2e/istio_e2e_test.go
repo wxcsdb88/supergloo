@@ -107,9 +107,9 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 
 		secretClient = util.GetSecretClient()
 		installSyncer = install.InstallSyncer{
-			Kube:          util.GetKubeClient(),
-			MeshClient:    meshClient,
-			ApiExtsClient: util.GetApiExtsClient(),
+			Kube:       util.GetKubeClient(),
+			MeshClient: meshClient,
+			ApiExts:    util.GetApiExtsClient(),
 		}
 	})
 
@@ -199,7 +199,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 			return bookinfons
 		}
 
-		It("Should install istio and enable policy", func() {
+		FIt("Should install istio and enable policy", func() {
 
 			// start discovery
 			cmd := exec.Command(PathToUds, "-udsonly")

@@ -27,21 +27,20 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	kubecore "k8s.io/api/core/v1"
+	apiexts "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	helmlib "k8s.io/helm/pkg/helm"
 	helmkube "k8s.io/helm/pkg/kube"
 
 	security "github.com/openshift/client-go/security/clientset/versioned"
-	client "k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset/typed/apiextensions/internalversion"
-
 	// love me google.
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 var kubeConfig *rest.Config
 var kubeClient *kubernetes.Clientset
-var apiExtsClient *client.ApiextensionsClient
+var apiExtsClient apiexts.Interface
 
 var testKey = "-----BEGIN PRIVATE KEY-----\nMIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDBoI1sMdiOTvBBdjWlS\nZ8qwNuK9xV4yKuboLZ4Sx/OBfy1eKZocxTKvnjLrHUe139uhZANiAAQMTIR56O8U\nTIqf6uUHM4i9mZYLj152up7elS06Gi6lk7IeUQDHxP0NnOnbhC7rmtOV6myLNApL\nQ92kZKg7qa8q7OY/4w1QfC4ch7zZKxjNkSIiuAx7V/lzF6FYDcqT3js=\n-----END PRIVATE KEY-----"
 var TestRoot = "-----BEGIN CERTIFICATE-----\nMIIB7jCCAXUCCQC2t6Lqc2xnXDAKBggqhkjOPQQDAjBhMQswCQYDVQQGEwJVUzEW\nMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQwwCgYD\nVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMTgxMzQz\nMDJaFw0xOTExMTgxMzQzMDJaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1NYXNz\nYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEYMBYG\nA1UEAwwPd3d3LmV4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEDEyE\neejvFEyKn+rlBzOIvZmWC49edrqe3pUtOhoupZOyHlEAx8T9DZzp24Qu65rTleps\nizQKS0PdpGSoO6mvKuzmP+MNUHwuHIe82SsYzZEiIrgMe1f5cxehWA3Kk947MAoG\nCCqGSM49BAMCA2cAMGQCMCytVFc8sBdbM7DaBCz0N2ptdb0T7LFFfxDTzn4gjiDq\nVCd/3dct21TUWsthKXF2VgIwXEMI5EQiJ5kjR/y1KNBC9b4wfDiKRvG33jYe9gn6\ntzXUS00SoqG9D27/7aK71/xv\n-----END CERTIFICATE-----"
@@ -69,12 +68,12 @@ func GetKubeClient() *kubernetes.Clientset {
 	return client
 }
 
-func GetApiExtsClient() *client.ApiextensionsClient {
+func GetApiExtsClient() apiexts.Interface {
 	if apiExtsClient != nil {
 		return apiExtsClient
 	}
 	cfg := GetKubeConfig()
-	client, err := client.NewForConfig(cfg)
+	client, err := apiexts.NewForConfig(cfg)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	apiExtsClient = client
 	return client
@@ -339,21 +338,21 @@ func HelmReleaseDoesntExist(releaseName string) bool {
 
 func TryDeleteIstioCrds() {
 	crdClient := GetApiExtsClient()
-	crdList, err := crdClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
+	crdList, err := crdClient.ApiextensionsV1beta1().CustomResourceDefinitions().List(kubemeta.ListOptions{})
 	if err != nil {
 		return
 	}
 	for _, crd := range crdList.Items {
 		//TODO: use labels
 		if strings.Contains(crd.Name, "istio.io") {
-			crdClient.CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
+			crdClient.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
 		}
 	}
 }
 
 func IstioCrdsDontExist() bool {
 	crdClient := GetApiExtsClient()
-	crdList, err := crdClient.CustomResourceDefinitions().List(kubemeta.ListOptions{})
+	crdList, err := crdClient.ApiextensionsV1beta1().CustomResourceDefinitions().List(kubemeta.ListOptions{})
 	if err != nil {
 		return false
 	}

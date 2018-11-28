@@ -73,9 +73,9 @@ var _ = Describe("Istio Installer", func() {
 		util.TryCreateNamespace("supergloo-system")
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
-			Kube:          util.GetKubeClient(),
-			MeshClient:    meshClient,
-			ApiExtsClient: util.GetApiExtsClient(),
+			Kube:       util.GetKubeClient(),
+			MeshClient: meshClient,
+			ApiExts:    util.GetApiExtsClient(),
 		}
 	})
 
