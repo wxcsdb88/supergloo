@@ -3,6 +3,7 @@ package nsutil
 import (
 	"fmt"
 
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/cli/pkg/common"
 	"gopkg.in/AlecAivazis/survey.v1"
@@ -13,11 +14,11 @@ import (
 // ChooseMesh allows users to interactively select a mesh
 // Options are displayed in the format "<installation_namespace>, <name>" for each mesh
 // Selections are returned as a resource ref (and the resource ref namespace may differ from the installation namespace)
-func ChooseMesh(nsr options.NsResourceMap) (options.ResourceRef, error) {
+func ChooseMesh(nsr options.NsResourceMap) (core.ResourceRef, error) {
 
 	meshOptions, meshMap := generateMeshSelectOptions(nsr)
 	if len(meshOptions) == 0 {
-		return options.ResourceRef{}, fmt.Errorf("No meshs found. Please create a mesh")
+		return core.ResourceRef{}, fmt.Errorf("No meshs found. Please create a mesh")
 	}
 
 	question := &survey.Select{
@@ -29,7 +30,7 @@ func ChooseMesh(nsr options.NsResourceMap) (options.ResourceRef, error) {
 	if err := survey.AskOne(question, &choice, survey.Required); err != nil {
 		// this should not error
 		fmt.Println("error with input")
-		return options.ResourceRef{}, err
+		return core.ResourceRef{}, err
 	}
 
 	return meshMap[choice].resourceRef, nil
@@ -37,7 +38,7 @@ func ChooseMesh(nsr options.NsResourceMap) (options.ResourceRef, error) {
 
 // EnsureSecret validates a meshRef relative to static vs. interactive mode
 // If in interactive mode (non-static mode) and a secret is not given, it will prompt the user to choose one
-func EnsureMesh(meshRef *options.ResourceRef, opts *options.Options) error {
+func EnsureMesh(meshRef *core.ResourceRef, opts *options.Options) error {
 	if err := validateResourceRefForStaticMode("mesh", "mesh", meshRef, opts); err != nil {
 		return err
 	}
@@ -52,11 +53,11 @@ func EnsureMesh(meshRef *options.ResourceRef, opts *options.Options) error {
 	return nil
 }
 
-func ChooseResource(typeName string, menuDescription string, nsr options.NsResourceMap) (options.ResourceRef, error) {
+func ChooseResource(typeName string, menuDescription string, nsr options.NsResourceMap) (core.ResourceRef, error) {
 
 	resOptions, resMap := generateCommonResourceSelectOptions(typeName, nsr)
 	if len(resOptions) == 0 {
-		return options.ResourceRef{}, fmt.Errorf("No %v found. Please create a %v", menuDescription, menuDescription)
+		return core.ResourceRef{}, fmt.Errorf("No %v found. Please create a %v", menuDescription, menuDescription)
 	}
 	question := &survey.Select{
 		Message: fmt.Sprintf("Select a %v", menuDescription),
@@ -67,7 +68,7 @@ func ChooseResource(typeName string, menuDescription string, nsr options.NsResou
 	if err := survey.AskOne(question, &choice, survey.Required); err != nil {
 		// this should not error
 		fmt.Println("error with input")
-		return options.ResourceRef{}, err
+		return core.ResourceRef{}, err
 	}
 
 	return resMap[choice].resourceRef, nil
@@ -77,7 +78,7 @@ func ChooseResource(typeName string, menuDescription string, nsr options.NsResou
 // If in interactive mode (non-static mode) and a resourceRef is not given, it will prompt the user to choose one
 // This function works for multiple types of resources. Specify the resource type via typeName
 // menuDescription - the string that the user will see when the prompt menu appears
-func EnsureCommonResource(typeName string, menuDescription string, resRef *options.ResourceRef, opts *options.Options) error {
+func EnsureCommonResource(typeName string, menuDescription string, resRef *core.ResourceRef, opts *options.Options) error {
 	if err := validateResourceRefForStaticMode(typeName, menuDescription, resRef, opts); err != nil {
 		return err
 	}
@@ -93,7 +94,7 @@ func EnsureCommonResource(typeName string, menuDescription string, resRef *optio
 	return nil
 }
 
-func validateResourceRefForStaticMode(typeName string, menuDescription string, resRef *options.ResourceRef, opts *options.Options) error {
+func validateResourceRefForStaticMode(typeName string, menuDescription string, resRef *core.ResourceRef, opts *options.Options) error {
 	if opts.Top.Static {
 		// make sure we have a full resource ref
 		if resRef.Name == "" {

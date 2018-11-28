@@ -7,6 +7,7 @@ import (
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
+	"github.com/solo-io/supergloo/cli/pkg/nsutil"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/constants"
 	"gopkg.in/AlecAivazis/survey.v1"
@@ -15,7 +16,7 @@ import (
 func installationSummaryMessage(opts *options.Options) {
 	fmt.Printf("Installing %v in namespace %v.\n", opts.Install.MeshType, opts.Install.Namespace)
 	if opts.Install.Mtls {
-		fmt.Printf("MTLS active.\n")
+		fmt.Printf("mTLS active.\n")
 	}
 	return
 }
@@ -28,7 +29,8 @@ func getNewInstallName(opts *options.Options) string {
 
 func getMetadataFromOpts(opts *options.Options) core.Metadata {
 	return core.Metadata{
-		Name:      getNewInstallName(opts),
+		Name: getNewInstallName(opts),
+		// TODO(mitchdraft) get mesh storage namespace from flag
 		Namespace: constants.SuperglooNamespace,
 	}
 }
@@ -54,14 +56,15 @@ func qualifyFlags(opts *options.Options) error {
 		if iop.MeshType == "" {
 			return fmt.Errorf("please provide a mesh type")
 		}
-		//if iop.Mtls {
-		//	if iop.SecretRef.Name == "" {
-		//		return fmt.Errorf("please specify a secret name to use MTLS")
-		//	}
-		//	if iop.SecretRef.Namespace == "" {
-		//		return fmt.Errorf("please specify a secret namespace to use MTLS")
-		//	}
-		//}
+
+		// user does not need to pass a custom secret
+		// if they do, they must pass both the name and namespace
+		if iop.SecretRef.Namespace != "" && iop.SecretRef.Name == "" {
+			return fmt.Errorf("please specify a secret name to use mTLS")
+		}
+		if iop.SecretRef.Name != "" && iop.SecretRef.Namespace == "" {
+			return fmt.Errorf("please specify a secret namespace to use mTLS")
+		}
 		return nil
 	}
 
@@ -74,7 +77,7 @@ func qualifyFlags(opts *options.Options) error {
 	}
 
 	if iop.Namespace == "" {
-		namespace, err := common.ChooseNamespace(opts, "Select a namespace")
+		namespace, err := common.ChooseNamespace(opts, "Select an installation namespace")
 		if err != nil {
 			return fmt.Errorf("input error")
 		}
@@ -89,25 +92,23 @@ func qualifyFlags(opts *options.Options) error {
 		iop.WatchNamespaces = watchNamespaces
 	}
 
-	chosenMtls, err := chooseMtls()
+	chosenMtls, err := common.ChooseBool("use mTLS?")
 	iop.Mtls = chosenMtls
 	if err != nil {
 		return fmt.Errorf("input error")
 	}
 
-	//if iop.Mtls {
-	//	chosenSecretNamespace, err := chooseSecretNamespace(opts)
-	//	if err != nil {
-	//		return fmt.Errorf("input error")
-	//	}
-	//	iop.SecretRef.Namespace = chosenSecretNamespace
-	//
-	//	chosenSecretName, err := chooseSecretName()
-	//	if err != nil {
-	//		return fmt.Errorf("input error")
-	//	}
-	//	iop.SecretRef.Name = chosenSecretName
-	//}
+	if iop.Mtls {
+		useCustomSecret, err := common.ChooseBool("use custom secret?")
+		if err != nil {
+			return fmt.Errorf("input error")
+		}
+		if useCustomSecret {
+			if err := nsutil.EnsureCommonResource("secret", "secret", &iop.SecretRef, opts); err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }
@@ -117,66 +118,6 @@ func chooseMeshType() (string, error) {
 	question := &survey.Select{
 		Message: "Select a mesh type",
 		Options: constants.MeshOptions,
-	}
-
-	var choice string
-	if err := survey.AskOne(question, &choice, survey.Required); err != nil {
-		// this should not error
-		fmt.Println("error with input")
-		return "", err
-	}
-
-	return choice, nil
-}
-
-func chooseMtls() (bool, error) {
-
-	options := []string{"yes", "no"}
-
-	question := &survey.Select{
-		Message: "use MTLS?",
-		Options: options,
-	}
-
-	var choice string
-	if err := survey.AskOne(question, &choice, survey.Required); err != nil {
-		// this should not error
-		fmt.Println("error with input")
-		return false, err
-	}
-
-	if choice == "yes" {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func chooseSecretNamespace(opts *options.Options) (string, error) {
-
-	question := &survey.Select{
-		Message: "Select a secret namespace",
-		Options: opts.Cache.Namespaces,
-	}
-
-	var choice string
-	if err := survey.AskOne(question, &choice, survey.Required); err != nil {
-		// this should not error
-		fmt.Println("error with input")
-		return "", err
-	}
-
-	return choice, nil
-}
-
-func chooseSecretName() (string, error) {
-
-	// TODO(mitchdraft) - get from system
-	nameOptions := []string{"verySecret", "sssshhhhh!!", "notSoSecret"}
-
-	question := &survey.Select{
-		Message: "Select a secret name",
-		Options: nameOptions,
 	}
 
 	var choice string

@@ -2,6 +2,7 @@ package setup
 
 import (
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/cli/pkg/common"
 	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
@@ -84,7 +85,7 @@ func InitCache(opts *options.Options) error {
 		}
 
 		// prime meshes
-		var meshesByInstallNs = []options.ResourceRef{}
+		var meshesByInstallNs = []core.ResourceRef{}
 		opts.Cache.NsResources[ns] = &options.NsResource{
 			MeshesByInstallNs: meshesByInstallNs,
 			Meshes:            meshes,
@@ -112,7 +113,7 @@ func InitCache(opts *options.Options) error {
 			}
 			opts.Cache.NsResources[iNs].MeshesByInstallNs = append(
 				opts.Cache.NsResources[iNs].MeshesByInstallNs,
-				options.ResourceRef{
+				core.ResourceRef{
 					Name:      m.Metadata.Name,
 					Namespace: m.Metadata.Namespace,
 				})

@@ -3,6 +3,7 @@ package meshtoolbox
 import (
 	"fmt"
 
+	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox/mtls"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox/policy"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/spf13/cobra"
@@ -50,8 +51,8 @@ func Retries(opts *options.Options) *cobra.Command {
 func Policy(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
-		Short: `apply a policy`,
-		Long:  `apply, update, or remove a policy`,
+		Short: `Apply a policy`,
+		Long:  `Apply, update, or remove a policy`,
 		Args:  cobra.ExactArgs(1),
 		Run: func(c *cobra.Command, args []string) {
 		},
@@ -63,6 +64,12 @@ func Policy(opts *options.Options) *cobra.Command {
 		policy.Remove(opts),
 		policy.Clear(opts),
 	)
+	return cmd
+}
+
+func ToggleMtls(opts *options.Options) *cobra.Command {
+	cmd := mtls.Root(opts)
+	linkMeshToolFlags(cmd, opts)
 	return cmd
 }
 
