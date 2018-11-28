@@ -1,8 +1,11 @@
 package istio
 
 import (
+	"context"
 	"strconv"
 	"strings"
+
+	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
 
 	security "github.com/openshift/client-go/security/clientset/versioned"
 	"github.com/solo-io/solo-kit/pkg/errors"
@@ -23,9 +26,10 @@ type IstioInstaller struct {
 	apiExts        apiexts.Interface
 	securityClient *security.Clientset
 	crds           []*v1beta1.CustomResourceDefinition
+	ctx            context.Context
 }
 
-func NewIstioInstaller(ApiExts apiexts.Interface, SecurityClient *security.Clientset) (*IstioInstaller, error) {
+func NewIstioInstaller(ctx context.Context, ApiExts apiexts.Interface, SecurityClient *security.Clientset) (*IstioInstaller, error) {
 	crds, err := shared.CrdsFromManifest(IstioCrdYaml)
 	if err != nil {
 		return nil, err
@@ -34,6 +38,7 @@ func NewIstioInstaller(ApiExts apiexts.Interface, SecurityClient *security.Clien
 		apiExts:        ApiExts,
 		securityClient: SecurityClient,
 		crds:           crds,
+		ctx:            ctx,
 	}, nil
 }
 
@@ -129,6 +134,7 @@ func (c *IstioInstaller) DoPostHelmUninstall() error {
 }
 
 func (c *IstioInstaller) deleteIstioCrds() error {
+	contextutils.LoggerFrom(c.ctx).Infof("deleting crds")
 	if c.apiExts == nil {
 		return errors.Errorf("Crd client not provided")
 	}

@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+
 	"k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
@@ -64,7 +65,7 @@ func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Instal
 	case *v1.Install_Consul:
 		meshInstaller = &consul.ConsulInstaller{}
 	case *v1.Install_Istio:
-		i, err := istio.NewIstioInstaller(syncer.ApiExts, syncer.SecurityClient)
+		i, err := istio.NewIstioInstaller(ctx, syncer.ApiExts, syncer.SecurityClient)
 		if err != nil {
 			return errors.Wrapf(err, "initializing istio installer")
 		}
