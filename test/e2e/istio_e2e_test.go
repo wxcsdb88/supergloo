@@ -202,7 +202,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		It("Should install istio and enable policy", func() {
 
 			// start discovery
-			cmd := exec.Command(PathToUds, "-udsonly")
+			cmd := exec.Command(PathToUds)
 			_, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
 			snap := getSnapshot(true, true, nil)

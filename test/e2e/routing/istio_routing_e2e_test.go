@@ -1,11 +1,12 @@
 package routing
 
 import (
-	"github.com/solo-io/supergloo/pkg/install/istio"
-	"github.com/solo-io/supergloo/test/util"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/solo-io/supergloo/pkg/install/istio"
+	"github.com/solo-io/supergloo/test/util"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -46,7 +47,7 @@ var _ = Describe("istio routing E2e", func() {
 		util.DeleteCrb(istio.CrbName)
 	})
 
-	FIt("works", func() {
+	It("works", func() {
 		go setup.Main(namespace)
 
 		// start discovery
