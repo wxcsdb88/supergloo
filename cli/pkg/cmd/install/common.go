@@ -29,7 +29,8 @@ func getNewInstallName(opts *options.Options) string {
 
 func getMetadataFromOpts(opts *options.Options) core.Metadata {
 	return core.Metadata{
-		Name:      getNewInstallName(opts),
+		Name: getNewInstallName(opts),
+		// TODO(mitchdraft) get mesh storage namespace from flag
 		Namespace: constants.SuperglooNamespace,
 	}
 }
@@ -76,7 +77,7 @@ func qualifyFlags(opts *options.Options) error {
 	}
 
 	if iop.Namespace == "" {
-		namespace, err := common.ChooseNamespace(opts, "Select a namespace")
+		namespace, err := common.ChooseNamespace(opts, "Select an installation namespace")
 		if err != nil {
 			return fmt.Errorf("input error")
 		}
