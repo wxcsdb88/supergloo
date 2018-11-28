@@ -51,8 +51,8 @@ func Retries(opts *options.Options) *cobra.Command {
 func Policy(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
-		Short: `apply a policy`,
-		Long:  `apply, update, or remove a policy`,
+		Short: `Apply a policy`,
+		Long:  `Apply, update, or remove a policy`,
 		Args:  cobra.ExactArgs(1),
 		Run: func(c *cobra.Command, args []string) {
 		},
