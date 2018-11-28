@@ -78,8 +78,11 @@ global:
   mtls:
     enabled: @@MTLS_ENABLED@@
   crds: false
+  controlPlaneSecurityEnabled: @@MTLS_ENABLED@@
 security:
   selfSigned: @@SELF_SIGNED@@
+  enabled: @@MTLS_ENABLED@@
+
 `
 
 func (c *IstioInstaller) DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error {
