@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/solo-io/supergloo/pkg/secret"
+
 	"k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/solo-io/supergloo/pkg/install/helm"
@@ -23,7 +25,6 @@ import (
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	gloo "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	istiosecret "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
-	istioSync "github.com/solo-io/supergloo/pkg/translator/istio"
 	"k8s.io/client-go/kubernetes"
 
 	kubecore "k8s.io/api/core/v1"
@@ -293,7 +294,7 @@ func CheckCertMatchesConsul(consulTunnelPort int, rootCert string) {
 }
 
 func CheckCertMatchesIstio(installNamespace string) {
-	actual, err := GetSecretClient().Read(installNamespace, istioSync.CustomRootCertificateSecretName, clients.ReadOpts{})
+	actual, err := GetSecretClient().Read(installNamespace, secret.CustomRootCertificateSecretName, clients.ReadOpts{})
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	ExpectWithOffset(1, actual.RootCert).Should(BeEquivalentTo(TestRoot))
 	ExpectWithOffset(1, actual.CaCert).Should(BeEquivalentTo(TestRoot))
