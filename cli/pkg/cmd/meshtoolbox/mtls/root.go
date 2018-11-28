@@ -12,9 +12,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// we have not yet implemented mtls updates
+// if you are working on mTLS updates, set DEV_MTLS to true
+// when you implement mTLS updates, remove the placeholder
+// comment: consider passing this setting as a dev flag
+// pros: easier to configure
+// cons: may confuse users when shown in help msg, might not add a lot of value
+const DEV_MTLS = false
+
 var validRootArgs = []string{"enable", "disable", "toggle"} // for bash completion
 
 func Root(opts *options.Options) *cobra.Command {
+	if !DEV_MTLS {
+		cmd := &cobra.Command{
+			Use:   "mtls",
+			Short: `set mTLS status`,
+			Long:  `set mTLS status`,
+			RunE: func(c *cobra.Command, args []string) error {
+				// this function does nothing but it triggers validation
+				fmt.Println("Warning: mTLS config is not yet available. In the meantime, you can specify mTLS properties during install.")
+				return nil
+			},
+		}
+		return cmd
+	}
 	cmd := &cobra.Command{
 		Use:       "mtls",
 		Short:     `set mTLS status`,
