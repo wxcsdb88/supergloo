@@ -124,35 +124,3 @@ func (c *IstioInstaller) AddSccToUsers(users ...string) error {
 	_, err = c.securityClient.SecurityV1().SecurityContextConstraints().Update(anyuid)
 	return err
 }
-
-func (c *IstioInstaller) DoPostHelmUninstall() error {
-	// ilackarms: we depend on some networking istio crds being registered.
-	// for now, we comment this piece out and leave istio crds registered with kube apiserver after uninstall
-
-	//// TODO: this will break if there are more than one installs using these CRDs
-	//if err := c.deleteIstioCrds(); err != nil {
-	//	return err
-	//}
-	return nil
-}
-
-func (c *IstioInstaller) deleteIstioCrds() error {
-	contextutils.LoggerFrom(c.ctx).Infof("deleting crds")
-	if c.apiExts == nil {
-		return errors.Errorf("Crd client not provided")
-	}
-	crdList, err := c.apiExts.ApiextensionsV1beta1().CustomResourceDefinitions().List(kubemeta.ListOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "Error getting crds")
-	}
-	for _, crd := range crdList.Items {
-		//TODO: use labels
-		if strings.Contains(crd.Name, "istio.io") {
-			err = c.apiExts.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
-			if err != nil {
-				return errors.Wrapf(err, "Error deleting crd")
-			}
-		}
-	}
-	return nil
-}
