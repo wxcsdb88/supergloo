@@ -53,7 +53,7 @@ var _ = Describe("istio routing E2e", func() {
 		// start discovery
 		cmd := exec.Command(PathToUds, "--namespace", namespace)
 		cmd.Env = os.Environ()
-		_, err := gexec.Start(cmd, os.Stdout, os.Stderr)
+		_, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 		Expect(err).NotTo(HaveOccurred())
 
 		meshes, routingRules, installClient, err := run()
