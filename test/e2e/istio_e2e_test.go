@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/solo-io/supergloo/pkg/secret"
+
 	"github.com/solo-io/supergloo/pkg/install/istio"
 	kubecore "k8s.io/api/core/v1"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,7 +121,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		}
 		if secretClient != nil {
 			secretClient.Delete(superglooNamespace, secretName, clients.DeleteOpts{})
-			secretClient.Delete(installNamespace, istioSync.CustomRootCertificateSecretName, clients.DeleteOpts{})
+			secretClient.Delete(installNamespace, secret.CustomRootCertificateSecretName, clients.DeleteOpts{})
 		}
 		util.TerminateNamespaceBlocking("supergloo-system")
 		// delete gloo system to remove gloo resources like upstreams
