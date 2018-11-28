@@ -68,8 +68,6 @@ var _ = Describe("Istio Installer", func() {
 	var syncer install.InstallSyncer
 
 	BeforeEach(func() {
-		// Precondition check because if these exist, install will fail
-		Expect(util.IstioCrdsDontExist()).To(BeTrue())
 		util.TryCreateNamespace("supergloo-system")
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
@@ -85,7 +83,6 @@ var _ = Describe("Istio Installer", func() {
 		// just in case
 		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		util.UninstallHelmRelease(meshName)
-		util.TryDeleteIstioCrds()
 		util.TerminateNamespaceBlocking(installNamespace)
 		util.DeleteCrb(istio.CrbName)
 	})
@@ -104,7 +101,6 @@ var _ = Describe("Istio Installer", func() {
 		util.WaitForTerminatedNamespace(installNamespace)
 		Expect(util.HelmReleaseDoesntExist(meshName)).To(BeTrue())
 		Expect(util.CrbDoesntExist(istio.CrbName)).To(BeTrue())
-		Expect(util.IstioCrdsDontExist()).To(BeTrue())
 
 		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
 		Expect(mesh).To(BeNil())
