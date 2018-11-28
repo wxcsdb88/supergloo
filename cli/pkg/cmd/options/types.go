@@ -38,8 +38,19 @@ type Uninstall struct {
 }
 
 type MeshTool struct {
-	MeshId    string
+	Mesh      ResourceRef
 	ServiceId string
+	AddPolicy AddPolicy
+}
+
+type AddPolicy struct {
+	// (Do we care to support bulk entry in a form like this?)
+	// PolicyCsv is a comma-separated-list in the form:
+	// source_namespace,source_name,destination_namespace,destination_name (repeated)
+	// PolicyCsv string
+
+	Source      ResourceRef
+	Destination ResourceRef
 }
 
 type IngressTool struct {
@@ -118,8 +129,9 @@ type NsResourceMap map[string]*NsResource
 // *the association is by the namespace in which the CRD is installed, unless otherwise noted.
 type NsResource struct {
 	// keyed by namespace containing the CRD
-	Meshes  []string
-	Secrets []string
+	Meshes    []string
+	Secrets   []string
+	Upstreams []string
 
 	// keyed by mesh installation namespace
 	// purpose of this list: allows user to select a mesh by the namespace in which they installed the mesh
