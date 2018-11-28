@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
-
 	security "github.com/openshift/client-go/security/clientset/versioned"
 	"github.com/solo-io/solo-kit/pkg/errors"
 	"github.com/solo-io/supergloo/pkg/api/v1"
