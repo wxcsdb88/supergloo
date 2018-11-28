@@ -33,7 +33,7 @@ func (c *ConsulInstaller) GetOverridesYaml(install *v1.Install) string {
 	return getOverrides(install.Encryption)
 }
 
-func (c *ConsulInstaller) DoPreHelmInstall() error {
+func (c *ConsulInstaller) DoPreHelmInstall(installNamespace string, install *v1.Install) error {
 	return nil
 }
 

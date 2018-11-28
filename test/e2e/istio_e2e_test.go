@@ -27,6 +27,8 @@ import (
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	istioSync "github.com/solo-io/supergloo/pkg/translator/istio"
+
+	istiov1 "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
 )
 
 /*
@@ -45,7 +47,15 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		path = "https://s3.amazonaws.com/supergloo.solo.io/istio-1.0.3.tgz"
 	}
 
-	getSnapshot := func(mtls bool, install bool, secret *core.ResourceRef) *v1.InstallSnapshot {
+	getSnapshot := func(mtls bool, install bool, secretRef *core.ResourceRef, secret *istiov1.IstioCacertsSecret) *v1.InstallSnapshot {
+		secrets := istiosecret.IstiocertsByNamespace{}
+		if secret != nil {
+			secrets = istiosecret.IstiocertsByNamespace{
+				superglooNamespace: istiosecret.IstioCacertsSecretList{
+					secret,
+				},
+			}
+		}
 		return &v1.InstallSnapshot{
 			Installs: v1.InstallsByNamespace{
 				installNamespace: v1.InstallList{
@@ -68,11 +78,12 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 						},
 						Encryption: &v1.Encryption{
 							TlsEnabled: mtls,
-							Secret:     secret,
+							Secret:     secretRef,
 						},
 					},
 				},
 			},
+			Istiocerts: secrets,
 		}
 	}
 
@@ -109,9 +120,10 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 
 		secretClient = util.GetSecretClient()
 		installSyncer = install.InstallSyncer{
-			Kube:       util.GetKubeClient(),
-			MeshClient: meshClient,
-			ApiExts:    util.GetApiExtsClient(),
+			Kube:         util.GetKubeClient(),
+			MeshClient:   meshClient,
+			ApiExts:      util.GetApiExtsClient(),
+			SecretClient: util.GetSecretClient(),
 		}
 	})
 
@@ -136,22 +148,22 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 	Describe("istio + encryption", func() {
 		It("Can install istio with mtls enabled and custom root cert", func() {
 			secret, ref := util.CreateTestSecret(superglooNamespace, secretName)
-			snap := getSnapshot(true, true, ref)
+			snap := getSnapshot(true, true, ref, secret)
 			err := installSyncer.Sync(context.TODO(), snap)
 			Expect(err).NotTo(HaveOccurred())
 
 			util.WaitForAvailablePods(installNamespace)
-			mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+			_, err = meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
 			Expect(err).NotTo(HaveOccurred())
 
-			meshSyncer := istioSync.EncryptionSyncer{
-				Kube:           util.GetKubeClient(),
-				SecretClient:   secretClient,
-				IstioNamespace: installNamespace,
-			}
-			syncSnapshot := getTranslatorSnapshot(mesh, secret)
-			err = meshSyncer.Sync(context.TODO(), syncSnapshot)
-			Expect(err).NotTo(HaveOccurred())
+			//meshSyncer := istioSync.EncryptionSyncer{
+			//	Kube:           util.GetKubeClient(),
+			//	SecretClient:   secretClient,
+			//	IstioNamespace: installNamespace,
+			//}
+			//syncSnapshot := getTranslatorSnapshot(mesh, secret)
+			//err = meshSyncer.Sync(context.TODO(), syncSnapshot)
+			//Expect(err).NotTo(HaveOccurred())
 
 			util.CheckCertMatchesIstio(installNamespace)
 			// TODO: add more checking:

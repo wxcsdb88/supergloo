@@ -19,10 +19,11 @@ import (
 )
 
 type SecretSyncer struct {
-	IstioNamespace string
-	Kube           kubernetes.Interface
-	SecretClient   istiov1.IstioCacertsSecretClient
-	Preinstall     bool
+	Kube             kubernetes.Interface
+	SecretClient     istiov1.IstioCacertsSecretClient
+	SecretList       istiov1.IstioCacertsSecretList
+	Preinstall       bool
+	installNamespace string
 }
 
 const (
@@ -32,7 +33,8 @@ const (
 	citadelLabelValue                = "citadel"
 )
 
-func (s *SecretSyncer) SyncSecret(ctx context.Context, encryption *v1.Encryption, secretList istiov1.IstioCacertsSecretList) error {
+func (s *SecretSyncer) SyncSecret(ctx context.Context, installNamespace string, encryption *v1.Encryption) error {
+	s.installNamespace = installNamespace
 	if encryption == nil {
 		return nil
 	}
@@ -43,13 +45,13 @@ func (s *SecretSyncer) SyncSecret(ctx context.Context, encryption *v1.Encryption
 	if encryptionSecret == nil {
 		return nil
 	}
-	sourceSecret, err := secretList.Find(encryptionSecret.Namespace, encryptionSecret.Name)
+	sourceSecret, err := s.SecretList.Find(encryptionSecret.Namespace, encryptionSecret.Name)
 	if err != nil {
 		return errors.Wrapf(err, "Error finding secret referenced in mesh config (%s:%s)",
 			encryptionSecret.Namespace, encryptionSecret.Name)
 	}
 	// this is where custom root certs will live once configured, if not found existingSecret will be nil
-	existingSecret, _ := secretList.Find(s.IstioNamespace, CustomRootCertificateSecretName)
+	existingSecret, _ := s.SecretList.Find(s.installNamespace, CustomRootCertificateSecretName)
 	return s.syncSecret(ctx, sourceSecret, existingSecret)
 }
 
@@ -60,7 +62,7 @@ func (s *SecretSyncer) syncSecret(ctx context.Context, sourceSecret, existingSec
 	istioSecret := resources.Clone(sourceSecret).(*istiov1.IstioCacertsSecret)
 	if existingSecret == nil {
 		istioSecret.Metadata = core.Metadata{
-			Namespace: s.IstioNamespace,
+			Namespace: s.installNamespace,
 			Name:      CustomRootCertificateSecretName,
 		}
 		if _, err := s.SecretClient.Write(istioSecret, clients.WriteOpts{
@@ -98,11 +100,11 @@ func validateTlsSecret(secret *istiov1.IstioCacertsSecret) error {
 
 func (s *SecretSyncer) deleteIstioDefaultSecret() error {
 	// Using Kube API directly cause we don't expect this secret to be tagged and it should be mostly a one-time op
-	return s.Kube.CoreV1().Secrets(s.IstioNamespace).Delete(DefaultRootCertificateSecretName, &metav1.DeleteOptions{})
+	return s.Kube.CoreV1().Secrets(s.installNamespace).Delete(DefaultRootCertificateSecretName, &metav1.DeleteOptions{})
 }
 
 func (s *SecretSyncer) restartCitadel() error {
 	selector := make(map[string]string)
 	selector[istioLabelKey] = citadelLabelValue
-	return kube.RestartPods(s.Kube, s.IstioNamespace, selector)
+	return kube.RestartPods(s.Kube, s.installNamespace, selector)
 }

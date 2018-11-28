@@ -3,6 +3,8 @@ package install
 import (
 	"context"
 
+	"github.com/solo-io/supergloo/pkg/secret"
+
 	"k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/solo-io/solo-kit/pkg/utils/contextutils"
@@ -26,6 +28,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubemeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	helmlib "k8s.io/helm/pkg/helm"
+
+	istiov1 "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
 )
 
 const releaseNameKey = "helm_release"
@@ -35,6 +39,7 @@ type InstallSyncer struct {
 	MeshClient     v1.MeshClient
 	SecurityClient *security.Clientset
 	ApiExts        apiexts.Interface
+	SecretClient   istiov1.IstioCacertsSecretClient
 }
 
 type MeshInstaller interface {
@@ -43,14 +48,15 @@ type MeshInstaller interface {
 	UseHardcodedNamespace() bool
 	GetCrbName() string
 	GetOverridesYaml(install *v1.Install) string
-	DoPreHelmInstall() error
+	DoPreHelmInstall(installNamespace string, install *v1.Install) error
 	DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error
 }
 
 func (syncer *InstallSyncer) Sync(ctx context.Context, snap *v1.InstallSnapshot) error {
+	secretList := snap.Istiocerts.List()
 	ctx = contextutils.WithLogger(ctx, "install-syncer")
 	for _, install := range snap.Installs.List() {
-		err := syncer.syncInstall(ctx, install)
+		err := syncer.syncInstall(ctx, install, secretList)
 		if err != nil {
 			return err
 		}
@@ -58,13 +64,19 @@ func (syncer *InstallSyncer) Sync(ctx context.Context, snap *v1.InstallSnapshot)
 	return nil
 }
 
-func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Install) error {
+func (syncer *InstallSyncer) syncInstall(ctx context.Context, install *v1.Install, secretList istiov1.IstioCacertsSecretList) error {
 	var meshInstaller MeshInstaller
 	switch install.MeshType.(type) {
 	case *v1.Install_Consul:
 		meshInstaller = &consul.ConsulInstaller{}
 	case *v1.Install_Istio:
-		i, err := istio.NewIstioInstaller(ctx, syncer.ApiExts, syncer.SecurityClient)
+		secretSyncer := &secret.SecretSyncer{
+			SecretClient: syncer.SecretClient,
+			SecretList:   secretList,
+			Kube:         syncer.Kube,
+			Preinstall:   true,
+		}
+		i, err := istio.NewIstioInstaller(ctx, syncer.ApiExts, syncer.SecurityClient, secretSyncer)
 		if err != nil {
 			return errors.Wrapf(err, "initializing istio installer")
 		}
@@ -115,7 +127,7 @@ func (syncer *InstallSyncer) installHelmRelease(ctx context.Context, install *v1
 
 	logger.Infof("helm pre-install")
 	// 3. Do any pre-helm tasks
-	err = installer.DoPreHelmInstall()
+	err = installer.DoPreHelmInstall(installNamespace, install)
 	if err != nil {
 		return "", errors.Wrap(err, "Error doing pre-helm install steps")
 	}

@@ -137,7 +137,7 @@ func Main(namespaces ...string) error {
 		return err
 	}
 
-	installEmitter := v1.NewInstallEmitter(installClient)
+	installEmitter := v1.NewInstallEmitter(installClient, secretClient)
 
 	translatorEmitter := v1.NewTranslatorEmitter(meshClient, routingRuleClient, upstreamClient, secretClient)
 
@@ -179,9 +179,10 @@ func Main(namespaces ...string) error {
 		return errors.Wrapf(err, "creating api extensions client")
 	}
 	installSyncer := &install.InstallSyncer{
-		ApiExts:    apiExts,
-		Kube:       kubeClient,
-		MeshClient: meshClient,
+		ApiExts:      apiExts,
+		Kube:         kubeClient,
+		MeshClient:   meshClient,
+		SecretClient: secretClient,
 		// TODO: set a security client when we resolve minishift issues
 	}
 	installSyncers := v1.InstallSyncers{
