@@ -43,7 +43,7 @@ var _ = Describe("istio routing E2e", func() {
 
 		util.UninstallHelmRelease(releaseName)
 		util.TryDeleteIstioCrds()
-		util.TerminateNamespaceBlocking(namespace)
+		util.TerminateNamespace(namespace) // non-blocking, since this ns is randomly generated
 		util.DeleteCrb(istio.CrbName)
 	})
 

@@ -108,7 +108,7 @@ func TryCreateNamespace(namespace string) {
 	}
 }
 
-func TerminateNamespaceBlocking(namespace string) {
+func TerminateNamespace(namespace string) {
 	client := GetKubeClient()
 	gracePeriod := int64(0)
 	deleteOptions := &kubemeta.DeleteOptions{
@@ -116,6 +116,10 @@ func TerminateNamespaceBlocking(namespace string) {
 	}
 	client.CoreV1().Pods(namespace).DeleteCollection(deleteOptions, kubemeta.ListOptions{})
 	client.CoreV1().Namespaces().Delete(namespace, deleteOptions)
+}
+
+func TerminateNamespaceBlocking(namespace string) {
+	TerminateNamespace(namespace)
 	WaitForTerminatedNamespace(namespace)
 }
 
