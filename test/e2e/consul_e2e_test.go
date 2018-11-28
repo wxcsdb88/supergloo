@@ -42,7 +42,7 @@ import (
 /*
 End to end tests for consul workflows
 */
-var _ = FDescribe("Consul E2E", func() {
+var _ = Describe("Consul E2E", func() {
 
 	var namespace = helpers.RandString(6)
 	const (
