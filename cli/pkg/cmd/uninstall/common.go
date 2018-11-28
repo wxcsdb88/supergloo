@@ -21,9 +21,6 @@ func staticArgParse(opts *options.Options, installClient *v1.InstallClient) ([]s
 		if uop.MeshNames == "" {
 			return meshesToDelete, fmt.Errorf("please provide at least one mesh name")
 		}
-		//if uop.MeshType == "" {
-		//	return meshesToDelete, fmt.Errorf("please provide a mesh type")
-		//}
 
 		meshesToDelete = fmtNameList(uop.MeshNames)
 		if len(meshesToDelete) < 1 {

@@ -44,13 +44,6 @@ func uninstall(opts *options.Options) {
 		return
 	}
 
-	//top := opts.Top
-	//if top.Static {
-	//	err = staticArgParse(opts, installClient)
-	//} else {
-	//	err = dynamicArgParse(opts, installClient)
-	//}
-
 
 	return
 }
