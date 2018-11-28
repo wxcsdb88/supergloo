@@ -126,10 +126,13 @@ func (c *IstioInstaller) AddSccToUsers(users ...string) error {
 }
 
 func (c *IstioInstaller) DoPostHelmUninstall() error {
-	// TODO: this will break if there are more than one installs using these CRDs
-	if err := c.deleteIstioCrds(); err != nil {
-		return err
-	}
+	// ilackarms: we depend on some networking istio crds being registered.
+	// for now, we comment this piece out and leave istio crds registered with kube apiserver after uninstall
+
+	//// TODO: this will break if there are more than one installs using these CRDs
+	//if err := c.deleteIstioCrds(); err != nil {
+	//	return err
+	//}
 	return nil
 }
 
