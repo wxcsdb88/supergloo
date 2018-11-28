@@ -40,13 +40,9 @@ import (
 )
 
 /*
-End to end tests for consul installs with and without mTLS enabled.
-Tests assume you already have a Kubernetes environment with Helm / Tiller set up, and with a "supergloo-system" namespace.
-The tests will install Consul and get it configured and validate all services up and running, then sync the mesh to set
-up any other configuration, then tear down and clean up all resources created.
-This will take about 80 seconds with mTLS, and 50 seconds without.
+End to end tests for consul workflows
 */
-var _ = Describe("Consul Install and Encryption E2E", func() {
+var _ = FDescribe("Consul E2E", func() {
 
 	var namespace = helpers.RandString(6)
 	const (
@@ -129,6 +125,8 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 	})
 
 	BeforeEach(func() {
+		util.TryCreateNamespace("supergloo-system")
+		util.TryCreateNamespace("gloo-system")
 		pathToUds = PathToUds // set up by before suite
 		meshClient = util.GetMeshClient(kubeCache)
 		upstreamClient = util.GetUpstreamClient(kubeCache)
@@ -195,7 +193,7 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 			bookinfons string
 		)
 		BeforeEach(func() {
-			bookinfons = "bookinfo"
+			bookinfons = "gloo-system"
 
 		})
 
@@ -261,7 +259,7 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 			localport := tunnel.Local
 
 			// start discovery
-			cmd := exec.Command(pathToUds, "-udsonly")
+			cmd := exec.Command(pathToUds, "-discover", bookinfons)
 			cmd.Env = os.Environ()
 			addr := fmt.Sprintf("localhost:%d", localport)
 			cmd.Env = append(cmd.Env, "CONSUL_HTTP_ADDR="+addr)
@@ -276,11 +274,11 @@ var _ = Describe("Consul Install and Encryption E2E", func() {
 					{
 						Source: &core.ResourceRef{
 							Name:      "static-client",
-							Namespace: "gloo-system",
+							Namespace: bookinfons,
 						},
 						Destination: &core.ResourceRef{
 							Name:      "static-server",
-							Namespace: "gloo-system",
+							Namespace: bookinfons,
 						},
 					},
 				},

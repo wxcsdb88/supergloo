@@ -166,7 +166,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		BeforeEach(func() {
 			// TODO: change this to something random once we fix discovery
 			// to work with labeled namespaces
-			bookinfons = "default"
+			bookinfons = "bookinfo"
 		})
 
 		AfterEach(func() {
@@ -191,8 +191,6 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 			bookinfo := "https://raw.githubusercontent.com/istio/istio/4c0a001b5e542d43b4c66ae75c1f41f2c1ff183e/samples/bookinfo/platform/kube/bookinfo.yaml"
 			kubectlargs := []string{"apply", "-n", bookinfons, "-f", bookinfo}
 			cmd := exec.Command("kubectl", kubectlargs...)
-			cmd.Stdout = GinkgoWriter
-			cmd.Stderr = GinkgoWriter
 			err := cmd.Run()
 			Expect(err).NotTo(HaveOccurred())
 
@@ -202,7 +200,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 		It("Should install istio and enable policy", func() {
 
 			// start discovery
-			cmd := exec.Command(PathToUds, "-udsonly")
+			cmd := exec.Command(PathToUds, "-discover", bookinfons)
 			_, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 
 			snap := getSnapshot(true, true, nil)

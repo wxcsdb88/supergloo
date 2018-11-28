@@ -34,7 +34,3 @@ func (c *Linkerd2Installer) DoPreHelmInstall() error {
 func (c *Linkerd2Installer) DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error {
 	return nil
 }
-
-func (c *Linkerd2Installer) DoPostHelmUninstall() error {
-	return nil
-}
