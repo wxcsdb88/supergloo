@@ -21,8 +21,8 @@ const (
 func Add(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   ADD_POLICY,
-		Short: `apply a policy`,
-		Long:  `apply a policy`,
+		Short: `Apply a policy`,
+		Long:  `Apply a policy`,
 		Run: func(c *cobra.Command, args []string) {
 			if err := addPolicy(opts); err != nil {
 				fmt.Println(err)

@@ -32,8 +32,8 @@ func Root(opts *options.Options) *cobra.Command {
 	if !DEV_MTLS {
 		cmd := &cobra.Command{
 			Use:   "mtls",
-			Short: `set mTLS status`,
-			Long:  `set mTLS status`,
+			Short: `Set mTLS status`,
+			Long:  `Set mTLS status`,
 			RunE: func(c *cobra.Command, args []string) error {
 				// this function does nothing but it triggers validation
 				fmt.Println("Warning: mTLS config is not yet available. In the meantime, you can specify mTLS properties during install.")
