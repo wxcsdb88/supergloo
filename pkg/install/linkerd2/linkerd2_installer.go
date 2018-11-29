@@ -6,17 +6,13 @@ import (
 )
 
 const (
-	defaultNamespace = "default" // (hard-coded to linkerd in our chart)
+	defaultNamespace = "linkerd"
 )
 
 type Linkerd2Installer struct{}
 
 func (c *Linkerd2Installer) GetDefaultNamespace() string {
 	return defaultNamespace
-}
-
-func (c *Linkerd2Installer) UseHardcodedNamespace() bool {
-	return true
 }
 
 func (c *Linkerd2Installer) GetCrbName() string {

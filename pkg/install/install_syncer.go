@@ -44,8 +44,6 @@ type InstallSyncer struct {
 
 type MeshInstaller interface {
 	GetDefaultNamespace() string
-	// TODO: remove when #71 is fixed
-	UseHardcodedNamespace() bool
 	GetCrbName() string
 	GetOverridesYaml(install *v1.Install) string
 	DoPreHelmInstall(installNamespace string, install *v1.Install) error
@@ -149,9 +147,6 @@ func (syncer *InstallSyncer) installHelmRelease(ctx context.Context, install *v1
 }
 
 func (syncer *InstallSyncer) SetupInstallNamespace(install *v1.Install, installer MeshInstaller) (string, error) {
-	if installer.UseHardcodedNamespace() {
-		return installer.GetDefaultNamespace(), nil
-	}
 	installNamespace := getInstallNamespace(install, installer.GetDefaultNamespace())
 	err := syncer.createNamespaceIfNotExist(installNamespace) // extract to CRD
 	if err != nil {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/solo-io/solo-kit/test/helpers"
+
 	"github.com/gogo/protobuf/types"
 
 	"github.com/solo-io/supergloo/pkg/install"
@@ -24,14 +26,13 @@ Smoke test for installing and uninstalling linkerd2
 var _ = Describe("Linkerd2 Installer", func() {
 
 	superglooNamespace := "supergloo-system" // this needs to be made before running tests
-	meshName := "test-linkerd-mesh"
 
 	path := os.Getenv("HELM_CHART_PATH")
 	if path == "" {
-		path = "https://s3.amazonaws.com/supergloo.solo.io/linkerd2-0.1.0.tgz"
+		path = "https://s3.amazonaws.com/supergloo.solo.io/linkerd2-0.1.1.tgz"
 	}
 
-	getSnapshot := func(install bool) *v1.InstallSnapshot {
+	getSnapshot := func(install bool, installNamespace string, meshName string) *v1.InstallSnapshot {
 		return &v1.InstallSnapshot{
 			Installs: v1.InstallsByNamespace{
 				superglooNamespace: v1.InstallList{
@@ -42,7 +43,7 @@ var _ = Describe("Linkerd2 Installer", func() {
 						},
 						MeshType: &v1.Install_Linkerd2{
 							Linkerd2: &v1.Linkerd2{
-								// not specifying install namespace since it is hard coded in chart
+								InstallationNamespace: installNamespace,
 							},
 						},
 						ChartLocator: &v1.HelmChartLocator{
@@ -65,9 +66,14 @@ var _ = Describe("Linkerd2 Installer", func() {
 
 	var meshClient v1.MeshClient
 	var syncer install.InstallSyncer
+	var installNamespace string
+	var meshName string
 
 	BeforeEach(func() {
 		util.TryCreateNamespace("supergloo-system")
+		randStr := helpers.RandString(8)
+		installNamespace = "linkerd-install-test-" + randStr
+		meshName = "linkerd-mesh-test-" + randStr
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
@@ -81,21 +87,21 @@ var _ = Describe("Linkerd2 Installer", func() {
 		// just in case
 		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		util.UninstallHelmRelease(meshName)
-		util.TerminateNamespaceBlocking("linkerd") //hard-coded in chart
+		util.TerminateNamespace(installNamespace) // don't need to block
 	})
 
 	It("Can install and uninstall linkerd2", func() {
-		snap := getSnapshot(true)
+		snap := getSnapshot(true, installNamespace, meshName)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(util.WaitForAvailablePods("linkerd")).To(BeEquivalentTo(4))
+		Expect(util.WaitForAvailablePods(installNamespace)).To(BeEquivalentTo(4))
 
-		snap = getSnapshot(false)
+		snap = getSnapshot(false, installNamespace, meshName)
 		err = syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Validate everything cleaned up
-		util.WaitForTerminatedNamespace("linkerd")
+		util.WaitForTerminatedNamespace(installNamespace)
 		Expect(util.HelmReleaseDoesntExist(meshName)).To(BeTrue())
 		mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
 		Expect(mesh).To(BeNil())
