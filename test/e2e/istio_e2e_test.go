@@ -159,7 +159,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 			util.CheckCertMatchesIstio(installNamespace)
 		})
 
-		FIt("Can install istio with mtls enabled and deploy custom cert later", func() {
+		It("Can install istio with mtls enabled and deploy custom cert later", func() {
 			secret, ref := util.CreateTestRsaSecret(superglooNamespace, secretName)
 			snap := getSnapshot(true, true, nil, nil)
 			err := installSyncer.Sync(context.TODO(), snap)
