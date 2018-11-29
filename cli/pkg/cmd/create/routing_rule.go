@@ -226,10 +226,10 @@ func ensureUpstreams(opts *options.Options) error {
 			opts.MeshTool.RoutingRule.Destinations = toResourceRefs(destinations)
 		}
 	} else {
-		if err := nsutil.EnsureCommonResources("upstream", "Please select source upstream(s)", opts.MeshTool.RoutingRule.Sources, opts); err != nil {
+		if err := nsutil.EnsureCommonResources("upstream", "Please select source upstream(s)", &(opts.MeshTool.RoutingRule).Sources, opts); err != nil {
 			return err
 		}
-		if err := nsutil.EnsureCommonResources("upstream", "Please select destination upstream(s)", opts.MeshTool.RoutingRule.Destinations, opts); err != nil {
+		if err := nsutil.EnsureCommonResources("upstream", "Please select destination upstream(s)", &(opts.MeshTool.RoutingRule).Destinations, opts); err != nil {
 			return err
 		}
 

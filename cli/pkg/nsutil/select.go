@@ -98,7 +98,6 @@ func ChooseResources(typeName string, menuDescription string, nsr options.NsReso
 		response = append(response, &res)
 	}
 
-	// return resMap[choice].resourceRef, nil
 	return response, nil
 }
 
@@ -123,17 +122,14 @@ func EnsureCommonResource(typeName string, menuDescription string, resRef *core.
 }
 
 // Static mode not supported ATM
-func EnsureCommonResources(typeName string, menuDescription string, resRefs []*core.ResourceRef, opts *options.Options) error {
-	// if err := validateResourceRefForStaticMode(typeName, menuDescription, resRef, opts); err != nil {
-	// 	return err
-	// }
-
-	// interactive mode
+// TODO(mitchdraft) integrate with static mode
+func EnsureCommonResources(typeName string, menuDescription string, resRefs *[]*core.ResourceRef, opts *options.Options) error {
 	chosenResRefs, err := ChooseResources(typeName, menuDescription, opts.Cache.NsResources)
 	if err != nil {
 		return err
 	}
-	resRefs = chosenResRefs
+	fmt.Println(chosenResRefs)
+	*resRefs = chosenResRefs
 	return nil
 }
 
