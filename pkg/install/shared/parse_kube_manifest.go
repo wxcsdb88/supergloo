@@ -1,6 +1,8 @@
 package shared
 
 import (
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"k8s.io/api/admissionregistration/v1beta1"
@@ -13,7 +15,6 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"strings"
 )
 
 type UntypedKubeObject map[string]interface{}

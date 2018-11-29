@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/solo-io/supergloo/pkg/secret"
+
 	security "github.com/openshift/client-go/security/clientset/versioned"
 	"github.com/solo-io/solo-kit/pkg/errors"
 	"github.com/solo-io/supergloo/pkg/api/v1"
@@ -25,9 +27,10 @@ type IstioInstaller struct {
 	securityClient *security.Clientset
 	crds           []*v1beta1.CustomResourceDefinition
 	ctx            context.Context
+	secretSyncer   *secret.SecretSyncer
 }
 
-func NewIstioInstaller(ctx context.Context, ApiExts apiexts.Interface, SecurityClient *security.Clientset) (*IstioInstaller, error) {
+func NewIstioInstaller(ctx context.Context, ApiExts apiexts.Interface, SecurityClient *security.Clientset, secretSyncer *secret.SecretSyncer) (*IstioInstaller, error) {
 	crds, err := shared.CrdsFromManifest(IstioCrdYaml)
 	if err != nil {
 		return nil, err
@@ -37,6 +40,7 @@ func NewIstioInstaller(ctx context.Context, ApiExts apiexts.Interface, SecurityC
 		securityClient: SecurityClient,
 		crds:           crds,
 		ctx:            ctx,
+		secretSyncer:   secretSyncer,
 	}, nil
 }
 
@@ -78,18 +82,24 @@ global:
   mtls:
     enabled: @@MTLS_ENABLED@@
   crds: false
+  controlPlaneSecurityEnabled: @@MTLS_ENABLED@@
 security:
   selfSigned: @@SELF_SIGNED@@
+  enabled: @@MTLS_ENABLED@@
+
 `
 
 func (c *IstioInstaller) DoPostHelmInstall(install *v1.Install, kube *kubernetes.Clientset, releaseName string) error {
 	return nil
 }
 
-func (c *IstioInstaller) DoPreHelmInstall() error {
+func (c *IstioInstaller) DoPreHelmInstall(installNamespace string, install *v1.Install) error {
 	// create crds if they don't exist. CreateCrds does not error on err type IsAlreadyExists
 	if err := shared.CreateCrds(c.apiExts, c.crds...); err != nil {
 		return errors.Wrapf(err, "creating istio crds")
+	}
+	if err := c.syncSecret(installNamespace, install); err != nil {
+		return errors.Wrapf(err, "syncing secret")
 	}
 	if c.securityClient == nil {
 		return nil
@@ -107,6 +117,13 @@ func (c *IstioInstaller) DoPreHelmInstall() error {
 		"istio-pilot-service-account",
 		"istio-sidecar-injector-service-account",
 		"istio-galley-service-account")
+}
+
+func (c *IstioInstaller) syncSecret(installNamespace string, install *v1.Install) error {
+	if c.secretSyncer == nil && install.Encryption != nil && install.Encryption.Secret != nil {
+		return errors.Errorf("Invalid setup")
+	}
+	return c.secretSyncer.SyncSecret(c.ctx, installNamespace, install.Encryption)
 }
 
 // TODO: something like this should enable minishift installs to succeed, but this isn't right. The correct steps are

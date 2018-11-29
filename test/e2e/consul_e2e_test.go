@@ -160,7 +160,7 @@ var _ = Describe("Consul E2E", func() {
 	})
 
 	It("Can install consul with mtls enabled and custom root cert", func() {
-		secret, ref := util.CreateTestSecret(namespace, secretName)
+		secret, ref := util.CreateTestEcSecret(namespace, secretName)
 		snap := createInstallSnapshot(true, ref, true)
 		err := installSyncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
@@ -179,7 +179,7 @@ var _ = Describe("Consul E2E", func() {
 		err = meshSyncer.Sync(context.TODO(), syncSnapshot)
 		Expect(err).NotTo(HaveOccurred())
 
-		util.CheckCertMatchesConsul(tunnel.Local, util.TestRoot)
+		util.CheckCertMatchesConsul(tunnel.Local, util.TestEcRoot)
 
 		snap = createInstallSnapshot(true, ref, false)
 		err = installSyncer.Sync(context.TODO(), snap)

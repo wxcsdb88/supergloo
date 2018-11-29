@@ -27,7 +27,7 @@ func (c *Linkerd2Installer) GetOverridesYaml(install *v1.Install) string {
 	return ""
 }
 
-func (c *Linkerd2Installer) DoPreHelmInstall() error {
+func (c *Linkerd2Installer) DoPreHelmInstall(installNamespace string, install *v1.Install) error {
 	return nil
 }
 
