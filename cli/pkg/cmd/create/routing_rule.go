@@ -15,6 +15,7 @@ import (
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/cli/pkg/nsutil"
 	glooV1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
+	v1alpha3 "github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/spf13/cobra"
 	"gopkg.in/AlecAivazis/survey.v1"
@@ -68,14 +69,29 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 		nil,
 		"Matcher for this rule")
 
-	flags.StringVar(&rrOpts.TimeOutSeconds,
+	// TODO(mitchdraft) move to util
+	flags.StringVar(&(rrOpts.Timeout).Seconds,
 		"route.timeout.seconds",
 		"",
 		"timeout time in seconds")
-	flags.StringVar(&rrOpts.TimeOutNanos,
+	flags.StringVar(&(rrOpts.Timeout).Nanos,
 		"route.timeout.nanos",
 		"",
 		"timeout time in nanoseconds")
+
+	// TODO(mitchdraft) move to util
+	flags.StringVar(&(rrOpts.Retry).Attempts,
+		"route.retry.attempt",
+		"",
+		"number of times to retry")
+	flags.StringVar(&(rrOpts.Retry.PerTryTimeout).Seconds,
+		"route.retry.timeout.seconds",
+		"",
+		"retry timeout time in seconds")
+	flags.StringVar(&(rrOpts.Retry.PerTryTimeout).Nanos,
+		"route.retry.timeout.nanos",
+		"",
+		"retry timeout time in nanoseconds")
 
 	return cmd
 }
@@ -94,11 +110,6 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 		return err
 	}
 
-	// TODO(mitchdraft) gate this behind setting (so that it can be called from a top-level command)
-	if err := ensureTimeout(opts); err != nil {
-		return err
-	}
-
 	// Validate matchers
 	var matchers []*glooV1.Matcher
 	if rrOpts.Matchers != nil {
@@ -108,7 +119,9 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 		return err
 	}
 
-	routingRule := &superglooV1.RoutingRule{
+	// Initialize the root of our RoutingRule with the minimal required params
+	// TODO(mitchdraft) move these fields out s.t. they are populated by the ensure methods
+	opts.MeshTool.RoutingRule = superglooV1.RoutingRule{
 		Metadata: core.Metadata{
 			Name:      routeName,
 			Namespace: rrOpts.TargetMesh.Namespace,
@@ -117,14 +130,22 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 		Sources:         opts.MeshTool.RoutingRule.Sources,
 		Destinations:    opts.MeshTool.RoutingRule.Destinations,
 		RequestMatchers: matchers,
-		Timeout:         opts.MeshTool.RoutingRule.Timeout,
+	}
+
+	// TODO(mitchdraft) gate this behind setting (so that it can be called from a top-level command)
+	opts.MeshTool.RoutingRule.Timeout = &types.Duration{}
+	if err := ensureTimeout(&(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts); err != nil {
+		return err
+	}
+	if err := ensureRetry(&(opts.Create.InputRoutingRule).Retry, opts); err != nil {
+		return err
 	}
 
 	rrClient, err := common.GetRoutingRuleClient()
 	if err != nil {
 		return err
 	}
-	_, err = (*rrClient).Write(routingRule, clients.WriteOpts{OverwriteExisting: rrOpts.OverrideExisting})
+	_, err = (*rrClient).Write(&(opts.MeshTool).RoutingRule, clients.WriteOpts{OverwriteExisting: rrOpts.OverrideExisting})
 	return err
 }
 
@@ -256,35 +277,62 @@ func ensureUpstreams(opts *options.Options) error {
 	return nil
 }
 
-func ensureTimeout(opts *options.Options) error {
-	rrOpts := &(opts.Create).InputRoutingRule
+// TODO(mitchdraft) move to common utils
+func ensureTimeout(durOpts *options.InputDuration, targetDur *types.Duration, opts *options.Options) error {
+	dur := types.Duration{}
 	if !opts.Top.Static {
-		err := getStringInput("Please specify timeout duration (seconds)", &rrOpts.TimeOutSeconds)
+		err := getStringInput("Please specify timeout duration (seconds)", &durOpts.Seconds)
 		if err != nil {
 			return err
 		}
-		err = getStringInput("Please specify timeout duration (nanoseconds)", &rrOpts.TimeOutNanos)
+		err = getStringInput("Please specify timeout duration (nanoseconds)", &durOpts.Nanos)
 		if err != nil {
 			return err
 		}
 	}
 	// if not in interactive mode, timeout values will have already been passed
-	timeout := &types.Duration{}
-	if rrOpts.TimeOutSeconds != "" {
-		sec, err := strconv.Atoi(rrOpts.TimeOutSeconds)
+	if durOpts.Seconds != "" {
+		sec, err := strconv.Atoi(durOpts.Seconds)
 		if err != nil {
 			return err
 		}
-		timeout.Seconds = int64(sec)
+		dur.Seconds = int64(sec)
 	}
-	if rrOpts.TimeOutNanos != "" {
-		nanos, err := strconv.Atoi(rrOpts.TimeOutNanos)
+	if durOpts.Nanos != "" {
+		nanos, err := strconv.Atoi(durOpts.Nanos)
 		if err != nil {
 			return err
 		}
-		timeout.Nanos = int32(nanos)
+		dur.Nanos = int32(nanos)
 	}
-	opts.MeshTool.RoutingRule.Timeout = timeout
+	*targetDur = dur
+	return nil
+}
+
+// TODO(mitchdraft) move to common utils
+func ensureRetry(irOpts *options.InputRetry, opts *options.Options) error {
+	// initialize the fields
+	opts.MeshTool.RoutingRule.Retries = &v1alpha3.HTTPRetry{
+		PerTryTimeout: &types.Duration{},
+	}
+	// Gather the attempt count
+	if !opts.Top.Static {
+		err := getStringInput("Please the number of retry attempts", &irOpts.Attempts)
+		if err != nil {
+			return err
+		}
+	}
+	// if not in interactive mode, timeout values will have already been passed
+	if irOpts.Attempts != "" {
+		att, err := strconv.Atoi(irOpts.Attempts)
+		if err != nil {
+			return err
+		}
+		opts.MeshTool.RoutingRule.Retries.Attempts = int32(att)
+	}
+	ensureTimeout(&irOpts.PerTryTimeout,
+		opts.MeshTool.RoutingRule.Retries.PerTryTimeout,
+		opts)
 	return nil
 }
 

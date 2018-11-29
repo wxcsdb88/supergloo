@@ -83,8 +83,18 @@ type InputRoutingRule struct {
 	Destinations     string
 	Matchers         []string
 	OverrideExisting bool
-	TimeOutSeconds   string
-	TimeOutNanos     string
+	Timeout          InputDuration
+	Retry            InputRetry
+}
+
+type InputDuration struct {
+	Seconds string
+	Nanos   string
+}
+
+type InputRetry struct {
+	Attempts      string
+	PerTryTimeout InputDuration
 }
 
 // // Route Rule fields
