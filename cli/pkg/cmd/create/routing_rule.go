@@ -74,12 +74,19 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 		RequestMatchers: opts.MeshTool.RoutingRule.RequestMatchers,
 	}
 
-	// TODO(mitchdraft) gate this behind setting (so that it can be called from a top-level command)
+	// Timeout
 	opts.MeshTool.RoutingRule.Timeout = &types.Duration{}
-	if err := routerule.EnsureTimeout(&(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts); err != nil {
-		return err
-	}
-	if err := routerule.EnsureRetry(&(opts.Create.InputRoutingRule).Retry, opts); err != nil {
+	// if err := routerule.EnsureDuration(&(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts); err != nil {
+	// 	return err
+	// }
+
+	// // Retry
+	// if err := routerule.EnsureRetry(&(opts.Create.InputRoutingRule).Retry, opts); err != nil {
+	// 	return err
+	// }
+
+	// FaultInjection
+	if err := routerule.EnsureFault(&(opts.Create.InputRoutingRule).FaultInjection, opts); err != nil {
 		return err
 	}
 

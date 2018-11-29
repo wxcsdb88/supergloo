@@ -1,7 +1,9 @@
 package options
 
 import (
+	types "github.com/gogo/protobuf/types"
 	core "github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
+
 	// gloo "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
 	"k8s.io/client-go/kubernetes"
@@ -106,6 +108,8 @@ type InputFaultInjection struct {
 	//	*HTTPFaultInjection_Delay_ExponentialDelay // Duration
 	HttpDelayType  string
 	HttpDelayValue InputDuration
+	// store duration until oneof is resolved
+	HttpDelayValueStore types.Duration
 
 	AbortPercent string // int32
 

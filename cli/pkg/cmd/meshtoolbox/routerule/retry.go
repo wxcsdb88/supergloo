@@ -29,8 +29,10 @@ func EnsureRetry(irOpts *options.InputRetry, opts *options.Options) error {
 		}
 		opts.MeshTool.RoutingRule.Retries.Attempts = int32(att)
 	}
-	EnsureTimeout(&irOpts.PerTryTimeout,
+	if err := EnsureDuration(&irOpts.PerTryTimeout,
 		opts.MeshTool.RoutingRule.Retries.PerTryTimeout,
-		opts)
+		opts); err != nil {
+		return err
+	}
 	return nil
 }
