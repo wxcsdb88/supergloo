@@ -146,7 +146,11 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 	})
 
 	Describe("istio + encryption", func() {
-		FIt("Can install istio with mtls enabled and custom root cert", func() {
+		// TODO: pending until citadel error is diagnosed and update to solo-kit to emit defaults when serializing secrets is pushed through
+		// currently citadel fails with the following error:
+		// Failed to create an Citadel (error: [failed to create CA KeyCertBundle (failed to parse cert PEM: invalid PEM encoded certificate)])
+		// see this commit for change needed in solo-kit: c9543f187713059188f6d67e02b0408cb883ea44
+		PIt("Can install istio with mtls enabled and custom root cert", func() {
 			secret, ref := util.CreateTestRsaSecret(superglooNamespace, secretName)
 			snap := getSnapshot(true, true, ref, secret)
 			err := installSyncer.Sync(context.TODO(), snap)
@@ -156,19 +160,28 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 			_, err = meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
 			Expect(err).NotTo(HaveOccurred())
 
-			//meshSyncer := istioSync.EncryptionSyncer{
-			//	Kube:           util.GetKubeClient(),
-			//	SecretClient:   secretClient,
-			//	IstioNamespace: installNamespace,
-			//}
-			//syncSnapshot := getTranslatorSnapshot(mesh, secret)
-			//err = meshSyncer.Sync(context.TODO(), syncSnapshot)
-			//Expect(err).NotTo(HaveOccurred())
-
 			util.CheckCertMatchesIstio(installNamespace)
 			// TODO: add more checking:
 			// - istio.default has actually been deleted and not regenerating
 			// - new certs are signed correctly
+		})
+
+		It("Can install istio with mtls enabled and self-signing", func() {
+			snap := getSnapshot(true, true, nil, nil)
+			err := installSyncer.Sync(context.TODO(), snap)
+			Expect(err).NotTo(HaveOccurred())
+
+			util.WaitForAvailablePods(installNamespace)
+			_, err = meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+			Expect(err).NotTo(HaveOccurred())
+
+			// make sure default mesh policy and destination rule are created, meaning overrides for security were applied
+			cmd := exec.Command("kubectl", "get", "meshpolicy", "default")
+			Expect(cmd.Run()).To(BeNil())
+			cmd = exec.Command("kubectl", "get", "destinationrule", "default", "-n", installNamespace)
+			Expect(cmd.Run()).To(BeNil())
+
+			// TODO: deploy sample app and do more checking
 		})
 	})
 
