@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TODO(mitchdraft) break this up so that flags can be applied as needed
 func AddBaseFlags(cmd *cobra.Command, opts *options.Options) {
 	rrOpts := &(opts.Create).InputRoutingRule
 	flags := cmd.Flags()
@@ -39,8 +38,11 @@ func AddBaseFlags(cmd *cobra.Command, opts *options.Options) {
 		"m",
 		nil,
 		"Matcher for this rule")
+}
 
-	// TODO(mitchdraft) move to util
+func AddTimeoutFlags(cmd *cobra.Command, opts *options.Options) {
+	rrOpts := &(opts.Create).InputRoutingRule
+	flags := cmd.Flags()
 	flags.StringVar(&(rrOpts.Timeout).Seconds,
 		"route.timeout.seconds",
 		"",
@@ -49,8 +51,11 @@ func AddBaseFlags(cmd *cobra.Command, opts *options.Options) {
 		"route.timeout.nanos",
 		"",
 		"timeout time in nanoseconds")
+}
 
-	// TODO(mitchdraft) move to util
+func AddRetryFlags(cmd *cobra.Command, opts *options.Options) {
+	rrOpts := &(opts.Create).InputRoutingRule
+	flags := cmd.Flags()
 	flags.StringVar(&(rrOpts.Retry).Attempts,
 		"route.retry.attempt",
 		"",
@@ -63,8 +68,11 @@ func AddBaseFlags(cmd *cobra.Command, opts *options.Options) {
 		"route.retry.timeout.nanos",
 		"",
 		"retry timeout time in nanoseconds")
+}
 
-	// TODO(mitchdraft) move to util
+func AddFaultFlags(cmd *cobra.Command, opts *options.Options) {
+	rrOpts := &(opts.Create).InputRoutingRule
+	flags := cmd.Flags()
 	// delay
 	flags.StringVar(&(rrOpts.FaultInjection).DelayPercent,
 		"fault.delay.percent",
@@ -95,5 +103,4 @@ func AddBaseFlags(cmd *cobra.Command, opts *options.Options) {
 		"fault.abort.message",
 		"",
 		"Error message (int for type=http errors, string otherwise).")
-
 }
