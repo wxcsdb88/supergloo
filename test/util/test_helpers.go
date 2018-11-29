@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	factory2 "github.com/solo-io/supergloo/pkg/factory"
+
 	"github.com/solo-io/supergloo/pkg/secret"
 
 	"k8s.io/helm/pkg/proto/hapi/release"
@@ -51,105 +53,93 @@ var testEcKey = "-----BEGIN PRIVATE KEY-----\nMIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBI
 var TestEcRoot = "-----BEGIN CERTIFICATE-----\nMIIB7jCCAXUCCQC2t6Lqc2xnXDAKBggqhkjOPQQDAjBhMQswCQYDVQQGEwJVUzEW\nMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQwwCgYD\nVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMTgxMzQz\nMDJaFw0xOTExMTgxMzQzMDJaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1NYXNz\nYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEYMBYG\nA1UEAwwPd3d3LmV4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEDEyE\neejvFEyKn+rlBzOIvZmWC49edrqe3pUtOhoupZOyHlEAx8T9DZzp24Qu65rTleps\nizQKS0PdpGSoO6mvKuzmP+MNUHwuHIe82SsYzZEiIrgMe1f5cxehWA3Kk947MAoG\nCCqGSM49BAMCA2cAMGQCMCytVFc8sBdbM7DaBCz0N2ptdb0T7LFFfxDTzn4gjiDq\nVCd/3dct21TUWsthKXF2VgIwXEMI5EQiJ5kjR/y1KNBC9b4wfDiKRvG33jYe9gn6\ntzXUS00SoqG9D27/7aK71/xv\n-----END CERTIFICATE-----"
 var testCertChain = ""
 
-var testRsaCaKey = `-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEAyzCxr/xu0zy5rVBiso9ffgl00bRKvB/HF4AX9/ytmZ6Hqsy1
-3XIQk8/u/By9iCvVwXIMvyT0CbiJq/aPEj5mJUy0lzbrUs13oneXqrPXf7ir3Hzd
-Rw+SBhXlsh9zAPZJXcF93DJU3GabPKwBvGJ0IVMJPIFCuDIPwW4kFAI7R/8A5LSd
-PrFx6EyMXl7KM8jekC0y9DnTj83/fY72WcWX7YTpgZeBHAeeQOPTZ2KYbFal2gLs
-ar69PgFS0TomESO9M14Yit7mzB1WDK2z9g3r+zLxENdJ5JG/ZskKe+TO4Diqi5OJ
-t/h8yspS1ck8LJtCole9919umByg5oruflqIlQIDAQABAoIBAGZI8fnUinmd5R6B
-C941XG3XFs6GAuUm3hNPcUFuGnntmv/5I0gBpqSyFO0nDqYg4u8Jma8TTCIkmnFN
-ogIeFU+LiJFinR3GvwWzTE8rTz1FWoaY+M9P4ENd/I4pVLxUPuSKhfA2ChAVOupU
-8F7D9Q/dfBXQQCT3VoUaC+FiqjL4HvIhji1zIqaqpK7fChGPraC/4WHwLMNzI0Zg
-oDdAanwVygettvm6KD7AeKzhK94gX1PcnsOi3KuzQYvkenQE1M6/K7YtEc5qXCYf
-QETj0UCzB55btgdF36BGoZXf0LwHqxys9ubfHuhwKBpY0xg2z4/4RXZNhfIDih3w
-J3mihcECgYEA6FtQ0cfh0Zm03OPDpBGc6sdKxTw6aBDtE3KztfI2hl26xHQoeFqp
-FmV/TbnExnppw+gWJtwx7IfvowUD8uRR2P0M2wGctWrMpnaEYTiLAPhXsj69HSM/
-CYrh54KM0YWyjwNhtUzwbOTrh1jWtT9HV5e7ay9Atk3UWljuR74CFMUCgYEA392e
-DVoDLE0XtbysmdlfSffhiQLP9sT8+bf/zYnr8Eq/4LWQoOtjEARbuCj3Oq7bP8IE
-Vz45gT1mEE3IacC9neGwuEa6icBiuQi86NW8ilY/ZbOWrRPLOhk3zLiZ+yqkt+sN
-cqWx0JkIh7IMKWI4dVQgk4I0jcFP7vNG/So4AZECgYEA426eSPgxHQwqcBuwn6Nt
-yJCRq0UsljgbFfIr3Wfb3uFXsntQMZ3r67QlS1sONIgVhmBhbmARrcfQ0+xQ1SqO
-wqnOL4AAd8K11iojoVXLGYP7ssieKysYxKpgPE8Yru0CveE9fkx0+OGJeM2IO5hY
-qHAoTt3NpaPAuz5Y3XgqaVECgYA0TONS/TeGjxA9/jFY1Cbl8gp35vdNEKKFeM5D
-Z7h+cAg56FE8tyFyqYIAGVoBFL7WO26mLzxiDEUfA/0Rb90c2JBfzO5hpleqIPd5
-cg3VR+cRzI4kK16sWR3nLy2SN1k6OqjuovVS5Z3PjfI3bOIBz0C5FY9Pmt0g1yc7
-mDRzcQKBgQCXWCZStbdjewaLd5u5Hhbw8tIWImMVfcfs3H1FN669LLpbARM8RtAa
-8dYwDVHmWmevb/WX03LiSE+GCjCBO79fa1qc5RKAalqH/1OYxTuvYOeTUebSrg8+
-lQFlP2OC4GGolKrN6HVWdxtf+F+SdjwX6qGCfYkXJRLYXIFSFjFeuw==
------END RSA PRIVATE KEY-----`
+var testRsaCaKey = `-----BEGIN PRIVATE KEY-----
+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
+2vvcOAJTiST+8EBuFnY2uRvE93JhsQ==
+-----END PRIVATE KEY-----`
 
 var testRsaCaCert = `-----BEGIN CERTIFICATE-----
-MIIDnzCCAoegAwIBAgIJAON1ifrBZ2/BMA0GCSqGSIb3DQEBCwUAMIGLMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTESMBAGA1UEBwwJU3Vubnl2YWxl
-MQ4wDAYDVQQKDAVJc3RpbzENMAsGA1UECwwEVGVzdDEQMA4GA1UEAwwHUm9vdCBD
-QTEiMCAGCSqGSIb3DQEJARYTdGVzdHJvb3RjYUBpc3Rpby5pbzAgFw0xODAxMjQx
-OTE1NTFaGA8yMTE3MTIzMTE5MTU1MVowWTELMAkGA1UEBhMCVVMxEzARBgNVBAgT
-CkNhbGlmb3JuaWExEjAQBgNVBAcTCVN1bm55dmFsZTEOMAwGA1UEChMFSXN0aW8x
-ETAPBgNVBAMTCElzdGlvIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
-AQEAyzCxr/xu0zy5rVBiso9ffgl00bRKvB/HF4AX9/ytmZ6Hqsy13XIQk8/u/By9
-iCvVwXIMvyT0CbiJq/aPEj5mJUy0lzbrUs13oneXqrPXf7ir3HzdRw+SBhXlsh9z
-APZJXcF93DJU3GabPKwBvGJ0IVMJPIFCuDIPwW4kFAI7R/8A5LSdPrFx6EyMXl7K
-M8jekC0y9DnTj83/fY72WcWX7YTpgZeBHAeeQOPTZ2KYbFal2gLsar69PgFS0Tom
-ESO9M14Yit7mzB1WDK2z9g3r+zLxENdJ5JG/ZskKe+TO4Diqi5OJt/h8yspS1ck8
-LJtCole9919umByg5oruflqIlQIDAQABozUwMzALBgNVHQ8EBAMCAgQwDAYDVR0T
-BAUwAwEB/zAWBgNVHREEDzANggtjYS5pc3Rpby5pbzANBgkqhkiG9w0BAQsFAAOC
-AQEAltHEhhyAsve4K4bLgBXtHwWzo6SpFzdAfXpLShpOJNtQNERb3qg6iUGQdY+w
-A2BpmSkKr3Rw/6ClP5+cCG7fGocPaZh+c+4Nxm9suMuZBZCtNOeYOMIfvCPcCS+8
-PQ/0hC4/0J3WJKzGBssaaMufJxzgFPPtDJ998kY8rlROghdSaVt423/jXIAYnP3Y
-05n8TGERBj7TLdtIVbtUIx3JHAo3PWJywA6mEDovFMJhJERp9sDHIr1BbhXK1TFN
-Z6HNH6gInkSSMtvC4Ptejb749PTaePRPF7ID//eq/3AH8UK50F3TQcLjEqWUsJUn
-aFKltOc+RAjzDklcUPeG4Y6eMA==
+MIIFPjCCAyYCCQDqnfUQmMxq3zANBgkqhkiG9w0BAQsFADBhMQswCQYDVQQGEwJV
+UzEWMBQGA1UECAwNTWFzc2FjaHVzZXR0czESMBAGA1UEBwwJQ2FtYnJpZGdlMQww
+CgYDVQQKDANPcmcxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTAeFw0xODExMjky
+MDEwMzdaFw0xOTExMjkyMDEwMzdaMGExCzAJBgNVBAYTAlVTMRYwFAYDVQQIDA1N
+YXNzYWNodXNldHRzMRIwEAYDVQQHDAlDYW1icmlkZ2UxDDAKBgNVBAoMA09yZzEY
+MBYGA1UEAwwPd3d3LmV4YW1wbGUuY29tMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
+MIICCgKCAgEA9CHyWDa2ABp9dFWfqCH5YD++q2karZvzxFSQ1rn3BMo2RlxbFcfn
+2lydQrtoMwlE9jIxMkl1/5lyJdzhwf7pagz9ALJkct6txdjMNN/lYvD1mU645NJy
+ASjJvki67HiV6D/+yDXZtn9ZAyFc/QcICkLRPN/LYO1xwiIyMD2s3RTDYO8SSeRU
+H0ZpmeJONt2v3wSQfvW225tM/G066nT6P9tALxC2DemmDP4GPd8wMDDjoFGVpVh/
+DjqxHAuWiLYiVaaDz1J2XPZ5A09SLnPM0TuIZb/0bvVEyyGzfD3Bhdk1FtdXYtAD
+6noREGjMv0zvBji+P38Ngbz8meq9H/WkJkL67qVDjgeqhedC4MSGdM3Qom6uJUpu
+S4S9PhP+87Juhb1vouEZpwu4od1RX8maC8rGhb4JmhOv3mEI1EeqMPOU+1vOaZPB
+w9gyLmog4v4luNVXvu5JS5VeoCg063wjf97nNIMizwwo+Js5sHDuqa1R1BvSBMFF
+F0cXb6G4r0yw9tz56k0W+93bhbYVyqqoBxMR49O9Ylk7FbYA1g5v+ZYVg8hQIMXk
+O+y03aZdD4XR3wif15QyqOlv8gZlS/HOAfBv7fpAAh+M+MLffliZroi7e/Q3HX7D
+kgSq8Va6KANh6gW9kSsMAoWIya+PqLukZSOH1Ed4BJid4FtuEFjm5ZMCAwEAATAN
+BgkqhkiG9w0BAQsFAAOCAgEAA0CEYPyDjZZTE58VXhqahno8Vi/UP6+X+ThCysAk
+w/DX9OfROskEpK369nOecM5qsm2VJNFJL2Qfe5HhzxhjidOCU0zixSAUP+3VSSv4
+3mNDcJQPtTZrxLPUfvGGH4A2xWQCbT8QuTUt/bT+ILrLccltdFg+LpJK5BqVl4vM
+Ukdmth0I69eU5B0dpQDk1IWXzgMZaiDuBaYX1zzN8GYOkktbl9KUusbYbMNJujAi
+/7Z95RRPTyRAEtXmvle+TUWJl8VfE4UMOOnRvzgxg0RuFMxr8zVAvLiAedaGavyI
+2yM/YT8icIjNFF7v92/ekATobXWVROebcnBSVszG/TN7zV8yZ3Hhnv4/tLUy2hmk
+Q1UafIYwpIR1CLMf6u60ttr5Lyqxbcep5JfJyJDCwgAqPrdLeYx90WVdaTSwLraD
+DJDgivAQuVcPfK4GthXVkz4kf4i+2CG8O6ApUJoR5z9W2q5eaHhqn/2S0himwV/7
+q6/S4htUsT0dDGIvta2fIswGZENRpVlIjTzIPVk/m7OaaI26t/unpo+4aJRUG+cP
+jlrm+5MdUBwLenQscf/98tFHg7hb9jkfBLcMDDNTXB2X3Y4iyE531iqm4zPHU2gB
+17kPBdvecKcRSlqDm6JLqjvKHF7HGqVTVZ4rPhJQKDns+68f0/rN89rqPzAeq0he
+2Jk=
 -----END CERTIFICATE-----`
 
-var testRsaRootCert = `-----BEGIN CERTIFICATE-----
-MIID7TCCAtWgAwIBAgIJAOIRDhOcxsx6MA0GCSqGSIb3DQEBCwUAMIGLMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTESMBAGA1UEBwwJU3Vubnl2YWxl
-MQ4wDAYDVQQKDAVJc3RpbzENMAsGA1UECwwEVGVzdDEQMA4GA1UEAwwHUm9vdCBD
-QTEiMCAGCSqGSIb3DQEJARYTdGVzdHJvb3RjYUBpc3Rpby5pbzAgFw0xODAxMjQx
-OTE1NTFaGA8yMTE3MTIzMTE5MTU1MVowgYsxCzAJBgNVBAYTAlVTMRMwEQYDVQQI
-DApDYWxpZm9ybmlhMRIwEAYDVQQHDAlTdW5ueXZhbGUxDjAMBgNVBAoMBUlzdGlv
-MQ0wCwYDVQQLDARUZXN0MRAwDgYDVQQDDAdSb290IENBMSIwIAYJKoZIhvcNAQkB
-FhN0ZXN0cm9vdGNhQGlzdGlvLmlvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
-CgKCAQEA38uEfAatzQYqbaLou1nxJ348VyNzumYMmDDt5pbLYRrCo2pS3ki1ZVDN
-8yxIENJFkpKw9UctTGdbNGuGCiSDP7uqF6BiVn+XKAU/3pnPFBbTd0S33NqbDEQu
-IYraHSl/tSk5rARbC1DrQRdZ6nYD2KrapC4g0XbjY6Pu5l4y7KnFwSunnp9uqpZw
-uERv/BgumJ5QlSeSeCmhnDhLxooG8w5tC2yVr1yDpsOHGimP/mc8Cds4V0zfIhQv
-YzfIHphhE9DKjmnjBYLOdj4aycv44jHnOGc+wvA1Jqsl60t3wgms+zJTiWwABLdw
-zgMAa7yxLyoV0+PiVQud6k+8ZoIFcwIDAQABo1AwTjAdBgNVHQ4EFgQUOUYGtUyh
-euxO4lGe4Op1y8NVoagwHwYDVR0jBBgwFoAUOUYGtUyheuxO4lGe4Op1y8NVoagw
-DAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEANXLyfAs7J9rmBamGJvPZ
-ltx390WxzzLFQsBRAaH6rgeipBq3dR9qEjAwb6BTF+ROmtQzX+fjstCRrJxCto9W
-tC8KvXTdRfIjfCCZjhtIOBKqRxE4KJV/RBfv9xD5lyjtCPCQl3Ia6MSf42N+abAK
-WCdU6KCojA8WB9YhSCzza3aQbPTzd26OC/JblJpVgtus5f8ILzCsz+pbMimgTkhy
-AuhYRppJaQ24APijsEC9+GIaVKPg5IwWroiPoj+QXNpshuvqVQQXvGaRiq4zoSnx
-xAJz+w8tjrDWcf826VN14IL+/Cmqlg/rIfB5CHdwVIfWwpuGB66q/UiPegZMNs8a
-3g==
------END CERTIFICATE-----`
-
-var testRsaCertChain = `-----BEGIN CERTIFICATE-----
-MIIDnzCCAoegAwIBAgIJAON1ifrBZ2/BMA0GCSqGSIb3DQEBCwUAMIGLMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTESMBAGA1UEBwwJU3Vubnl2YWxl
-MQ4wDAYDVQQKDAVJc3RpbzENMAsGA1UECwwEVGVzdDEQMA4GA1UEAwwHUm9vdCBD
-QTEiMCAGCSqGSIb3DQEJARYTdGVzdHJvb3RjYUBpc3Rpby5pbzAgFw0xODAxMjQx
-OTE1NTFaGA8yMTE3MTIzMTE5MTU1MVowWTELMAkGA1UEBhMCVVMxEzARBgNVBAgT
-CkNhbGlmb3JuaWExEjAQBgNVBAcTCVN1bm55dmFsZTEOMAwGA1UEChMFSXN0aW8x
-ETAPBgNVBAMTCElzdGlvIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
-AQEAyzCxr/xu0zy5rVBiso9ffgl00bRKvB/HF4AX9/ytmZ6Hqsy13XIQk8/u/By9
-iCvVwXIMvyT0CbiJq/aPEj5mJUy0lzbrUs13oneXqrPXf7ir3HzdRw+SBhXlsh9z
-APZJXcF93DJU3GabPKwBvGJ0IVMJPIFCuDIPwW4kFAI7R/8A5LSdPrFx6EyMXl7K
-M8jekC0y9DnTj83/fY72WcWX7YTpgZeBHAeeQOPTZ2KYbFal2gLsar69PgFS0Tom
-ESO9M14Yit7mzB1WDK2z9g3r+zLxENdJ5JG/ZskKe+TO4Diqi5OJt/h8yspS1ck8
-LJtCole9919umByg5oruflqIlQIDAQABozUwMzALBgNVHQ8EBAMCAgQwDAYDVR0T
-BAUwAwEB/zAWBgNVHREEDzANggtjYS5pc3Rpby5pbzANBgkqhkiG9w0BAQsFAAOC
-AQEAltHEhhyAsve4K4bLgBXtHwWzo6SpFzdAfXpLShpOJNtQNERb3qg6iUGQdY+w
-A2BpmSkKr3Rw/6ClP5+cCG7fGocPaZh+c+4Nxm9suMuZBZCtNOeYOMIfvCPcCS+8
-PQ/0hC4/0J3WJKzGBssaaMufJxzgFPPtDJ998kY8rlROghdSaVt423/jXIAYnP3Y
-05n8TGERBj7TLdtIVbtUIx3JHAo3PWJywA6mEDovFMJhJERp9sDHIr1BbhXK1TFN
-Z6HNH6gInkSSMtvC4Ptejb749PTaePRPF7ID//eq/3AH8UK50F3TQcLjEqWUsJUn
-aFKltOc+RAjzDklcUPeG4Y6eMA==
------END CERTIFICATE-----
-`
+var testRsaCertChain = ""
+var testRsaRootCert = testRsaCaCert
 
 func GetKubeConfig() *rest.Config {
 	if kubeConfig != nil {
@@ -194,9 +184,7 @@ func GetSecretClient() istiosecret.IstioCacertsSecretClient {
 	if secretClient != nil {
 		return secretClient
 	}
-	client, err := istiosecret.NewIstioCacertsSecretClient(&factory.KubeSecretClientFactory{
-		Clientset: GetKubeClient(),
-	})
+	client, err := factory2.GetIstioCacertsSecretClient(GetKubeClient())
 	ExpectWithOffset(1, err).Should(BeNil())
 	err = client.Register()
 	ExpectWithOffset(1, err).Should(BeNil())
@@ -365,6 +353,17 @@ func CreateConsulTunnel(namespace string, port int) (*helmkube.Tunnel, error) {
 	return t, t.ForwardPort()
 }
 
+func createSecret(secret *istiosecret.IstioCacertsSecret, namespace string, name string) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
+	GetSecretClient().Delete(namespace, name, clients.DeleteOpts{})
+	_, err := GetSecretClient().Write(secret, clients.WriteOpts{})
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	ref := &core.ResourceRef{
+		Namespace: namespace,
+		Name:      name,
+	}
+	return secret, ref
+}
+
 func CreateTestEcSecret(namespace string, name string) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
 	secret := &istiosecret.IstioCacertsSecret{
 		Metadata: core.Metadata{
@@ -376,14 +375,7 @@ func CreateTestEcSecret(namespace string, name string) (*istiosecret.IstioCacert
 		RootCert:  TestEcRoot,
 		CertChain: testCertChain,
 	}
-	GetSecretClient().Delete(namespace, name, clients.DeleteOpts{})
-	_, err := GetSecretClient().Write(secret, clients.WriteOpts{})
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	ref := &core.ResourceRef{
-		Namespace: namespace,
-		Name:      name,
-	}
-	return secret, ref
+	return createSecret(secret, namespace, name)
 }
 
 func CreateTestRsaSecret(namespace string, name string) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
@@ -395,20 +387,9 @@ func CreateTestRsaSecret(namespace string, name string) (*istiosecret.IstioCacer
 		CaCert:    testRsaCaCert,
 		CaKey:     testRsaCaKey,
 		RootCert:  testRsaRootCert,
-		CertChain: testCertChain,
+		CertChain: testRsaCertChain,
 	}
-	return createSecret(namespace, name, secret)
-}
-
-func createSecret(namespace string, name string, secret *istiosecret.IstioCacertsSecret) (*istiosecret.IstioCacertsSecret, *core.ResourceRef) {
-	GetSecretClient().Delete(namespace, name, clients.DeleteOpts{})
-	_, err := GetSecretClient().Write(secret, clients.WriteOpts{})
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	ref := &core.ResourceRef{
-		Namespace: namespace,
-		Name:      name,
-	}
-	return secret, ref
+	return createSecret(secret, namespace, name)
 }
 
 func CheckCertMatchesConsul(consulTunnelPort int, rootCert string) {
@@ -431,7 +412,7 @@ func CheckCertMatchesIstio(installNamespace string) {
 	ExpectWithOffset(1, actual.RootCert).Should(BeEquivalentTo(testRsaRootCert))
 	ExpectWithOffset(1, actual.CaCert).Should(BeEquivalentTo(testRsaCaCert))
 	ExpectWithOffset(1, actual.CaKey).Should(BeEquivalentTo(testRsaCaKey))
-	ExpectWithOffset(1, actual.CertChain).Should(BeEquivalentTo(testCertChain))
+	ExpectWithOffset(1, actual.CertChain).Should(BeEquivalentTo(testRsaCertChain))
 }
 
 func UninstallHelmRelease(releaseName string) error {
@@ -490,20 +471,6 @@ func TryDeleteIstioCrds() {
 			crdClient.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, &kubemeta.DeleteOptions{})
 		}
 	}
-}
-
-func IstioCrdsDontExist() bool {
-	crdClient := GetApiExtsClient()
-	crdList, err := crdClient.ApiextensionsV1beta1().CustomResourceDefinitions().List(kubemeta.ListOptions{})
-	if err != nil {
-		return false
-	}
-	for _, crd := range crdList.Items {
-		if strings.Contains(crd.Name, "istio.io") {
-			return false
-		}
-	}
-	return true
 }
 
 func GetUpstreamNames(upstreamClient gloo.UpstreamClient) ([]string, error) {

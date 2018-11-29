@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 
+	factory2 "github.com/solo-io/supergloo/pkg/factory"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/factory"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients/kube"
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
@@ -35,9 +37,7 @@ func GetUpstreamClient() (*glooV1.UpstreamClient, error) {
 
 func GetSecretClient() (*istiosecret.IstioCacertsSecretClient, error) {
 	clientset, err := GetKubernetesClient()
-	secretClient, err := istiosecret.NewIstioCacertsSecretClient(&factory.KubeSecretClientFactory{
-		Clientset: clientset,
-	})
+	secretClient, err := factory2.GetIstioCacertsSecretClient(clientset)
 	if err != nil {
 		return nil, err
 	}

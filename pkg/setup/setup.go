@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	factory2 "github.com/solo-io/supergloo/pkg/factory"
+
 	"github.com/solo-io/solo-kit/pkg/api/v1/reporter"
 	"github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 
@@ -19,7 +21,6 @@ import (
 	"github.com/solo-io/solo-kit/pkg/utils/errutils"
 	"github.com/solo-io/solo-kit/pkg/utils/kubeutils"
 	gloov1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
-	istiosecret "github.com/solo-io/supergloo/pkg/api/external/istio/encryption/v1"
 	prometheusv1 "github.com/solo-io/supergloo/pkg/api/external/prometheus/v1"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/solo-io/supergloo/pkg/translator/consul"
@@ -127,9 +128,7 @@ func Main(namespaces ...string) error {
 		return err
 	}
 
-	secretClient, err := istiosecret.NewIstioCacertsSecretClient(&factory.KubeSecretClientFactory{
-		Clientset: kubeClient,
-	})
+	secretClient, err := factory2.GetIstioCacertsSecretClient(kubeClient)
 	if err != nil {
 		return err
 	}

@@ -85,6 +85,16 @@ func (s *SecretSyncer) syncSecret(ctx context.Context, sourceSecret, existingSec
 	}); err != nil {
 		return errors.Wrapf(err, "updating tool tls secret %v for istio", istioSecret.Metadata.Ref())
 	}
+
+	if !s.Preinstall {
+		if err := s.restartCitadel(); err != nil {
+			return errors.Wrapf(err, "Error restarting citadel")
+		}
+		if err := s.deleteIstioDefaultSecret(); err != nil {
+			return errors.Wrapf(err, "Error removing existing default cert")
+		}
+	}
+
 	return nil
 }
 
