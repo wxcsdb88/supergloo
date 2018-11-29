@@ -85,6 +85,7 @@ type InputRoutingRule struct {
 	OverrideExisting bool
 	Timeout          InputDuration
 	Retry            InputRetry
+	FaultInjection   InputFaultInjection
 }
 
 type InputDuration struct {
@@ -95,6 +96,25 @@ type InputDuration struct {
 type InputRetry struct {
 	Attempts      string
 	PerTryTimeout InputDuration
+}
+
+type InputFaultInjection struct {
+	DelayPercent string // int32
+
+	// Options:
+	//	*HTTPFaultInjection_Delay_FixedDelay // Duration
+	//	*HTTPFaultInjection_Delay_ExponentialDelay // Duration
+	HttpDelayType  string
+	HttpDelayValue InputDuration
+
+	AbortPercent string // int32
+
+	// Options:
+	//	*HTTPFaultInjection_Abort_HttpStatus // int32
+	//	*HTTPFaultInjection_Abort_GrpcStatus // string
+	//	*HTTPFaultInjection_Abort_Http2Error // string
+	ErrorType    string
+	ErrorMessage string
 }
 
 // // Route Rule fields
