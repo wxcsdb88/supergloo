@@ -72,7 +72,7 @@ var _ = Describe("Istio Installer", func() {
 	BeforeEach(func() {
 		randStr := helpers.RandString(8)
 		installNamespace = "istio-install-test-" + randStr
-		meshName = "istio-mesh-test-" + helpers.RandString(8)
+		meshName = "istio-mesh-test-" + randStr
 		util.TryCreateNamespace(superglooNamespace)
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
