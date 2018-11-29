@@ -146,7 +146,7 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 	})
 
 	Describe("istio + encryption", func() {
-		FIt("Can install istio with mtls enabled and custom root cert", func() {
+		It("Can install istio with mtls enabled and custom root cert", func() {
 			secret, ref := util.CreateTestRsaSecret(superglooNamespace, secretName)
 			snap := getSnapshot(true, true, ref, secret)
 			err := installSyncer.Sync(context.TODO(), snap)
