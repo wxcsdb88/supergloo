@@ -78,10 +78,10 @@ global:
   mtls:
     enabled: @@MTLS_ENABLED@@
   crds: false
-  controlPlaneSecurityEnabled: @@MTLS_ENABLED@@
+  controlPlaneSecurityEnabled: true
 security:
   selfSigned: @@SELF_SIGNED@@
-  enabled: @@MTLS_ENABLED@@
+  enabled: true
 
 `
 
