@@ -2,12 +2,14 @@ package create
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/solo-io/supergloo/cli/pkg/common"
 
 	"github.com/solo-io/solo-kit/pkg/errors"
 
+	types "github.com/gogo/protobuf/types"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
@@ -15,6 +17,7 @@ import (
 	glooV1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/spf13/cobra"
+	"gopkg.in/AlecAivazis/survey.v1"
 )
 
 func RoutingRuleCmd(opts *options.Options) *cobra.Command {
@@ -65,6 +68,15 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 		nil,
 		"Matcher for this rule")
 
+	flags.StringVar(&rrOpts.TimeOutSeconds,
+		"route.timeout.seconds",
+		"",
+		"timeout time in seconds")
+	flags.StringVar(&rrOpts.TimeOutNanos,
+		"route.timeout.nanos",
+		"",
+		"timeout time in nanoseconds")
+
 	return cmd
 }
 
@@ -81,6 +93,10 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO(mitchdraft) gate this behind setting
+	ensureTimeout(opts)
+
 	// Validate matchers
 	var matchers []*glooV1.Matcher
 	if rrOpts.Matchers != nil {
@@ -99,6 +115,7 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 		Sources:         opts.MeshTool.RoutingRule.Sources,
 		Destinations:    opts.MeshTool.RoutingRule.Destinations,
 		RequestMatchers: matchers,
+		Timeout:         opts.MeshTool.RoutingRule.Timeout,
 	}
 
 	rrClient, err := common.GetRoutingRuleClient()
@@ -233,6 +250,46 @@ func ensureUpstreams(opts *options.Options) error {
 			return err
 		}
 
+	}
+	return nil
+}
+
+func ensureTimeout(opts *options.Options) error {
+	rrOpts := &(opts.Create).InputRoutingRule
+	if !opts.Top.Static {
+		err := getStringInput("Please specify timeout duration (seconds)", &rrOpts.TimeOutSeconds)
+		if err != nil {
+			return err
+		}
+		err = getStringInput("Please specify timeout duration (nanoseconds)", &rrOpts.TimeOutNanos)
+		if err != nil {
+			return err
+		}
+	}
+	// if not in interactive mode, timeout values will have already been passed
+	timeout := &types.Duration{}
+	if rrOpts.TimeOutSeconds != "" {
+		sec, err := strconv.Atoi(rrOpts.TimeOutSeconds)
+		if err != nil {
+			return err
+		}
+		timeout.Seconds = int64(sec)
+	}
+	if rrOpts.TimeOutNanos != "" {
+		nanos, err := strconv.Atoi(rrOpts.TimeOutNanos)
+		if err != nil {
+			return err
+		}
+		timeout.Nanos = int32(nanos)
+	}
+	opts.MeshTool.RoutingRule.Timeout = timeout
+	return nil
+}
+
+func getStringInput(msg string, value *string) error {
+	prompt := &survey.Input{Message: msg}
+	if err := survey.AskOne(prompt, &value, nil); err != nil {
+		return err
 	}
 	return nil
 }
