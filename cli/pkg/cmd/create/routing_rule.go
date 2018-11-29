@@ -77,25 +77,10 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 	}
 
 	// Validate source and destination upstreams
-	upstreamClient, err := common.GetUpstreamClient()
+	err := ensureUpstreams(opts)
 	if err != nil {
 		return err
 	}
-	var sources []*glooV1.Upstream
-	if rrOpts.Sources != "" {
-		sources, err = validateUpstreams(upstreamClient, rrOpts.Sources)
-		if err != nil {
-			return err
-		}
-	}
-	var destinations []*glooV1.Upstream
-	if rrOpts.Destinations != "" {
-		sources, err = validateUpstreams(upstreamClient, rrOpts.Destinations)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Validate matchers
 	var matchers []*glooV1.Matcher
 	if rrOpts.Matchers != nil {
@@ -111,8 +96,8 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 			Namespace: rrOpts.TargetMesh.Namespace,
 		},
 		TargetMesh:      &rrOpts.TargetMesh,
-		Sources:         toResourceRefs(sources),
-		Destinations:    toResourceRefs(destinations),
+		Sources:         opts.MeshTool.RoutingRule.Sources,
+		Destinations:    opts.MeshTool.RoutingRule.Destinations,
 		RequestMatchers: matchers,
 	}
 
@@ -215,4 +200,31 @@ func validateMatchers(matcherOption []string) ([]*glooV1.Matcher, error) {
 	}
 
 	return result, nil
+}
+
+func ensureUpstreams(opts *options.Options) error {
+	rrOpts := &(opts.Create).InputRoutingRule
+	if opts.Top.Static {
+		upstreamClient, err := common.GetUpstreamClient()
+		if err != nil {
+			return err
+		}
+		var sources []*glooV1.Upstream
+		if rrOpts.Sources != "" {
+			sources, err = validateUpstreams(upstreamClient, rrOpts.Sources)
+			if err != nil {
+				return err
+			}
+			opts.MeshTool.RoutingRule.Sources = toResourceRefs(sources)
+		}
+		var destinations []*glooV1.Upstream
+		if rrOpts.Destinations != "" {
+			destinations, err = validateUpstreams(upstreamClient, rrOpts.Destinations)
+			if err != nil {
+				return err
+			}
+			opts.MeshTool.RoutingRule.Destinations = toResourceRefs(destinations)
+		}
+	}
+	return nil
 }

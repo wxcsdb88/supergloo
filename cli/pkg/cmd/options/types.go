@@ -43,10 +43,10 @@ type Uninstall struct {
 }
 
 type MeshTool struct {
-	Mesh      core.ResourceRef
-	ServiceId string
-	AddPolicy AddPolicy
-	Routing   superglooV1.RoutingRule
+	Mesh        core.ResourceRef
+	ServiceId   string
+	AddPolicy   AddPolicy
+	RoutingRule superglooV1.RoutingRule
 	// RoutingFlags RoutingFlags
 }
 
