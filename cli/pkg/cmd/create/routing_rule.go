@@ -18,7 +18,7 @@ import (
 )
 
 func RoutingRuleCmd(opts *options.Options) *cobra.Command {
-	rrOpts := &(opts.Create).RoutingRule
+	rrOpts := &(opts.Create).InputRoutingRule
 	cmd := &cobra.Command{
 		Use:   "routingrule",
 		Short: `Create a route rule with the given name`,
@@ -29,18 +29,18 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 				fmt.Println(err)
 				return
 			}
-			fmt.Printf("Created routing rule [%v] in namespace [%v]\n", args[0], rrOpts.Namespace)
+			fmt.Printf("Created routing rule [%v] in namespace [%v]\n", args[0], rrOpts.TargetMesh.Namespace)
 		},
 	}
 
 	flags := cmd.Flags()
 
-	flags.StringVar(&rrOpts.Mesh,
+	flags.StringVar(&(rrOpts.TargetMesh).Name,
 		"mesh",
 		"",
 		"The mesh that will be the target for this rule")
 
-	flags.StringVarP(&rrOpts.Namespace,
+	flags.StringVarP(&(rrOpts.TargetMesh).Namespace,
 		"namespace", "n",
 		"",
 		"The namespace for this routing rule. Defaults to \"default\"")
@@ -69,40 +69,11 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 }
 
 func createRoutingRule(routeName string, opts *options.Options) error {
-	rrOpts := &(opts.Create).RoutingRule
+	rrOpts := &(opts.Create).InputRoutingRule
 
-	// Ensure that the given mesh exists
-	if opts.Top.Static {
-		if rrOpts.Namespace == "" {
-			return fmt.Errorf("Please specify a mesh namespace")
-		}
-		if rrOpts.Mesh == "" {
-			return fmt.Errorf("Please specify a mesh")
-		}
-	}
-
-	if rrOpts.Namespace != "" {
-		if !common.Contains(opts.Cache.Namespaces, rrOpts.Namespace) {
-			return fmt.Errorf("Please specify a valid mesh namespace. Namespace %v not found", rrOpts.Namespace)
-		}
-		if len(opts.Cache.NsResources[rrOpts.Namespace].Meshes) == 0 {
-			return fmt.Errorf("Please choose a namespace with meshes. Namespace %v contains no meshes.", rrOpts.Namespace)
-		}
-	}
-
-	if rrOpts.Mesh == "" {
-		// Q(mitchdraft)jdo we want to prefilter this by namespace if they have chosen one?
-		meshRef, err := nsutil.ChooseMesh(opts.Cache.NsResources)
-		if err != nil {
-			return fmt.Errorf("input error")
-		}
-		// TODO(mitchdraft) change these fields to a resource ref
-		rrOpts.Mesh = meshRef.Name
-		rrOpts.Namespace = meshRef.Namespace
-	} else {
-		if !common.Contains(opts.Cache.NsResources[rrOpts.Namespace].Meshes, rrOpts.Mesh) {
-			return fmt.Errorf("Please specify a valid mesh name. Mesh %v not found in namespace %v not found", rrOpts.Mesh, rrOpts.Namespace)
-		}
+	// all operations require a target mesh spec
+	if err := nsutil.EnsureMesh(&rrOpts.TargetMesh, opts); err != nil {
+		return err
 	}
 
 	// Validate source and destination upstreams
@@ -137,12 +108,9 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 	routingRule := &superglooV1.RoutingRule{
 		Metadata: core.Metadata{
 			Name:      routeName,
-			Namespace: rrOpts.Namespace,
+			Namespace: rrOpts.TargetMesh.Namespace,
 		},
-		TargetMesh: &core.ResourceRef{
-			Name:      rrOpts.Mesh,
-			Namespace: rrOpts.Namespace,
-		},
+		TargetMesh:      &rrOpts.TargetMesh,
 		Sources:         toResourceRefs(sources),
 		Destinations:    toResourceRefs(destinations),
 		RequestMatchers: matchers,
