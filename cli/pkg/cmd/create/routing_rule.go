@@ -94,8 +94,10 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 		return err
 	}
 
-	// TODO(mitchdraft) gate this behind setting
-	ensureTimeout(opts)
+	// TODO(mitchdraft) gate this behind setting (so that it can be called from a top-level command)
+	if err := ensureTimeout(opts); err != nil {
+		return err
+	}
 
 	// Validate matchers
 	var matchers []*glooV1.Matcher
@@ -288,7 +290,7 @@ func ensureTimeout(opts *options.Options) error {
 
 func getStringInput(msg string, value *string) error {
 	prompt := &survey.Input{Message: msg}
-	if err := survey.AskOne(prompt, &value, nil); err != nil {
+	if err := survey.AskOne(prompt, value, nil); err != nil {
 		return err
 	}
 	return nil
