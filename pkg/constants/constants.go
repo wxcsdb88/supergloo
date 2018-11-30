@@ -2,6 +2,6 @@ package constants
 
 var (
 	SuperglooNamespace = "supergloo-system"
-	MeshOptions        = []string{"istio", "consul", "linkerd2"}
+	MeshOptions        = []string{"istio", "consul", "linkerd2", "appmesh"}
 	ConsulInstallPath  = "https://github.com/hashicorp/consul-helm/archive/v0.3.0.tar.gz"
 )
