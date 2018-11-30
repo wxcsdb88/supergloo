@@ -10,27 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func FaultInjection(opts *options.Options) *cobra.Command {
-	rrOpts := &(opts.Create).InputRoutingRule
-	cmd := &cobra.Command{
-		Use:   "fault-injection",
-		Short: `Stress test your mesh with faults`,
-		Long:  `Stress test your mesh with faults`,
-		Args:  cobra.ExactArgs(1),
-		RunE: func(c *cobra.Command, args []string) error {
-			rrOpts.RouteName = args[0]
-			if err := routerule.CreateRoutingRule(routerule.FaultInjection_Rule, opts); err != nil {
-				return err
-			}
-			fmt.Printf("Created fault injection routing rule [%v] in namespace [%v]\n", args[0], rrOpts.TargetMesh.Namespace)
-			return nil
-		},
-	}
-	linkMeshToolFlags(cmd, opts)
-	routerule.AddFaultFlags(cmd, opts)
-	return cmd
-}
-
 func LoadBalancing(opts *options.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "load-balancing",
@@ -44,9 +23,21 @@ func LoadBalancing(opts *options.Options) *cobra.Command {
 	return cmd
 }
 
+func FaultInjection(opts *options.Options) *cobra.Command {
+	cmd := generateRouteCmd("fault-injection", "Stress test your mesh with faults", routerule.FaultInjection_Rule, opts)
+	routerule.AddFaultFlags(cmd, opts)
+	return cmd
+}
+
 func Retries(opts *options.Options) *cobra.Command {
 	cmd := generateRouteCmd("retries", "Configure retry parameters", routerule.Retries_Rule, opts)
 	routerule.AddRetryFlags(cmd, opts)
+	return cmd
+}
+
+func Timeout(opts *options.Options) *cobra.Command {
+	cmd := generateRouteCmd("timeout", "Configure timeout parameters", routerule.Timeout_Rule, opts)
+	routerule.AddTimeoutFlags(cmd, opts)
 	return cmd
 }
 
