@@ -45,7 +45,7 @@ func EnsureFault(fo *options.InputFaultInjection, opts *options.Options) error {
 		return fmt.Errorf("Must specify a valid http delay type: %v", strings.Join(delayTypeOptions[:], ", "))
 	}
 	delayDuration := &types.Duration{}
-	if err := EnsureDuration(&fo.HttpDelayValue,
+	if err := EnsureDuration("Please specify the delay", &fo.HttpDelayValue,
 		delayDuration,
 		opts); err != nil {
 		return err

@@ -7,5 +7,5 @@ import (
 
 func EnsureTimeout(opts *options.Options) error {
 	opts.MeshTool.RoutingRule.Timeout = &types.Duration{}
-	return EnsureDuration(&(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts)
+	return EnsureDuration("Please specify the timeout", &(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts)
 }

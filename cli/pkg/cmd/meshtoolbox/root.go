@@ -36,7 +36,7 @@ func Timeout(opts *options.Options) *cobra.Command {
 
 func CorsPolicy(opts *options.Options) *cobra.Command {
 	cmd := generateRouteCmd("cors", "Configure cors policy parameters", routerule.CorsPolicy_Rule, opts)
-	// routerule.AddCorsFlags(cmd, opts)
+	routerule.AddCorsFlags(cmd, opts)
 	return cmd
 }
 

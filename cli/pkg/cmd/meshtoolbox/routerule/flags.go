@@ -120,3 +120,44 @@ func AddTrafficShiftingFlags(cmd *cobra.Command, opts *options.Options) {
 		"Comma-separated list of integer weights corresponding to the associated upstream's traffic sharing percentage.")
 
 }
+
+func AddCorsFlags(cmd *cobra.Command, opts *options.Options) {
+	cOpts := &(opts.Create.InputRoutingRule).Cors
+	flags := cmd.Flags()
+
+	flags.StringVar(&cOpts.AllowOrigin,
+		"cors.allow.origin",
+		"",
+		"The list of origins that are allowed to perform CORS requests. The content will be serialized into the Access-Control-Allow-Origin header. Wildcard * will allow all origins.")
+
+	flags.StringVar(&cOpts.AllowMethods,
+		"cors.allow.methods",
+		"",
+		"List of HTTP methods allowed to access the resource. The content will be serialized into the Access-Control-Allow-Methods header.")
+
+	flags.StringVar(&cOpts.AllowHeaders,
+		"cors.allow.headers",
+		"",
+		"List of HTTP headers that can be used when requesting the resource. Serialized to Access-Control-Allow-Methods header.")
+
+	flags.StringVar(&cOpts.ExposeHeaders,
+		"cors.expose.headers",
+		"",
+		"A white list of HTTP headers that the browsers are allowed to access. Serialized into Access-Control-Expose-Headers header.")
+
+	flags.StringVar(&(cOpts.MaxAge).Seconds,
+		"cors.maxage.seconds",
+		"",
+		"Max age time in seconds. Specifies how long the the results of a preflight request can be cached. Translates to the Access-Control-Max-Age header.")
+
+	flags.StringVar(&(cOpts.MaxAge).Nanos,
+		"cors.maxage.nanos",
+		"",
+		"Max age time in nanoseconds. Specifies how long the the results of a preflight request can be cached. Translates to the Access-Control-Max-Age header.")
+
+	flags.BoolVar(&cOpts.AllowCredentials,
+		"cors.allow.credentials",
+		false,
+		"Indicates whether the caller is allowed to send the actual request (not the preflight) using credentials. Translates to Access-Control-Allow-Credentials header.")
+
+}

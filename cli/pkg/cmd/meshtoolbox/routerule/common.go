@@ -1,6 +1,7 @@
 package routerule
 
 import (
+	"fmt"
 	"strconv"
 
 	types "github.com/gogo/protobuf/types"
@@ -8,14 +9,14 @@ import (
 	"github.com/solo-io/supergloo/cli/pkg/common/iutil"
 )
 
-func EnsureDuration(durOpts *options.InputDuration, targetDur *types.Duration, opts *options.Options) error {
+func EnsureDuration(rootMessage string, durOpts *options.InputDuration, targetDur *types.Duration, opts *options.Options) error {
 	dur := types.Duration{}
 	if !opts.Top.Static {
-		err := iutil.GetStringInput("Please specify timeout duration (seconds)", &durOpts.Seconds)
+		err := iutil.GetStringInput(fmt.Sprintf("%v (seconds)", rootMessage), &durOpts.Seconds)
 		if err != nil {
 			return err
 		}
-		err = iutil.GetStringInput("Please specify timeout duration (nanoseconds)", &durOpts.Nanos)
+		err = iutil.GetStringInput(fmt.Sprintf("%v (nanoseconds)", rootMessage), &durOpts.Nanos)
 		if err != nil {
 			return err
 		}

@@ -17,6 +17,7 @@ type InputRoutingRule struct {
 	FaultInjection   InputFaultInjection
 	ActiveTypes      []MultiselectOptionBool
 	TrafficShifting  InputTrafficShifting
+	Cors             InputCors
 }
 
 type InputFaultInjection struct {
@@ -47,4 +48,13 @@ type MultiselectOptionBool struct {
 type InputTrafficShifting struct {
 	Upstreams string
 	Weights   string
+}
+
+type InputCors struct {
+	AllowOrigin      string
+	AllowMethods     string
+	AllowHeaders     string
+	ExposeHeaders    string
+	MaxAge           InputDuration
+	AllowCredentials bool
 }

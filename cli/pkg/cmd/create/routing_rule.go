@@ -27,9 +27,11 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 	}
 
 	routerule.AddBaseFlags(cmd, opts)
+	routerule.AddTrafficShiftingFlags(cmd, opts)
 	routerule.AddTimeoutFlags(cmd, opts)
 	routerule.AddRetryFlags(cmd, opts)
 	routerule.AddFaultFlags(cmd, opts)
+	routerule.AddCorsFlags(cmd, opts)
 
 	return cmd
 }
