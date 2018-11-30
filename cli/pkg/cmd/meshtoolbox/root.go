@@ -45,15 +45,8 @@ func LoadBalancing(opts *options.Options) *cobra.Command {
 }
 
 func Retries(opts *options.Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "retries",
-		Short: `Configure retry parameters`,
-		Long:  `Configure retry parameters`,
-		Run: func(c *cobra.Command, args []string) {
-			meshToolPlaceholder(opts)
-		},
-	}
-	linkMeshToolFlags(cmd, opts)
+	cmd := generateRouteCmd("retries", "Configure retry parameters", routerule.Retries_Rule, opts)
+	routerule.AddRetryFlags(cmd, opts)
 	return cmd
 }
 
@@ -92,4 +85,24 @@ func linkMeshToolFlags(cmd *cobra.Command, opts *options.Options) {
 
 func meshToolPlaceholder(opts *options.Options) {
 	fmt.Println("this mesh feature will be available in 2019")
+}
+
+func generateRouteCmd(useString string, description string, ruleTypeID string, opts *options.Options) *cobra.Command {
+	rrOpts := &(opts.Create).InputRoutingRule
+	cmd := &cobra.Command{
+		Use:   useString,
+		Short: description,
+		Long:  description,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			rrOpts.RouteName = args[0]
+			if err := routerule.CreateRoutingRule(ruleTypeID, opts); err != nil {
+				return err
+			}
+			fmt.Printf("Created %v routing rule [%v] in namespace [%v]\n", routerule.RoutingRuleDisplayName[ruleTypeID], args[0], rrOpts.TargetMesh.Namespace)
+			return nil
+		},
+	}
+	linkMeshToolFlags(cmd, opts)
+	return cmd
 }
