@@ -20,8 +20,13 @@ func AssembleRoutingRule(ruleTypeID string, activeRuleTypes *[]options.Multisele
 
 	rrOpts := &(opts.Create).InputRoutingRule
 	rrOpts.ActiveTypes = GenerateActiveRuleList(ruleTypeID)
-	if err := EnsureActiveRoutingRuleTypes(&rrOpts.ActiveTypes, opts.Top.Static); err != nil {
-		return err
+
+	// if they are using the full "create" workflow the user first specifies
+	// which rules to apply
+	if ruleTypeID == USE_ALL_ROUTING_RULES {
+		if err := EnsureActiveRoutingRuleTypes(&rrOpts.ActiveTypes, opts.Top.Static); err != nil {
+			return err
+		}
 	}
 
 	// Initialize the root of our RoutingRule with the minimal required params
