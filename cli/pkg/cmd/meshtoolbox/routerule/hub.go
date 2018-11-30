@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	types "github.com/gogo/protobuf/types"
 	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
@@ -57,18 +56,11 @@ func applyRule(id string, opts *options.Options) error {
 	switch id {
 	case TrafficShifting_Rule:
 	case Timeout_Rule:
-		opts.MeshTool.RoutingRule.Timeout = &types.Duration{}
-		if err := EnsureDuration(&(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts); err != nil {
-			return err
-		}
+		return EnsureTimeout(opts)
 	case Retries_Rule:
-		if err := EnsureRetry(&(opts.Create.InputRoutingRule).Retry, opts); err != nil {
-			return err
-		}
+		return EnsureRetry(&(opts.Create.InputRoutingRule).Retry, opts)
 	case FaultInjection_Rule:
-		if err := EnsureFault(&(opts.Create.InputRoutingRule).FaultInjection, opts); err != nil {
-			return err
-		}
+		return EnsureFault(&(opts.Create.InputRoutingRule).FaultInjection, opts)
 	case CorsPolicy_Rule:
 		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
 	case Mirror_Rule:
