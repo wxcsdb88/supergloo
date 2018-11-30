@@ -48,7 +48,6 @@ type MeshTool struct {
 	ServiceId   string
 	AddPolicy   AddPolicy
 	RoutingRule superglooV1.RoutingRule
-	// RoutingFlags RoutingFlags
 }
 
 type AddPolicy struct {
@@ -60,14 +59,6 @@ type AddPolicy struct {
 	Source      core.ResourceRef
 	Destination core.ResourceRef
 }
-
-// RoutingFlags is a helper for s// toring primitive-type static input
-// // The contents will be copied and transformed to other parts of the options structure
-// type RoutingFlags struct {
-// 	SourceCsv      string
-// 	DestinationCsv string
-// 	MatcherCsv     string
-// }
 
 type IngressTool struct {
 	IngressId string
