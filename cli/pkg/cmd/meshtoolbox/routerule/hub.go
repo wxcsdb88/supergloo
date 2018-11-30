@@ -44,7 +44,9 @@ func AssembleRoutingRule(ruleTypeID string, activeRuleTypes *[]options.Multisele
 
 	for _, rrType := range *activeRuleTypes {
 		if rrType.Active {
-			applyRule(rrType.ID, opts)
+			if err := applyRule(rrType.ID, opts); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -53,6 +55,7 @@ func AssembleRoutingRule(ruleTypeID string, activeRuleTypes *[]options.Multisele
 // TODO(mitchdraft) add the rest of the routing rules here
 func applyRule(id string, opts *options.Options) error {
 	switch id {
+	case TrafficShifting_Rule:
 	case Timeout_Rule:
 		opts.MeshTool.RoutingRule.Timeout = &types.Duration{}
 		if err := EnsureDuration(&(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts); err != nil {
@@ -66,6 +69,12 @@ func applyRule(id string, opts *options.Options) error {
 		if err := EnsureFault(&(opts.Create.InputRoutingRule).FaultInjection, opts); err != nil {
 			return err
 		}
+	case CorsPolicy_Rule:
+		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
+	case Mirror_Rule:
+		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
+	case HeaderManipulaition_Rule:
+		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
 	default:
 		return fmt.Errorf("Unknown routing rule type %v", id)
 	}

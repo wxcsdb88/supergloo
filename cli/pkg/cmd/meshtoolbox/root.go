@@ -10,16 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func LoadBalancing(opts *options.Options) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "load-balancing",
-		Short: `Specify traffic distribution`,
-		Long:  `Specify traffic distribution`,
-		Run: func(c *cobra.Command, args []string) {
-			fmt.Println("this feature will be available in 2019")
-		},
-	}
-	linkMeshToolFlags(cmd, opts)
+func TrafficShifting(opts *options.Options) *cobra.Command {
+	cmd := generateRouteCmd("traffic-shifting", "Configure traffic shifting parameters", routerule.TrafficShifting_Rule, opts)
+	// routerule.AddTrafficShiftingFlags(cmd, opts)
 	return cmd
 }
 
@@ -38,6 +31,24 @@ func Retries(opts *options.Options) *cobra.Command {
 func Timeout(opts *options.Options) *cobra.Command {
 	cmd := generateRouteCmd("timeout", "Configure timeout parameters", routerule.Timeout_Rule, opts)
 	routerule.AddTimeoutFlags(cmd, opts)
+	return cmd
+}
+
+func CorsPolicy(opts *options.Options) *cobra.Command {
+	cmd := generateRouteCmd("cors", "Configure cors policy parameters", routerule.CorsPolicy_Rule, opts)
+	// routerule.AddCorsFlags(cmd, opts)
+	return cmd
+}
+
+func Mirror(opts *options.Options) *cobra.Command {
+	cmd := generateRouteCmd("mirror", "Configure mirror parameters", routerule.Mirror_Rule, opts)
+	// routerule.AddMirrorFlags(cmd, opts)
+	return cmd
+}
+
+func HeaderManipulation(opts *options.Options) *cobra.Command {
+	cmd := generateRouteCmd("header-manipulation", "Configure header manipulation parameters", routerule.HeaderManipulaition_Rule, opts)
+	// routerule.AddHeaderManipulationFlags(cmd, opts)
 	return cmd
 }
 

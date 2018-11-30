@@ -128,7 +128,6 @@ func EnsureCommonResources(typeName string, menuDescription string, resRefs *[]*
 	if err != nil {
 		return err
 	}
-	fmt.Println(chosenResRefs)
 	*resRefs = chosenResRefs
 	return nil
 }
