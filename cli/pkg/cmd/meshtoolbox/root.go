@@ -5,20 +5,29 @@ import (
 
 	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox/mtls"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox/policy"
+	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox/routerule"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/spf13/cobra"
 )
 
 func FaultInjection(opts *options.Options) *cobra.Command {
+	rrOpts := &(opts.Create).InputRoutingRule
 	cmd := &cobra.Command{
 		Use:   "fault-injection",
 		Short: `Stress test your mesh with faults`,
 		Long:  `Stress test your mesh with faults`,
-		Run: func(c *cobra.Command, args []string) {
-			fmt.Println("this feature will be available in 2019")
+		Args:  cobra.ExactArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			rrOpts.RouteName = args[0]
+			if err := routerule.CreateRoutingRule(routerule.FaultInjection_Rule, opts); err != nil {
+				return err
+			}
+			fmt.Printf("Created fault injection routing rule [%v] in namespace [%v]\n", args[0], rrOpts.TargetMesh.Namespace)
+			return nil
 		},
 	}
 	linkMeshToolFlags(cmd, opts)
+	routerule.AddFaultFlags(cmd, opts)
 	return cmd
 }
 

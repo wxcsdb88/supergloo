@@ -12,8 +12,18 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1"
 )
 
-func AssembleRoutingRule(activeRuleTypes []options.MultiselectOptionBool, opts *options.Options) error {
+func AssembleRoutingRule(ruleTypeID string, activeRuleTypes *[]options.MultiselectOptionBool, opts *options.Options) error {
+
+	if err := EnsureMinimumRequiredParams(opts); err != nil {
+		return err
+	}
+
 	rrOpts := &(opts.Create).InputRoutingRule
+	rrOpts.ActiveTypes = GenerateActiveRuleList(ruleTypeID)
+	if err := EnsureActiveRoutingRuleTypes(&rrOpts.ActiveTypes, opts.Top.Static); err != nil {
+		return err
+	}
+
 	// Initialize the root of our RoutingRule with the minimal required params
 	// TODO(mitchdraft) move these fields out s.t. they are populated by the ensure methods
 	opts.MeshTool.RoutingRule = superglooV1.RoutingRule{
@@ -27,7 +37,7 @@ func AssembleRoutingRule(activeRuleTypes []options.MultiselectOptionBool, opts *
 		RequestMatchers: opts.MeshTool.RoutingRule.RequestMatchers,
 	}
 
-	for _, rrType := range activeRuleTypes {
+	for _, rrType := range *activeRuleTypes {
 		if rrType.Active {
 			applyRule(rrType.ID, opts)
 		}

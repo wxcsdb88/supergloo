@@ -15,6 +15,30 @@ import (
 	glooV1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
 )
 
+func EnsureMinimumRequiredParams(opts *options.Options) error {
+	rrOpts := &(opts.Create).InputRoutingRule
+
+	// all operations require a target mesh spec
+	if err := nsutil.EnsureMesh(&rrOpts.TargetMesh, opts); err != nil {
+		return err
+	}
+
+	// Validate source and destination upstreams
+	if err := EnsureUpstreams(opts); err != nil {
+		return err
+	}
+
+	// Validate matchers
+	opts.MeshTool.RoutingRule.RequestMatchers = []*glooV1.Matcher{}
+	if rrOpts.Matchers != nil {
+		if err := ValidateMatchers(rrOpts.Matchers, opts.MeshTool.RoutingRule.RequestMatchers); err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
 func EnsureUpstreams(opts *options.Options) error {
 	rrOpts := &(opts.Create).InputRoutingRule
 	if opts.Top.Static {
