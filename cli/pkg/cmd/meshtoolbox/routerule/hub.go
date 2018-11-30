@@ -53,14 +53,16 @@ func AssembleRoutingRule(ruleTypeID string, activeRuleTypes *[]options.Multisele
 
 // TODO(mitchdraft) add the rest of the routing rules here
 func applyRule(id string, opts *options.Options) error {
+	irOpts := opts.Create.InputRoutingRule
 	switch id {
 	case TrafficShifting_Rule:
+		return EnsureTrafficShifting(&irOpts.TrafficShifting, opts)
 	case Timeout_Rule:
 		return EnsureTimeout(opts)
 	case Retries_Rule:
-		return EnsureRetry(&(opts.Create.InputRoutingRule).Retry, opts)
+		return EnsureRetry(&irOpts.Retry, opts)
 	case FaultInjection_Rule:
-		return EnsureFault(&(opts.Create.InputRoutingRule).FaultInjection, opts)
+		return EnsureFault(&irOpts.FaultInjection, opts)
 	case CorsPolicy_Rule:
 		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
 	case Mirror_Rule:

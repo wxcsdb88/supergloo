@@ -16,6 +16,7 @@ type InputRoutingRule struct {
 	Retry            InputRetry
 	FaultInjection   InputFaultInjection
 	ActiveTypes      []MultiselectOptionBool
+	TrafficShifting  InputTrafficShifting
 }
 
 type InputFaultInjection struct {
@@ -41,4 +42,9 @@ type MultiselectOptionBool struct {
 	ID          string
 	DisplayName string
 	Active      bool
+}
+
+type InputTrafficShifting struct {
+	Upstreams string
+	Weights   string
 }

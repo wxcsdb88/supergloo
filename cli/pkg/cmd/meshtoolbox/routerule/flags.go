@@ -104,3 +104,19 @@ func AddFaultFlags(cmd *cobra.Command, opts *options.Options) {
 		"",
 		"Error message (int for type=http errors, string otherwise).")
 }
+
+func AddTrafficShiftingFlags(cmd *cobra.Command, opts *options.Options) {
+	tsOpts := &(opts.Create.InputRoutingRule).TrafficShifting
+	flags := cmd.Flags()
+
+	flags.StringVar(&tsOpts.Upstreams,
+		"traffic.upstreams",
+		"",
+		"Upstreams for this rule. Each entry consists of an upstream namespace and and upstream name, separated by a colon.")
+
+	flags.StringVar(&tsOpts.Weights,
+		"traffic.weights",
+		"",
+		"Comma-separated list of integer weights corresponding to the associated upstream's traffic sharing percentage.")
+
+}

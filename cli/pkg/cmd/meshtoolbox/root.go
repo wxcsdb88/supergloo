@@ -12,7 +12,7 @@ import (
 
 func TrafficShifting(opts *options.Options) *cobra.Command {
 	cmd := generateRouteCmd("traffic-shifting", "Configure traffic shifting parameters", routerule.TrafficShifting_Rule, opts)
-	// routerule.AddTrafficShiftingFlags(cmd, opts)
+	routerule.AddTrafficShiftingFlags(cmd, opts)
 	return cmd
 }
 
