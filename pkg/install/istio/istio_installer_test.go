@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/solo-io/solo-kit/test/helpers"
+
 	"github.com/gogo/protobuf/types"
 
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
@@ -23,16 +25,14 @@ Smoke test for installing and uninstalling istio.
 */
 var _ = Describe("Istio Installer", func() {
 
-	installNamespace := "istio-system"
-	superglooNamespace := "supergloo-system" // this needs to be made before running tests
-	meshName := "istio"
+	superglooNamespace := "supergloo-system"
 
 	path := os.Getenv("HELM_CHART_PATH")
 	if path == "" {
 		path = "https://s3.amazonaws.com/supergloo.solo.io/istio-1.0.3.tgz"
 	}
 
-	getSnapshot := func(install bool) *v1.InstallSnapshot {
+	getSnapshot := func(install bool, installNamespace string, meshName string) *v1.InstallSnapshot {
 		return &v1.InstallSnapshot{
 			Installs: v1.InstallsByNamespace{
 				superglooNamespace: v1.InstallList{
@@ -66,9 +66,14 @@ var _ = Describe("Istio Installer", func() {
 
 	var meshClient v1.MeshClient
 	var syncer install.InstallSyncer
+	var installNamespace string
+	var meshName string
 
 	BeforeEach(func() {
-		util.TryCreateNamespace("supergloo-system")
+		randStr := helpers.RandString(8)
+		installNamespace = "istio-install-test-" + randStr
+		meshName = "istio-mesh-test-" + randStr
+		util.TryCreateNamespace(superglooNamespace)
 		meshClient = util.GetMeshClient(kubeCache)
 		syncer = install.InstallSyncer{
 			Kube:       util.GetKubeClient(),
@@ -78,22 +83,21 @@ var _ = Describe("Istio Installer", func() {
 	})
 
 	AfterEach(func() {
-		util.TerminateNamespaceBlocking("supergloo-system")
-
 		// just in case
 		meshClient.Delete(superglooNamespace, meshName, clients.DeleteOpts{})
 		util.UninstallHelmRelease(meshName)
-		util.TerminateNamespaceBlocking(installNamespace)
+		util.TerminateNamespace(installNamespace) // random named, no need to block
 		util.DeleteCrb(istio.CrbName)
+		util.TerminateNamespaceBlocking(superglooNamespace)
 	})
 
 	It("Can install and uninstall istio", func() {
-		snap := getSnapshot(true)
+		snap := getSnapshot(true, installNamespace, meshName)
 		err := syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(util.WaitForAvailablePods(installNamespace)).To(BeEquivalentTo(9))
 
-		snap = getSnapshot(false)
+		snap = getSnapshot(false, installNamespace, meshName)
 		err = syncer.Sync(context.TODO(), snap)
 		Expect(err).NotTo(HaveOccurred())
 

@@ -73,15 +73,22 @@ func getOverrides(encryption *v1.Encryption) string {
 	return strings.Replace(overridesWithMtlsFlag, "@@SELF_SIGNED@@", selfSignedString, -1)
 }
 
+/*
+If we set global.controlPlaneSecurityEnabled and security.enabled to false, then citadel doesn't get deployed
+and we don't generate the default mesh policy or destination rules, nor do we get automatic sidecar injection
+because galley and the injector don't start up properly. We set them to true to always deploy citadel, and
+do automatic sidecar injection, and to create a default mesh policy and destination rule. If global.mtls is true,
+then the sidecars will enforce MUTUAL_TLS. If global.mtls is false, then the sidecars will be PERMISSIVE.
+*/
 var overridesYaml = `#overrides
 global:
   mtls:
     enabled: @@MTLS_ENABLED@@
   crds: false
-  controlPlaneSecurityEnabled: @@MTLS_ENABLED@@
+  controlPlaneSecurityEnabled: true
 security:
   selfSigned: @@SELF_SIGNED@@
-  enabled: @@MTLS_ENABLED@@
+  enabled: true
 
 `
 
