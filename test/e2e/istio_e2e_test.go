@@ -146,24 +146,45 @@ var _ = Describe("Istio Install and Encryption E2E", func() {
 	})
 
 	Describe("istio + encryption", func() {
-		// TODO: pending until citadel error is diagnosed and update to solo-kit to emit defaults when serializing secrets is pushed through
-		// currently citadel fails with the following error:
-		// Failed to create an Citadel (error: [failed to create CA KeyCertBundle (failed to parse cert PEM: invalid PEM encoded certificate)])
-		// see this commit for change needed in solo-kit: c9543f187713059188f6d67e02b0408cb883ea44
-		PIt("Can install istio with mtls enabled and custom root cert", func() {
+		It("Can install istio with mtls enabled and custom root cert", func() {
 			secret, ref := util.CreateTestRsaSecret(superglooNamespace, secretName)
 			snap := getSnapshot(true, true, ref, secret)
 			err := installSyncer.Sync(context.TODO(), snap)
 			Expect(err).NotTo(HaveOccurred())
 
-			util.WaitForAvailablePods(installNamespace)
-			_, err = meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+			Expect(util.WaitForAvailablePods(installNamespace)).To(BeEquivalentTo(9))
+			// At this point citadel has started up with self-signed to false and a mounted cacerts
+
+			// make sure what's in cacerts is right
+			util.CheckCertMatchesIstio(installNamespace)
+		})
+
+		It("Can install istio with mtls enabled and deploy custom cert later", func() {
+			secret, ref := util.CreateTestRsaSecret(superglooNamespace, secretName)
+			snap := getSnapshot(true, true, nil, nil)
+			err := installSyncer.Sync(context.TODO(), snap)
 			Expect(err).NotTo(HaveOccurred())
 
+			Expect(util.WaitForAvailablePods(installNamespace)).To(BeEquivalentTo(9))
+
+			mesh, err := meshClient.Read(superglooNamespace, meshName, clients.ReadOpts{})
+			Expect(err).NotTo(HaveOccurred())
+			mesh.Encryption.Secret = ref
+
+			syncer := istioSync.EncryptionSyncer{
+				SecretClient:   util.GetSecretClient(),
+				Kube:           util.GetKubeClient(),
+				IstioNamespace: installNamespace,
+			}
+			err = syncer.Sync(context.TODO(), getTranslatorSnapshot(mesh, secret))
+			Expect(err).NotTo(HaveOccurred())
+
+			// syncer will restart citadel
+			Expect(util.WaitForAvailablePods(installNamespace)).To(BeEquivalentTo(9))
+			// At this point citadel has started up with self-signed to false and a mounted cacerts
+
+			// make sure what's in cacerts is right
 			util.CheckCertMatchesIstio(installNamespace)
-			// TODO: add more checking:
-			// - istio.default has actually been deleted and not regenerating
-			// - new certs are signed correctly
 		})
 
 		It("Can install istio with mtls enabled and self-signing", func() {
