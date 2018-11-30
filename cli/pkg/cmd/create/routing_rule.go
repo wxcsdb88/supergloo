@@ -5,14 +5,15 @@ import (
 
 	"github.com/solo-io/supergloo/cli/pkg/common"
 
-	types "github.com/gogo/protobuf/types"
+	// types "github.com/gogo/protobuf/types"
 	"github.com/solo-io/solo-kit/pkg/api/v1/clients"
-	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
+	// "github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/meshtoolbox/routerule"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/cli/pkg/nsutil"
 	glooV1 "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
-	superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
+
+	// superglooV1 "github.com/solo-io/supergloo/pkg/api/v1"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +25,8 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 		Long:  `Create a route rule with the given name`,
 		Args:  cobra.ExactArgs(1),
 		Run: func(c *cobra.Command, args []string) {
-			if err := createRoutingRule(args[0], opts); err != nil {
+			rrOpts.RouteName = args[0]
+			if err := createRoutingRule(opts); err != nil {
 				fmt.Println(err)
 				return
 			}
@@ -40,7 +42,7 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 	return cmd
 }
 
-func createRoutingRule(routeName string, opts *options.Options) error {
+func createRoutingRule(opts *options.Options) error {
 	rrOpts := &(opts.Create).InputRoutingRule
 
 	// all operations require a target mesh spec
@@ -61,32 +63,14 @@ func createRoutingRule(routeName string, opts *options.Options) error {
 		}
 
 	}
-	// Initialize the root of our RoutingRule with the minimal required params
-	// TODO(mitchdraft) move these fields out s.t. they are populated by the ensure methods
-	opts.MeshTool.RoutingRule = superglooV1.RoutingRule{
-		Metadata: core.Metadata{
-			Name:      routeName,
-			Namespace: rrOpts.TargetMesh.Namespace,
-		},
-		TargetMesh:      &rrOpts.TargetMesh,
-		Sources:         opts.MeshTool.RoutingRule.Sources,
-		Destinations:    opts.MeshTool.RoutingRule.Destinations,
-		RequestMatchers: opts.MeshTool.RoutingRule.RequestMatchers,
+
+	opts.Create.InputRoutingRule.ActiveTypes = routerule.GenerateActiveRuleList(routerule.USE_ALL_ROUTING_RULES)
+	fmt.Println("opts.Create.InputRoutingRule.ActiveTypes")
+	fmt.Println(opts.Create.InputRoutingRule.ActiveTypes)
+	if err := routerule.EnsureActiveRoutingRuleTypes(&(opts.Create.InputRoutingRule).ActiveTypes, opts.Top.Static); err != nil {
+		return err
 	}
-
-	// Timeout
-	opts.MeshTool.RoutingRule.Timeout = &types.Duration{}
-	// if err := routerule.EnsureDuration(&(opts.Create.InputRoutingRule).Timeout, opts.MeshTool.RoutingRule.Timeout, opts); err != nil {
-	// 	return err
-	// }
-
-	// // Retry
-	// if err := routerule.EnsureRetry(&(opts.Create.InputRoutingRule).Retry, opts); err != nil {
-	// 	return err
-	// }
-
-	// FaultInjection
-	if err := routerule.EnsureFault(&(opts.Create.InputRoutingRule).FaultInjection, opts); err != nil {
+	if err := routerule.AssembleRoutingRule(opts.Create.InputRoutingRule.ActiveTypes, opts); err != nil {
 		return err
 	}
 

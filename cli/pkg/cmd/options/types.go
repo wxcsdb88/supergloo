@@ -1,7 +1,6 @@
 package options
 
 import (
-	types "github.com/gogo/protobuf/types"
 	core "github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
 
 	// gloo "github.com/solo-io/supergloo/pkg/api/external/gloo/v1"
@@ -79,17 +78,6 @@ type Get struct {
 	Output string
 }
 
-type InputRoutingRule struct {
-	TargetMesh       core.ResourceRef
-	Sources          string
-	Destinations     string
-	Matchers         []string
-	OverrideExisting bool
-	Timeout          InputDuration
-	Retry            InputRetry
-	FaultInjection   InputFaultInjection
-}
-
 type InputDuration struct {
 	Seconds string
 	Nanos   string
@@ -99,42 +87,6 @@ type InputRetry struct {
 	Attempts      string
 	PerTryTimeout InputDuration
 }
-
-type InputFaultInjection struct {
-	DelayPercent string // int32
-
-	// Options:
-	//	*HTTPFaultInjection_Delay_FixedDelay // Duration
-	//	*HTTPFaultInjection_Delay_ExponentialDelay // Duration
-	HttpDelayType  string
-	HttpDelayValue InputDuration
-	// store duration until oneof is resolved
-	HttpDelayValueStore types.Duration
-
-	AbortPercent string // int32
-
-	// Options:
-	//	*HTTPFaultInjection_Abort_HttpStatus // int32
-	//	*HTTPFaultInjection_Abort_GrpcStatus // string
-	//	*HTTPFaultInjection_Abort_Http2Error // string
-	ErrorType    string
-	ErrorMessage string
-}
-
-// // Route Rule fields
-// Status
-// Metadata
-// TargetMesh
-// Sources
-// Destinations
-// RequestMatchers
-// TrafficShifting
-// FaultInjection
-// Timeout
-// Retries
-// CorsPolicy
-// Mirror
-// HeaderManipulaition
 
 // TODO(mitchdraft) Rename this NewSecret (to disambigute from secret ResourceRef)
 type Secret struct {
