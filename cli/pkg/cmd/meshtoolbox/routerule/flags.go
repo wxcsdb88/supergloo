@@ -161,3 +161,13 @@ func AddCorsFlags(cmd *cobra.Command, opts *options.Options) {
 		"Indicates whether the caller is allowed to send the actual request (not the preflight) using credentials. Translates to Access-Control-Allow-Credentials header.")
 
 }
+
+func AddMirrorFlags(cmd *cobra.Command, opts *options.Options) {
+	mOpts := &(opts.Create.InputRoutingRule).Mirror
+	flags := cmd.Flags()
+
+	flags.StringVar(&mOpts.Upstream,
+		"mirror",
+		"",
+		"Destination upstream (ex: upstream_namespace:upstream_name).")
+}

@@ -18,6 +18,7 @@ type InputRoutingRule struct {
 	ActiveTypes      []MultiselectOptionBool
 	TrafficShifting  InputTrafficShifting
 	Cors             InputCors
+	Mirror           InputMirror
 }
 
 type InputFaultInjection struct {
@@ -57,4 +58,8 @@ type InputCors struct {
 	ExposeHeaders    string
 	MaxAge           InputDuration
 	AllowCredentials bool
+}
+
+type InputMirror struct {
+	Upstream string
 }

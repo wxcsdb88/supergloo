@@ -66,7 +66,7 @@ func applyRule(id string, opts *options.Options) error {
 	case CorsPolicy_Rule:
 		return EnsureCors(&irOpts.Cors, opts)
 	case Mirror_Rule:
-		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
+		return EnsureMirror(&irOpts.Mirror, opts)
 	case HeaderManipulaition_Rule:
 		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
 	default:

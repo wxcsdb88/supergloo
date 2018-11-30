@@ -42,7 +42,7 @@ func CorsPolicy(opts *options.Options) *cobra.Command {
 
 func Mirror(opts *options.Options) *cobra.Command {
 	cmd := generateRouteCmd("mirror", "Configure mirror parameters", routerule.Mirror_Rule, opts)
-	// routerule.AddMirrorFlags(cmd, opts)
+	routerule.AddMirrorFlags(cmd, opts)
 	return cmd
 }
 
