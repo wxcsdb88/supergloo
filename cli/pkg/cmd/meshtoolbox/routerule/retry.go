@@ -16,7 +16,7 @@ func EnsureRetry(irOpts *options.InputRetry, opts *options.Options) error {
 	}
 	// Gather the attempt count
 	if !opts.Top.Static {
-		err := iutil.GetStringInput("Please the number of retry attempts", &irOpts.Attempts)
+		err := iutil.GetStringInput("Please specify the number of retry attempts", &irOpts.Attempts)
 		if err != nil {
 			return err
 		}
