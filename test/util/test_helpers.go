@@ -192,7 +192,7 @@ func GetSecretClient() istiosecret.IstioCacertsSecretClient {
 	return secretClient
 }
 
-func TryCreateNamespace(namespace string) {
+func TryCreateNamespace(namespace string) bool {
 	client := GetKubeClient()
 	resource := &kubecore.Namespace{
 		ObjectMeta: kubemeta.ObjectMeta{
@@ -202,7 +202,9 @@ func TryCreateNamespace(namespace string) {
 	_, err := client.CoreV1().Namespaces().Create(resource)
 	if err != nil {
 		ExpectWithOffset(1, apierrors.IsAlreadyExists(err)).To(BeTrue())
+		return false
 	}
+	return true
 }
 
 func TerminateNamespace(namespace string) {

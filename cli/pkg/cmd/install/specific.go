@@ -3,6 +3,8 @@ package install
 import (
 	"fmt"
 
+	"github.com/solo-io/supergloo/pkg/constants"
+
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
 	"github.com/solo-io/supergloo/pkg/api/v1"
 	"gopkg.in/AlecAivazis/survey.v1"
@@ -20,7 +22,7 @@ func generateConsulInstallSpecFromOpts(opts *options.Options) *v1.Install {
 		ChartLocator: &v1.HelmChartLocator{
 			Kind: &v1.HelmChartLocator_ChartPath{
 				ChartPath: &v1.HelmChartPath{
-					Path: "https://s3.amazonaws.com/supergloo.solo.io/consul.tar.gz",
+					Path: constants.ConsulInstallPath,
 				},
 			},
 		},
@@ -42,7 +44,7 @@ func generateIstioInstallSpecFromOpts(opts *options.Options) *v1.Install {
 		ChartLocator: &v1.HelmChartLocator{
 			Kind: &v1.HelmChartLocator_ChartPath{
 				ChartPath: &v1.HelmChartPath{
-					Path: "https://s3.amazonaws.com/supergloo.solo.io/istio-1.0.3.tgz",
+					Path: constants.IstioInstallPath,
 				},
 			},
 		},
@@ -63,7 +65,7 @@ func generateLinkerd2InstallSpecFromOpts(opts *options.Options) *v1.Install {
 		ChartLocator: &v1.HelmChartLocator{
 			Kind: &v1.HelmChartLocator_ChartPath{
 				ChartPath: &v1.HelmChartPath{
-					Path: "https://s3.amazonaws.com/supergloo.solo.io/linkerd2-0.1.0.tgz",
+					Path: constants.LinkerdInstallPath,
 				},
 			},
 		},
