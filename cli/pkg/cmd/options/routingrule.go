@@ -6,19 +6,20 @@ import (
 
 // InputRoutingRule is used to gather user input
 type InputRoutingRule struct {
-	RouteName        string
-	TargetMesh       core.ResourceRef
-	Sources          string
-	Destinations     string
-	Matchers         []string
-	OverrideExisting bool
-	Timeout          InputDuration
-	Retry            InputRetry
-	FaultInjection   InputFaultInjection
-	ActiveTypes      []MultiselectOptionBool
-	TrafficShifting  InputTrafficShifting
-	Cors             InputCors
-	Mirror           InputMirror
+	RouteName          string
+	TargetMesh         core.ResourceRef
+	Sources            string
+	Destinations       string
+	Matchers           []string
+	OverrideExisting   bool
+	Timeout            InputDuration
+	Retry              InputRetry
+	FaultInjection     InputFaultInjection
+	ActiveTypes        []MultiselectOptionBool
+	TrafficShifting    InputTrafficShifting
+	Cors               InputCors
+	Mirror             InputMirror
+	HeaderManipulation InputHeaderManipulation
 }
 
 type InputFaultInjection struct {
@@ -62,4 +63,11 @@ type InputCors struct {
 
 type InputMirror struct {
 	Upstream string
+}
+
+type InputHeaderManipulation struct {
+	RemoveResponseHeaders string
+	AppendResponseHeaders string
+	RemoveRequestHeaders  string
+	AppendRequestHeaders  string
 }

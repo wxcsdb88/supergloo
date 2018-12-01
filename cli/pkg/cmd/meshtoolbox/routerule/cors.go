@@ -1,12 +1,8 @@
 package routerule
 
 import (
-	"fmt"
-	"strings"
-
 	types "github.com/gogo/protobuf/types"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
-	"github.com/solo-io/supergloo/cli/pkg/common/iutil"
 	v1alpha3 "github.com/solo-io/supergloo/pkg/api/external/istio/networking/v1alpha3"
 )
 
@@ -33,19 +29,5 @@ func EnsureCors(irOpts *options.InputCors, opts *options.Options) error {
 	}
 
 	opts.MeshTool.RoutingRule.CorsPolicy = target
-	return nil
-}
-
-func ensureCsv(message string, source string, target *[]string, staticMode bool) error {
-	if staticMode && source == "" {
-		return fmt.Errorf(message)
-	}
-	if !staticMode {
-		if err := iutil.GetStringInput(message, &source); err != nil {
-			return err
-		}
-	}
-	parts := strings.Split(source, ",")
-	*target = parts
 	return nil
 }

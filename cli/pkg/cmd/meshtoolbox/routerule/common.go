@@ -3,6 +3,7 @@ package routerule
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	types "github.com/gogo/protobuf/types"
 	"github.com/solo-io/supergloo/cli/pkg/cmd/options"
@@ -55,6 +56,33 @@ func EnsurePercentage(message string, source *string, target *int32, opts *optio
 			return err
 		}
 		*target = int32(percentage)
+	}
+	return nil
+}
+
+func ensureCsv(message string, source string, target *[]string, staticMode bool) error {
+	if staticMode && source == "" {
+		return fmt.Errorf(message)
+	}
+	if !staticMode {
+		if err := iutil.GetStringInput(message, &source); err != nil {
+			return err
+		}
+	}
+	parts := strings.Split(source, ",")
+	*target = parts
+	return nil
+}
+
+// Expected format of source: k1,v1,k2,v2
+func ensureKVCsv(message string, source string, target *map[string]string, staticMode bool) error {
+	parts := []string{}
+	ensureCsv(message, source, &parts, staticMode)
+	if len(parts)%2 != 0 {
+		return fmt.Errorf("Must provide one key per value (received an odd sum)")
+	}
+	for i := 0; i < len(parts)/2; i++ {
+		(*target)[parts[i*2]] = parts[i*2+1]
 	}
 	return nil
 }

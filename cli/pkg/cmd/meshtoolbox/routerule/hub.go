@@ -68,7 +68,7 @@ func applyRule(id string, opts *options.Options) error {
 	case Mirror_Rule:
 		return EnsureMirror(&irOpts.Mirror, opts)
 	case HeaderManipulaition_Rule:
-		return fmt.Errorf("This cmd is under development. It will be available in December 2018")
+		return EnsureHeaderManipulation(&irOpts.HeaderManipulation, opts)
 	default:
 		return fmt.Errorf("Unknown routing rule type %v", id)
 	}

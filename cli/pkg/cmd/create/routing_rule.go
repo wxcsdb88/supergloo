@@ -32,6 +32,8 @@ func RoutingRuleCmd(opts *options.Options) *cobra.Command {
 	routerule.AddRetryFlags(cmd, opts)
 	routerule.AddFaultFlags(cmd, opts)
 	routerule.AddCorsFlags(cmd, opts)
+	routerule.AddMirrorFlags(cmd, opts)
+	routerule.AddHeaderManipulationFlags(cmd, opts)
 
 	return cmd
 }

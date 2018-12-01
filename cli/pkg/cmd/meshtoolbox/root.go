@@ -48,7 +48,7 @@ func Mirror(opts *options.Options) *cobra.Command {
 
 func HeaderManipulation(opts *options.Options) *cobra.Command {
 	cmd := generateRouteCmd("header-manipulation", "Configure header manipulation parameters", routerule.HeaderManipulaition_Rule, opts)
-	// routerule.AddHeaderManipulationFlags(cmd, opts)
+	routerule.AddHeaderManipulationFlags(cmd, opts)
 	return cmd
 }
 

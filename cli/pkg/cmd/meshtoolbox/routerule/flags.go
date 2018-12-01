@@ -171,3 +171,25 @@ func AddMirrorFlags(cmd *cobra.Command, opts *options.Options) {
 		"",
 		"Destination upstream (ex: upstream_namespace:upstream_name).")
 }
+
+func AddHeaderManipulationFlags(cmd *cobra.Command, opts *options.Options) {
+	hOpts := &(opts.Create.InputRoutingRule).HeaderManipulation
+	flags := cmd.Flags()
+
+	flags.StringVar(&hOpts.RemoveResponseHeaders,
+		"header.response.remove",
+		"",
+		"Headers to remove from response (ex: h1,h2).")
+	flags.StringVar(&hOpts.AppendResponseHeaders,
+		"header.response.append",
+		"",
+		"Headers to append to response (ex: h1,v1,h2,v2).")
+	flags.StringVar(&hOpts.RemoveRequestHeaders,
+		"header.request.remove",
+		"",
+		"Headers to remove from request (ex: h1,h2).")
+	flags.StringVar(&hOpts.AppendRequestHeaders,
+		"header.request.append",
+		"",
+		"Headers to append to request (ex: h1,v1,h2,v2).")
+}
